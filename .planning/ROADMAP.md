@@ -70,12 +70,12 @@ Plans:
   3. The placed block draws a real model rather than the purple-and-black missing-model checkerboard, and the item draws a real icon in the hotbar
   4. Blockstate, block model, and item model JSON exist under `src/main/generated`, with no hand-written equivalent under `src/main/resources`
 
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Wave 1 (tracer): register `TransitChartBlock` end to end — 4-way facing from the placing player, Functional Blocks creative tab, and a generated blockstate/block-model/item-model set proven correct and regenerable (BLOCK-01, BLOCK-02, BLOCK-03, GEN-01, GEN-02)
+- [x] 02-01-PLAN.md — Wave 1 (tracer): register `TransitChartBlock` end to end — 4-way facing from the placing player, Functional Blocks creative tab, and a generated blockstate/block-model/item-model set proven correct and regenerable (BLOCK-01, BLOCK-02, BLOCK-03, GEN-01, GEN-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -239,7 +239,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
-| 2. Block Exists and Places | 0/2 | Planned | - |
+| 2. Block Exists and Places | 1/2 | In Progress|  |
 | 3. Craft, Break, and Identify | 0/TBD | Not started | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
 | 5. Configuration and Async Fetch | 0/TBD | Not started | - |
