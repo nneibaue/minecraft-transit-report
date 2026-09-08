@@ -173,3 +173,12 @@ None - no external service configuration required. (The `user_setup` entry in th
 
 *Phase: 01-toolchain-verification*
 *Completed: 2026-09-08*
+
+## Self-Check: PASSED
+
+- FOUND: src/main/resources/fabric.mod.json
+- FOUND: build.gradle
+- FOUND: .planning/phases/01-toolchain-verification/01-01-SUMMARY.md
+- FOUND: commit 87c2b20 (Task 1)
+- FOUND: commit 46df129 (approved Mod Menu deviation)
+- FOUND: commit c2d2b23 (plan metadata / SUMMARY commit)
