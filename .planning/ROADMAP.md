@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Toolchain Verification** - Confirm the dev client launches and datagen writes output; settle the `client = true` question (completed 2026-09-08)
 - [x] **Phase 2: Block Exists and Places** - A display block obtainable in creative, placeable, storing 4-way facing, with generated models (completed 2026-09-08)
-- [ ] **Phase 3: Craft, Break, and Identify** - Shapeless dirt recipe, self-drop loot table, translated name and tooltip
+- [x] **Phase 3: Craft, Break, and Identify** - Shapeless dirt recipe, self-drop loot table, translated name and tooltip (completed 2026-09-08)
 - [ ] **Phase 4: Static Chart Rendering** - Block entity renderer draws an oversized, self-lit, correctly-oriented bundled image
 - [ ] **Phase 5: Configuration and Async Fetch** - Config-driven base URL and interval; PNG bytes fetched off-thread and logged (parallel to 2-4)
 - [ ] **Phase 6: Dynamic Texture Pipeline** - Arbitrary PNG bytes become a live, swappable, non-leaking texture on the block
@@ -249,7 +249,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 |-------|----------------|--------|-----------|
 | 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
 | 2. Block Exists and Places | 2/2 | Complete    | 2026-09-08 |
-| 3. Craft, Break, and Identify | 2/2 | In Progress|  |
+| 3. Craft, Break, and Identify | 2/2 | Complete    | 2026-09-08 |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
 | 5. Configuration and Async Fetch | 0/TBD | Not started | - |
 | 6. Dynamic Texture Pipeline | 0/TBD | Not started | - |
