@@ -38,3 +38,8 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# Windows NTFS "mark of the web" sidecars. Materialized as real files when the
+# project template was copied out of WSL; processResources otherwise copies them
+# into the shipped jar. See .planning/phases/01-toolchain-verification/01-REVIEW.md CR-01.
+*Zone.Identifier*
