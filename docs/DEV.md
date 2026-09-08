@@ -163,6 +163,102 @@ covering all three checks in one statement —
   regardless of tool — bare hand, shovel, and pickaxe all behaved identically — and the recipe
   appeared in the recipe book.
 
+### Phase 4 rendering findings
+
+Settled by observation while building `TransitChartBlockEntity` and `TransitChartRenderer`
+(04-01-PLAN.md's "Corrections to 04-RESEARCH.md / 04-PATTERNS.md" section; full detail in
+`.planning/phases/04-static-chart-rendering/04-01-SUMMARY.md`). This retires 04-01-PLAN.md's
+Correction 9 open question (rotation sign) and records the API corrections most likely to recur
+in Phase 6's dynamic texture pipeline.
+
+**Rotation sign (Correction 9) — confirmed, no flip needed.** `Axis.YP.rotationDegrees(
+-facing.toYRot())` — the negated form, Correction 9's default recommendation — is correct as
+written. Confirmed against the real, asymmetric `sample-bodygraph.png` across all four horizontal
+placements (north/south/east/west): the head-triangle points up and the image is never mirrored
+left-right relative to the direction the block was placed facing, in every orientation. No sign
+flip was needed at any point across this phase's several rounds of visual iteration (see design
+deviations below) — the z/y-anchor changes made along the way are translations along local axes
+that the rotation step itself never touches, so they had no bearing on the sign.
+
+**D-06 (no size clamp) — confirmed no problem.** The single known 512x800 bundled image rendered
+correctly at every orientation, distance, and lighting condition tested, with no stretching,
+squashing, or other visible size-related defect. Deferring a sanity clamp to Phase 6/7 (once
+arbitrary live-API image sizes are actually possible) cost nothing this phase.
+
+**Four API corrections most likely to recur in Phase 6** (verified via `javap` against this
+project's own compiled jars, per 04-01-PLAN.md's Corrections section — carried forward here so
+Phase 6 does not have to re-derive them):
+
+1. **`BlockEntity.getRenderBoundingBox()` does not exist on this Minecraft version.** It is a
+   Forge-only API from older versions; grepping the full contents of both the client and common
+   jars for `RenderBoundingBox` (any case) returns zero matches. The real mechanism for "this
+   block entity's render extends past its own footprint and must not be culled" is
+   `BlockEntityRenderer.shouldRenderOffScreen(T)` — a default interface method returning `false`,
+   overridden to `true` on `TransitChartRenderer` (mirrors vanilla's `BeaconRenderer`).
+2. **The emissive light constant is `net.minecraft.client.renderer.LightTexture.FULL_BRIGHT`**,
+   not `LightmapTextureManager.MAX_LIGHT_COORDINATE` (the Yarn name; `LightmapTextureManager`
+   does not exist in this jar at all).
+3. **The Fabric renderer-registration class is
+   `net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry`**, not
+   `BlockEntityRenderers`. One caveat worth carrying forward: `javap` confirms this entire class
+   is itself marked `@Deprecated` in `fabric-rendering-v1 3.0.10+54550fb677` (the version this
+   project resolves) — it still compiles and works correctly (confirmed by a clean `runClient`
+   session with the renderer registered and rendering), so it was kept rather than chased into an
+   undocumented replacement, but Phase 6 should expect this deprecation notice and not mistake it
+   for a bug.
+4. **A directly-bound (non-block-model) texture `ResourceLocation` must include the full
+   `textures/...` prefix and the `.png` suffix** — e.g. `textures/block/transit_chart.png`, not
+   `block/transit_chart`. This differs from the block-model `TextureSlot` convention (which strips
+   both).
+
+One more pattern worth carrying forward, found while resolving the design deviations below:
+`BlockBehaviour`'s `getShape(...)` and `getRenderShape(...)` methods are themselves marked
+`@Deprecated` on this Minecraft version (confirmed via `javap`) even though they are the correct,
+intended override points — this is Mojang's own convention for marking "don't call this
+directly, override it instead" methods, not a sign the API is going away. Vanilla's own
+`WallBannerBlock` overrides `getShape(...)` the same way. Expect this deprecation notice
+whenever overriding block shape/render-shape methods and do not treat it as a defect.
+
+**Design deviations from the original plan, confirmed correct by direct user observation
+in-game.** 04-01-PLAN.md's Task 1 action, as originally written, specified a full-cube block with
+the chart floating in front of its `FACING` face, `BASE_WIDTH = 2.0f`, and a bottom-anchored quad
+(D-05/D-08). After building that literally and reviewing it in a running client, the user
+requested four rounds of iterative visual refinement, each verified in-game before the next was
+attempted. The final, shipped design differs from 04-CONTEXT.md's locked decisions as follows:
+
+- **Block is a thin, wall-hugging shape, not a full cube.** `TransitChartBlock.getShape(...)`
+  returns a `VoxelShape` keyed by `FACING`, 2/16 of a block deep, hugging the face **opposite**
+  `FACING` (the wall/mounting side) — not the default full 1x1x1 cube. Pattern and per-direction
+  convention confirmed against vanilla's `WallBannerBlock` (`javap` against `Block.class`).
+- **`getRenderShape(BlockState)` returns `RenderShape.INVISIBLE`.** The datagen'd cube model
+  (Phase 2/3, still present and still generated) is suppressed entirely — only
+  `TransitChartRenderer`'s floating quad is ever drawn for this block. This is deliberate and
+  explicit, distinct from 02-CONTEXT.md's D-08 landmine (which is about `BaseEntityBlock`
+  *silently* defaulting to `INVISIBLE` as a side effect of a base-class switch); this override is
+  intentional and added directly on the `HorizontalDirectionalBlock` base already in use.
+- **`TransitReportBlocks.TRANSIT_CHART`'s `Properties` now call `.noOcclusion()`.** Without it,
+  vanilla's neighbor face-culling still treated the (now thin, invisible) block as occluding,
+  leaving a rendering hole in the wall block behind it until an unrelated chunk rebuild (e.g.
+  breaking the block) recalculated it.
+- **Chart quad z-anchor is wall-flush (`Z_OFFSET` alone), not floating off the far face
+  (`1.0f + Z_OFFSET`).** Once the block became invisible with its hitbox on the near/wall-side
+  face, the quad had to move to that same face or it visibly floated a full block into the room.
+- **Chart quad is vertically centered on the block's middle, not bottom-anchored.** Deviates from
+  D-08's locked "bottom-anchored" decision. D-08's own reasoning assumed the original
+  `BASE_WIDTH = 2.0f` (~3.1 blocks tall), where centering would have clipped into the floor; after
+  the width was shrunk (next bullet), `computedHeight` (~2.34 blocks) no longer risks a floor-clip
+  at this size, and centering reads correctly instead of "floating high" above the block.
+- **`BASE_WIDTH` is `1.5f`, not `2.0f`.** Deviates from D-05's locked width value. Height still
+  derives from this via the unchanged aspect-preserving formula, so it shrinks proportionally —
+  no distortion was introduced.
+
+All five deviations were requested and confirmed correct through direct in-game visual review
+across four checkpoint rounds — they are refinements to a working implementation, not fixes to
+broken behavior. REND-01 through REND-07 hold under the final, shipped design: the chart still
+appears larger than the block's footprint, at its real aspect ratio, oriented per `FACING`
+in all four horizontal directions, fully legible in total darkness, and visible without
+popping/culling at the default 64-block render distance.
+
 ## JDK requirement
 
 There are two separate JDK questions here, and conflating them is the most common setup mistake
