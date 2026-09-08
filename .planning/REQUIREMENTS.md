@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **BLOCK-03**: The block stores a 4-way horizontal facing state, set from the direction the player faced when placing it
 - [x] **BLOCK-04**: Player can craft the display block from a single dirt block, shapeless, in the 2×2 inventory crafting grid — no crafting table required (deliberate testing recipe, see Crafting Recipe below)
 - [x] **BLOCK-05**: Breaking the block drops the block item back to the player
-- [ ] **BLOCK-06**: The item shows a tooltip naming the block and stating that right-click refreshes it
+- [x] **BLOCK-06**: The item shows a tooltip naming the block and stating that right-click refreshes it
 
 ### Data Generation
 
@@ -29,7 +29,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **GEN-03**: The active crafting recipe JSON (single dirt, shapeless) is produced by data generation
 - [x] **GEN-06**: The intended thematic recipe is retained as commented-out code in the recipe provider, adjacent to the active one, so swapping it in is uncommenting rather than rewriting
 - [x] **GEN-04**: The block loot table JSON is produced by data generation
-- [ ] **GEN-05**: Translation strings (block name, tooltip, any messages) are produced by data generation
+- [x] **GEN-05**: Translation strings (block name, tooltip, any messages) are produced by data generation
 
 ### Rendering
 
@@ -155,13 +155,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BLOCK-03 | Phase 2 | Complete |
 | BLOCK-04 | Phase 3 | Complete |
 | BLOCK-05 | Phase 3 | Complete |
-| BLOCK-06 | Phase 3 | Pending |
+| BLOCK-06 | Phase 3 | Complete |
 | GEN-01 | Phase 2 | Complete |
 | GEN-02 | Phase 2 | Complete |
 | GEN-03 | Phase 3 | Complete |
 | GEN-06 | Phase 3 | Complete |
 | GEN-04 | Phase 3 | Complete |
-| GEN-05 | Phase 3 | Pending |
+| GEN-05 | Phase 3 | Complete |
 | REND-01 | Phase 4 | Pending |
 | REND-02 | Phase 4 | Pending |
 | REND-03 | Phase 4 | Pending |
