@@ -147,12 +147,65 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (Pending roadmap creation) | — | Pending |
+| TOOL-01 | Phase 1 | Pending |
+| TOOL-02 | Phase 1 | Pending |
+| TOOL-03 | Phase 1 | Pending |
+| BLOCK-01 | Phase 2 | Pending |
+| BLOCK-02 | Phase 2 | Pending |
+| BLOCK-03 | Phase 2 | Pending |
+| BLOCK-04 | Phase 3 | Pending |
+| BLOCK-05 | Phase 3 | Pending |
+| BLOCK-06 | Phase 3 | Pending |
+| GEN-01 | Phase 2 | Pending |
+| GEN-02 | Phase 2 | Pending |
+| GEN-03 | Phase 3 | Pending |
+| GEN-06 | Phase 3 | Pending |
+| GEN-04 | Phase 3 | Pending |
+| GEN-05 | Phase 3 | Pending |
+| REND-01 | Phase 4 | Pending |
+| REND-02 | Phase 4 | Pending |
+| REND-03 | Phase 4 | Pending |
+| REND-04 | Phase 4 | Pending |
+| REND-05 | Phase 4 | Pending |
+| REND-06 | Phase 4 | Pending |
+| REND-07 | Phase 4 | Pending |
+| TEX-01 | Phase 6 | Pending |
+| TEX-02 | Phase 6 | Pending |
+| TEX-03 | Phase 6 | Pending |
+| TEX-04 | Phase 6 | Pending |
+| TEX-05 | Phase 6 | Pending |
+| TEX-06 | Phase 6 | Pending |
+| API-01 | Phase 5 | Pending |
+| API-02 | Phase 5 | Pending |
+| API-03 | Phase 5 | Pending |
+| API-04 | Phase 5 | Pending |
+| API-05 | Phase 5 | Pending |
+| API-06 | Phase 7 | Pending |
+| API-07 | Phase 7 | Pending |
+| REF-01 | Phase 8 | Pending |
+| REF-02 | Phase 7 | Pending |
+| REF-03 | Phase 8 | Pending |
+| REF-04 | Phase 8 | Pending |
+| REF-05 | Phase 10 | Pending |
+| REF-06 | Phase 10 | Pending |
+| REL-01 | Phase 9 | Pending |
+| REL-02 | Phase 9 | Pending |
+| REL-03 | Phase 9 | Pending |
+| REL-04 | Phase 9 | Pending — review-only verification, see Verification Notes |
+| REL-05 | Phase 9 | Pending |
+| REL-06 | Phase 9 | Pending |
+| CFG-01 | Phase 5 | Pending |
+| CFG-02 | Phase 5 | Pending |
+| CFG-03 | Phase 5 | Pending |
+| CFG-04 | Phase 10 | Pending |
+| CFG-05 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 48 total
-- Mapped to phases: 0
-- Unmapped: 48 ⚠️
+- v1 requirements: 52 total
+- Mapped to phases: 52
+- Unmapped: 0 ✓
+
+> **Count correction (2026-09-07, roadmap creation):** this section previously stated 48 total v1 requirements. Counting the defined IDs above gives 52. The count, not the requirement set, was wrong; nothing was added or removed.
 
 ## Crafting Recipe
 
@@ -183,4 +236,4 @@ All four ingredients exist in Minecraft 1.20.1 (Amethyst Shard and Glow Ink Sac 
 
 ---
 *Requirements defined: 2026-09-07*
-*Last updated: 2026-09-07 after initial definition*
+*Last updated: 2026-09-07 after roadmap creation — traceability populated, v1 count corrected 48 → 52*
