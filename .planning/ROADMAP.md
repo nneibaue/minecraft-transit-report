@@ -124,12 +124,12 @@ Plans:
   4. The image stays fully legible in a sealed dark room with no light sources
   5. The image is still drawn when the player stands 64 blocks away
 
-**Plans**: 1 plan
+**Plans**: 1/1 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Wave 1 (tracer + expansion): `TransitChartBlockEntity` + `TransitChartRenderer` wired end to end — oversized, dynamically-sized, FACING-oriented, emissive quad drawn from the bundled chart PNG, verified not to cull/pop via `shouldRenderOffScreen` and confirmed across all four orientations, in total darkness, and at 64 blocks (REND-01, REND-02, REND-03, REND-04, REND-05, REND-06, REND-07)
+- [x] 04-01-PLAN.md — Wave 1 (tracer + expansion): `TransitChartBlockEntity` + `TransitChartRenderer` wired end to end — oversized, dynamically-sized, FACING-oriented, emissive quad drawn from the bundled chart PNG, verified not to cull/pop via `shouldRenderOffScreen` and confirmed across all four orientations, in total darkness, and at 64 blocks (REND-01, REND-02, REND-03, REND-04, REND-05, REND-06, REND-07)
 
 **Notes**: The oversized quad and not-culling/popping (REND-03) belong together and must not be split across phases — a phase that ships the oversized quad without solving culling produces a deliverable that visibly culls and pops at its own edges, which reads as broken. REND-07's 64-block distance is the same concern measured from further away. No dynamic texture, no HTTP, and no network code enters this phase; the point is to prove a textured quad can be drawn correctly before adding runtime texture complexity on top. Planning-time correction: `BlockEntity.getRenderBoundingBox()` does not exist in this Minecraft version (it is a Forge-only API from older versions) — REND-03's actual mechanism is `BlockEntityRenderer.shouldRenderOffScreen(T)`, confirmed via `javap` against this project's own cached 1.20.1 jars and against vanilla's `BeaconRenderer` precedent. See 04-01-PLAN.md's "Corrections" section for this and eight other verified API-name fixes relative to 04-RESEARCH.md/04-PATTERNS.md.
 
@@ -255,7 +255,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 | 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
 | 2. Block Exists and Places | 2/2 | Complete    | 2026-09-08 |
 | 3. Craft, Break, and Identify | 2/2 | Complete    | 2026-09-08 |
-| 4. Static Chart Rendering | 0/TBD | Not started | - |
+| 4. Static Chart Rendering | 1/1 | In Progress|  |
 | 5. Configuration and Async Fetch | 0/TBD | Not started | - |
 | 6. Dynamic Texture Pipeline | 0/TBD | Not started | - |
 | 7. Fetched Chart on the Block | 0/TBD | Not started | - |
