@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Parallel track:** Phase 5 depends only on Phase 1 and can be built alongside Phases 2-4. See Execution Order below.
 
 - [x] **Phase 1: Toolchain Verification** - Confirm the dev client launches and datagen writes output; settle the `client = true` question (completed 2026-09-08)
-- [ ] **Phase 2: Block Exists and Places** - A display block obtainable in creative, placeable, storing 4-way facing, with generated models
+- [x] **Phase 2: Block Exists and Places** - A display block obtainable in creative, placeable, storing 4-way facing, with generated models (completed 2026-09-08)
 - [ ] **Phase 3: Craft, Break, and Identify** - Shapeless dirt recipe, self-drop loot table, translated name and tooltip
 - [ ] **Phase 4: Static Chart Rendering** - Block entity renderer draws an oversized, self-lit, correctly-oriented bundled image
 - [ ] **Phase 5: Configuration and Async Fetch** - Config-driven base URL and interval; PNG bytes fetched off-thread and logged (parallel to 2-4)
@@ -79,7 +79,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md — Wave 2: add the `Transit Chart` display name, confirm the four placement orientations and the real model in a running dev client, and record the settled datagen findings in `docs/DEV.md` (BLOCK-01, BLOCK-02, BLOCK-03)
+- [x] 02-02-PLAN.md — Wave 2: add the `Transit Chart` display name, confirm the four placement orientations and the real model in a running dev client, and record the settled datagen findings in `docs/DEV.md` (BLOCK-01, BLOCK-02, BLOCK-03)
 
 **Notes**: The 4-way horizontal facing state (BLOCK-03) is a hard prerequisite for Phase 4 — the renderer cannot orient its quad without it. This is why it lands here rather than with the rendering work. `BlockEntityType` registration may be introduced here as plumbing, but nothing renders from it until Phase 4.
 
@@ -239,7 +239,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
-| 2. Block Exists and Places | 1/2 | In Progress|  |
+| 2. Block Exists and Places | 2/2 | Complete    | 2026-09-08 |
 | 3. Craft, Break, and Identify | 0/TBD | Not started | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
 | 5. Configuration and Async Fetch | 0/TBD | Not started | - |

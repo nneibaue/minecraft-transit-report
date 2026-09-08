@@ -15,17 +15,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Block and Item
 
-- [ ] **BLOCK-01**: Player can place the display block in the world
-- [ ] **BLOCK-02**: The display block appears as an item in a creative inventory group
-- [ ] **BLOCK-03**: The block stores a 4-way horizontal facing state, set from the direction the player faced when placing it
+- [x] **BLOCK-01**: Player can place the display block in the world
+- [x] **BLOCK-02**: The display block appears as an item in a creative inventory group
+- [x] **BLOCK-03**: The block stores a 4-way horizontal facing state, set from the direction the player faced when placing it
 - [ ] **BLOCK-04**: Player can craft the display block from a single dirt block, shapeless, in the 2×2 inventory crafting grid — no crafting table required (deliberate testing recipe, see Crafting Recipe below)
 - [ ] **BLOCK-05**: Breaking the block drops the block item back to the player
 - [ ] **BLOCK-06**: The item shows a tooltip naming the block and stating that right-click refreshes it
 
 ### Data Generation
 
-- [ ] **GEN-01**: Blockstate and block model JSON are produced by Fabric Data Generation, not hand-written
-- [ ] **GEN-02**: Item model JSON is produced by data generation
+- [x] **GEN-01**: Blockstate and block model JSON are produced by Fabric Data Generation, not hand-written
+- [x] **GEN-02**: Item model JSON is produced by data generation
 - [ ] **GEN-03**: The active crafting recipe JSON (single dirt, shapeless) is produced by data generation
 - [ ] **GEN-06**: The intended thematic recipe is retained as commented-out code in the recipe provider, adjacent to the active one, so swapping it in is uncommenting rather than rewriting
 - [ ] **GEN-04**: The block loot table JSON is produced by data generation
@@ -150,14 +150,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOOL-01 | Phase 1 | Complete |
 | TOOL-02 | Phase 1 | Complete |
 | TOOL-03 | Phase 1 | Complete |
-| BLOCK-01 | Phase 2 | Pending |
-| BLOCK-02 | Phase 2 | Pending |
-| BLOCK-03 | Phase 2 | Pending |
+| BLOCK-01 | Phase 2 | Complete |
+| BLOCK-02 | Phase 2 | Complete |
+| BLOCK-03 | Phase 2 | Complete |
 | BLOCK-04 | Phase 3 | Pending |
 | BLOCK-05 | Phase 3 | Pending |
 | BLOCK-06 | Phase 3 | Pending |
-| GEN-01 | Phase 2 | Pending |
-| GEN-02 | Phase 2 | Pending |
+| GEN-01 | Phase 2 | Complete |
+| GEN-02 | Phase 2 | Complete |
 | GEN-03 | Phase 3 | Pending |
 | GEN-06 | Phase 3 | Pending |
 | GEN-04 | Phase 3 | Pending |
