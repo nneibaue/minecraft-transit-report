@@ -15,8 +15,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.List;
+import java.util.Map;
 
 import transitreport.JollyalchemyTransitReport;
 import transitreport.block.entity.TransitChartBlockEntity;
@@ -33,6 +36,21 @@ import transitreport.block.entity.TransitChartBlockEntity;
  * make the block invisible if that base class were picked up here instead.
  */
 public class TransitChartBlock extends HorizontalDirectionalBlock implements EntityBlock {
+	// Thin wall-mounted outline/collision shape, keyed by FACING (04-01 checkpoint feedback,
+	// post visual review in-game: the default full-cube shape made the block visibly protrude
+	// a whole block's depth out from the wall). Confirmed vanilla precedent via javap against
+	// this project's own compiled jar: WallBannerBlock builds an identical Map<Direction,
+	// VoxelShape> using Block.box(x1,y1,z1,x2,y2,z2) (Mojmap -- on Block, not Shapes), keyed by
+	// FACING, with the thin slab positioned at the face OPPOSITE FACING (the wall/mounting
+	// surface side). Same convention applies here: the chart quad renders on the FACING side
+	// (TransitChartRenderer), so the thin slab hugs the opposite face, flush against whatever
+	// surface the block is mounted against. 2 of 16 units (0.125 blocks) deep.
+	private static final Map<Direction, VoxelShape> SHAPES = Map.of(
+			Direction.NORTH, Block.box(0.0, 0.0, 14.0, 16.0, 16.0, 16.0),
+			Direction.SOUTH, Block.box(0.0, 0.0, 0.0, 16.0, 16.0, 2.0),
+			Direction.WEST, Block.box(14.0, 0.0, 0.0, 16.0, 16.0, 16.0),
+			Direction.EAST, Block.box(0.0, 0.0, 0.0, 2.0, 16.0, 16.0));
+
 	public TransitChartBlock(BlockBehaviour.Properties properties) {
 		super(properties);
 		this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
@@ -46,6 +64,17 @@ public class TransitChartBlock extends HorizontalDirectionalBlock implements Ent
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
 		return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+	}
+
+	// Outline shape only -- BlockBehaviour's default getCollisionShape() already delegates to
+	// this method whenever the block has collision (true by default here, unmodified), confirmed
+	// via javap against BlockBehaviour's compiled bytecode. A separate getCollisionShape()
+	// override would just duplicate the same box() coordinates in two places and risk them
+	// silently drifting apart later -- WallBannerBlock (the vanilla precedent this follows)
+	// overrides only getShape() for the same reason.
+	@Override
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return SHAPES.get(state.getValue(FACING));
 	}
 
 	@Override

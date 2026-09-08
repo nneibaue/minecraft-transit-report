@@ -43,8 +43,12 @@ public class TransitChartRenderer implements BlockEntityRenderer<TransitChartBlo
 	private static final ResourceLocation TEXTURE =
 			JollyalchemyTransitReport.id("textures/block/transit_chart.png");
 
-	// D-05: quad is ~2 blocks wide, a fixed anchor; height is computed dynamically below.
-	private static final float BASE_WIDTH = 2.0f;
+	// Fixed anchor width; height is computed dynamically below, aspect-preserving.
+	// User-directed override of 04-CONTEXT.md D-05's locked 2.0f value (04-01 checkpoint
+	// feedback, post visual review in-game): shrunk to 1.5f so the chart reads as a smaller
+	// wall panel rather than an oversized poster. Height shrinks proportionally with it since
+	// computedHeight is still derived from this value times the image's real aspect ratio.
+	private static final float BASE_WIDTH = 1.5f;
 
 	// D-07: small offset in front of the block's face, just enough to avoid z-fighting.
 	private static final float Z_OFFSET = 0.02f;
