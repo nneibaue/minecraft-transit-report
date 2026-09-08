@@ -97,7 +97,16 @@ Plans:
   4. The intended thematic 3x3 recipe (Amethyst Shard x4, Echo Shard x3, Clock, Glow Ink Sac) sits commented out directly beside the active recipe, so swapping it in is uncommenting rather than rewriting
   5. Recipe, loot table, and language JSON are all data generation output, not hand-written files
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Wave 1 (tracer): close the survival loop — a shapeless single-dirt recipe and a self-drop loot table generated, structurally asserted, tracked, and reproducible, with the thematic 3x3 recipe retained beside the active one as commented-out code (BLOCK-04, BLOCK-05, GEN-03, GEN-04, GEN-06)
+
+**Wave 2** *(blocked on Wave 1 completion — both plans edit the same datagen entrypoint)*
+
+- [ ] 03-02-PLAN.md — Wave 2: the two-line item tooltip — a `Block.appendHoverText` override resolving two new generated translation keys, then a running-client check of the whole phase (craft, break, hover) and the Phase 3 findings written into `docs/DEV.md` (BLOCK-06, GEN-05)
 
 **Notes**: The single-dirt shapeless recipe is a deliberate testing convenience so iteration never requires gathering materials — see the Crafting Recipe section of REQUIREMENTS.md. The exact 1.20.1 `FabricRecipeProvider` generation method shape was flagged MEDIUM confidence in research; verify it against `./gradlew genSources` output or `javap` against the cached jar rather than against current Fabric documentation, which describes post-1.21 provider signatures. This phase is independent of Phase 4 and the two could be built in either order.
 
@@ -240,7 +249,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 |-------|----------------|--------|-----------|
 | 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
 | 2. Block Exists and Places | 2/2 | Complete    | 2026-09-08 |
-| 3. Craft, Break, and Identify | 0/TBD | Not started | - |
+| 3. Craft, Break, and Identify | 0/2 | Planned | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
 | 5. Configuration and Async Fetch | 0/TBD | Not started | - |
 | 6. Dynamic Texture Pipeline | 0/TBD | Not started | - |
