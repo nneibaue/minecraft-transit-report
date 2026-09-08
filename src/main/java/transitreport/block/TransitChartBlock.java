@@ -11,6 +11,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,9 +32,21 @@ import transitreport.block.entity.TransitChartBlockEntity;
  * <p>Intentionally extends {@link HorizontalDirectionalBlock} rather than
  * {@link net.minecraft.world.level.block.BaseEntityBlock}: adding {@link EntityBlock} directly
  * to this base class (04-01-PLAN.md Task 1, per 02-CONTEXT.md D-08's landmine) keeps the
- * inherited {@code FACING}/{@code rotate}/{@code mirror} plumbing and avoids the render-shape
- * override that {@code BaseEntityBlock} defaults to {@code RenderShape.INVISIBLE}, which would
- * make the block invisible if that base class were picked up here instead.
+ * inherited {@code FACING}/{@code rotate}/{@code mirror} plumbing, rather than switching to
+ * {@code BaseEntityBlock} and having to fight its default render-shape override back to
+ * {@code MODEL}.
+ *
+ * <p><b>This class does now return {@code RenderShape.INVISIBLE}</b> -- but deliberately, via
+ * its own explicit {@link #getRenderShape} override below, not as a side effect of the base
+ * class. That is a second, distinct 04-01 checkpoint deviation (user-directed, post visual
+ * review in-game): the datagen'd cube model was still fully visible in the world alongside the
+ * floating chart quad, because the thin {@link #getShape} override only affects the
+ * collision/outline hitbox, not what model renders. Returning {@code INVISIBLE} here suppresses
+ * the vanilla block model entirely, so only {@code TransitChartRenderer}'s quad is ever drawn --
+ * the painting-like effect the block is meant to have. This is unrelated to the D-08 landmine
+ * above (which is about {@code BaseEntityBlock} silently defaulting to {@code INVISIBLE}); this
+ * override is explicit and intentional on the {@code HorizontalDirectionalBlock} base already in
+ * use here.
  */
 public class TransitChartBlock extends HorizontalDirectionalBlock implements EntityBlock {
 	// Thin wall-mounted outline/collision shape, keyed by FACING (04-01 checkpoint feedback,
@@ -75,6 +88,16 @@ public class TransitChartBlock extends HorizontalDirectionalBlock implements Ent
 	@Override
 	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return SHAPES.get(state.getValue(FACING));
+	}
+
+	// Suppresses the datagen'd cube block model entirely (04-01 checkpoint feedback, second
+	// round: the thin getShape() above only changes the hitbox, not what renders). With this,
+	// TransitChartRenderer's floating chart quad is the ONLY thing drawn for this block -- no
+	// visible cube, no stone-textured face, matching the painting-like effect the user wants.
+	// Deliberate and explicit, not the D-08 landmine (see class javadoc above).
+	@Override
+	public RenderShape getRenderShape(BlockState state) {
+		return RenderShape.INVISIBLE;
 	}
 
 	@Override
