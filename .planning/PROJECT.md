@@ -14,14 +14,12 @@ A block placed in the world shows a current Human Design transit chart that keep
 
 ### Validated
 
-(None yet — the repo currently holds only an unmodified Fabric example-mod template. Nothing has shipped.)
+- ✓ Toolchain verified end to end: the dev client launches and `runDatagen` produces output — Phase 1
+- ✓ A display block exists, is craftable, and can be placed in the world — Phases 2-3
+- ✓ Static Minecraft resources (models, recipe, loot table, translations) are produced by Fabric Data Generation — Phases 2-3
 
 ### Active
 
-- [ ] Toolchain verified end to end: the dev client launches and `runDatagen` produces output (`./gradlew build` already confirmed passing)
-- [ ] A local mock HTTP server exists in-repo that can serve PNGs and deliberately produce timeouts, non-200 statuses, and malformed image bytes
-- [ ] A display block exists, is craftable, and can be placed in the world
-- [ ] Static Minecraft resources (models, recipe, loot table, translations) are produced by Fabric Data Generation
 - [ ] The block renders an image on its face via a custom block entity renderer
 - [ ] A dynamic texture pipeline turns arbitrary PNG bytes into a renderable texture and can swap it at runtime without leaking GPU resources
 - [ ] An HTTP client fetches PNG bytes from a configurable base URL asynchronously, off the main/render thread
@@ -41,6 +39,7 @@ A block placed in the world shows a current Human Design transit chart that keep
 - API secrets or authentication credentials shipped in the mod — the endpoint is assumed safe for a client to call directly
 - Public release to Modrinth/CurseForge — private use by the author and friends
 - Decorative modeling and visual polish ahead of the dynamic texture pipeline — appearance work is deliberately deferred until images actually update on the block
+- Local mock HTTP server (MOCK-01 through MOCK-03) — scoped out of v1 by roadmap decision; REL-04's timeout/non-200/malformed-PNG handling will be implemented and code-reviewed but not empirically exercised this milestone, since a public image endpoint cannot be provoked into misbehaving on demand (REQUIREMENTS.md, REL-04 verification note). Closes when the mock server is added or the real API can be made to fail on request.
 
 ## Context
 
@@ -88,7 +87,8 @@ refresh timer → `TransitApiClient` → HTTP GET → PNG bytes → `TransitText
 | Dual dummy endpoints (public changing image + local mock) | The public URL proves refresh visually with zero setup; only a controllable local mock can produce the timeouts, 500s, and malformed PNGs the reliability requirements need | — Pending |
 | Fabric Data Generation for static JSON only | Datagen is build-time resource generation; forcing runtime HTTP, texture, or refresh behavior through it would be a category error | — Pending |
 | Toolchain kept as-is; verification is a sanity check | `./gradlew build` succeeds against the existing Loom 1.17 / `fabric-loom-remap` / MC 1.20.1 setup, which matches the official Fabric example mod's 1.20 branch. The earlier suspicion of a version mismatch was unfounded | ✓ Good |
-| Prefer resolved sources over documentation on every API question | Verified empirically this project: `javap` against the cached 1.20.1 Mojang-mappings jar settled signatures that docs and tutorials disagreed on. `./gradlew genSources` is the tie-breaker whenever 1.20.1 and current docs conflict | — Pending |
+| Prefer resolved sources over documentation on every API question | Verified empirically this project: `javap` against the cached 1.20.1 Mojang-mappings jar settled signatures that docs and tutorials disagreed on. `./gradlew genSources` is the tie-breaker whenever 1.20.1 and current docs conflict | ✓ Good — confirmed again in Phase 3: `FabricRecipeProvider.buildRecipes(Consumer<FinishedRecipe>)` and `FabricBlockLootTableProvider.generate()` (no-arg) settled the MEDIUM-confidence signature risk research had flagged, closing it against real `runDatagen`/`build` runs rather than current (post-1.21) Fabric docs |
+| Single-dirt shapeless recipe as the shipped Phase 3 recipe, thematic 3x3 recipe kept commented-out beside it | Zero-effort testing convenience so iteration never requires gathering materials; the intended Amethyst Shard / Echo Shard / Clock / Glow Ink Sac recipe is preserved verbatim (all ingredients, all pattern rows) so swapping it in later is uncommenting, not re-deriving from REQUIREMENTS.md | ✓ Good — Phase 3 |
 
 ## Evolution
 
@@ -108,4 +108,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-07 after initialization*
+*Last updated: 2026-09-08 after Phase 3*

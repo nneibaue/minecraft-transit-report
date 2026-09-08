@@ -10,20 +10,20 @@ last_activity_desc: Phase 03 complete, transitioned to Phase 4
 state_head: 201a97f07db43e3aff7a03b3c11bd0a38bf67994
 progress:
   total_phases: 10
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 7
   completed_plans: 7
-  percent: 10
+  percent: 30
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-07)
+See: .planning/PROJECT.md (updated 2026-09-08)
 
 **Core value:** A block placed in the world shows a current Human Design transit chart that keeps updating on its own, and never freezes or crashes Minecraft when the API misbehaves.
-**Current focus:** Phase 03 — Craft, Break, and Identify
+**Current focus:** Phase 4 — Static Chart Rendering
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-08 — Phase 03 complete, transitioned to Phase 4
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
@@ -98,7 +98,7 @@ None yet.
 - **REL-04 cannot be empirically verified in v1** (Phase 9). The local mock HTTP server was scoped to v2 (MOCK-01..03), and a public image endpoint cannot be made to time out, return 500, or serve truncated PNGs on demand. Phase 9 criterion 5 is satisfied by code review only — do not report it as observed working. See Verification Notes in REQUIREMENTS.md.
 - **REQUIREMENTS.md coverage count was stale.** It stated 48 v1 requirements; the actual count of defined IDs is 52. Corrected in the traceability section during roadmap creation.
 - **The real Human Design API does not exist yet.** All fetch verification runs against a public changing-image dummy endpoint. The API contract (paths, parameters) may still shift.
-- **Three MEDIUM-confidence research findings need empirical settling during execution:** `configureDataGeneration { client = true }` on 1.20.1 (Phase 1), `FabricRecipeProvider` method shape (Phase 3), and `registerTexture` / `NativeImageBackedTexture` close semantics plus F3+T reload survival (Phase 6).
+- **One MEDIUM-confidence research finding still needs empirical settling during execution:** `registerTexture` / `NativeImageBackedTexture` close semantics plus F3+T reload survival (Phase 6). The other two (`configureDataGeneration { client = true }` on 1.20.1, Phase 1; `FabricRecipeProvider`/`FabricBlockLootTableProvider` method shape, Phase 3) are now closed and confirmed against real `runDatagen`/`build` runs.
 
 ## Deferred Items
 
