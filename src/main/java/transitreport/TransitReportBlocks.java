@@ -9,9 +9,11 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 
 import transitreport.block.TransitChartBlock;
+import transitreport.block.entity.TransitChartBlockEntity;
 
 /**
  * Registration holder for this mod's blocks and their block items (D-09). Holds the block
@@ -29,12 +31,19 @@ public final class TransitReportBlocks {
 
 	public static final Item TRANSIT_CHART_ITEM = new BlockItem(TRANSIT_CHART, new Item.Properties());
 
+	// Passing null as the validation-context data fixer type is the standard vanilla pattern
+	// for a block entity with no NBT to migrate (04-01-PLAN.md Task 1).
+	public static final BlockEntityType<TransitChartBlockEntity> TRANSIT_CHART_BLOCK_ENTITY =
+			BlockEntityType.Builder.of(TransitChartBlockEntity::new, TRANSIT_CHART).build(null);
+
 	private TransitReportBlocks() {
 	}
 
 	public static void register() {
 		Registry.register(BuiltInRegistries.BLOCK, JollyalchemyTransitReport.id("transit_chart"), TRANSIT_CHART);
 		Registry.register(BuiltInRegistries.ITEM, JollyalchemyTransitReport.id("transit_chart"), TRANSIT_CHART_ITEM);
+		Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, JollyalchemyTransitReport.id("transit_chart"),
+				TRANSIT_CHART_BLOCK_ENTITY);
 
 		ItemGroupEvents.modifyEntriesEvent(CreativeModeTabs.FUNCTIONAL_BLOCKS)
 				.register(entries -> entries.accept(TRANSIT_CHART_ITEM));
