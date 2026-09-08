@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Parallel track:** Phase 5 depends only on Phase 1 and can be built alongside Phases 2-4. See Execution Order below.
 
-- [ ] **Phase 1: Toolchain Verification** - Confirm the dev client launches and datagen writes output; settle the `client = true` question
+- [x] **Phase 1: Toolchain Verification** - Confirm the dev client launches and datagen writes output; settle the `client = true` question (completed 2026-09-08)
 - [ ] **Phase 2: Block Exists and Places** - A display block obtainable in creative, placeable, storing 4-way facing, with generated models
 - [ ] **Phase 3: Craft, Break, and Identify** - Shapeless dirt recipe, self-drop loot table, translated name and tooltip
 - [ ] **Phase 4: Static Chart Rendering** - Block entity renderer draws an oversized, self-lit, correctly-oriented bundled image
@@ -229,7 +229,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Toolchain Verification | 3/3 | In Progress|  |
+| 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
 | 2. Block Exists and Places | 0/TBD | Not started | - |
 | 3. Craft, Break, and Identify | 0/TBD | Not started | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
