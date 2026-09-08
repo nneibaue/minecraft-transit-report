@@ -95,7 +95,12 @@ public class TransitChartRenderer implements BlockEntityRenderer<TransitChartBlo
 		float x1 = x0 + BASE_WIDTH;
 		float y0 = 0.0f; // bottom-anchored (D-08)
 		float y1 = computedHeight;
-		float z = 1.0f + Z_OFFSET;
+		// Anchored to the near/wall-side face (local z=0), not the far face (04-01 checkpoint
+		// feedback, round 3): the invisible block's thin getShape() hitbox (TransitChartBlock)
+		// now hugs the face OPPOSITE FACING -- the wall-touching side -- so the rendered quad
+		// must anchor there too, or the two end up on opposite faces of the block and the chart
+		// floats a full block out into the room instead of hanging flush against the wall.
+		float z = Z_OFFSET;
 
 		Matrix4f pose = matrices.last().pose();
 		Matrix3f normal = matrices.last().normal();

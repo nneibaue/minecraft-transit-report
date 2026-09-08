@@ -27,7 +27,16 @@ public final class TransitReportBlocks {
 	public static final Block TRANSIT_CHART = new TransitChartBlock(
 			BlockBehaviour.Properties.of()
 					.strength(1.5F)
-					.sound(SoundType.AMETHYST));
+					.sound(SoundType.AMETHYST)
+					// 04-01 checkpoint feedback, round 3: this was a normal full opaque cube
+					// through Phase 2/3, correct at the time. TransitChartBlock is now a thin,
+					// invisible, non-full block (getRenderShape() = INVISIBLE, getShape() = a
+					// thin slab) -- without noOcclusion(), vanilla's neighbor face-culling still
+					// treats it as occluding, leaving a rendering hole in the wall block behind
+					// it until an unrelated chunk rebuild (e.g. breaking the block) recalculates
+					// it. noOcclusion() confirmed via javap against this project's compiled
+					// BlockBehaviour$Properties.class.
+					.noOcclusion());
 
 	public static final Item TRANSIT_CHART_ITEM = new BlockItem(TRANSIT_CHART, new Item.Properties());
 
