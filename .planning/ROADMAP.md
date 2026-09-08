@@ -70,7 +70,16 @@ Plans:
   3. The placed block draws a real model rather than the purple-and-black missing-model checkerboard, and the item draws a real icon in the hotbar
   4. Blockstate, block model, and item model JSON exist under `src/main/generated`, with no hand-written equivalent under `src/main/resources`
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Wave 1 (tracer): register `TransitChartBlock` end to end — 4-way facing from the placing player, Functional Blocks creative tab, and a generated blockstate/block-model/item-model set proven correct and regenerable (BLOCK-01, BLOCK-02, BLOCK-03, GEN-01, GEN-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — Wave 2: add the `Transit Chart` display name, confirm the four placement orientations and the real model in a running dev client, and record the settled datagen findings in `docs/DEV.md` (BLOCK-01, BLOCK-02, BLOCK-03)
 
 **Notes**: The 4-way horizontal facing state (BLOCK-03) is a hard prerequisite for Phase 4 — the renderer cannot orient its quad without it. This is why it lands here rather than with the rendering work. `BlockEntityType` registration may be introduced here as plumbing, but nothing renders from it until Phase 4.
 
@@ -230,7 +239,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Toolchain Verification | 3/3 | Complete    | 2026-09-08 |
-| 2. Block Exists and Places | 0/TBD | Not started | - |
+| 2. Block Exists and Places | 0/2 | Planned | - |
 | 3. Craft, Break, and Identify | 0/TBD | Not started | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
 | 5. Configuration and Async Fetch | 0/TBD | Not started | - |
