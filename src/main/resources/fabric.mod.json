@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "jollyalchemy-transit-report",
+	"version": "${version}",
+	"name": "jollyalchemy-transit-report",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/jollyalchemy-transit-report/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"transitreport.JollyalchemyTransitReport"
+		],
+		"client": [
+			"transitreport.client.JollyalchemyTransitReportClient"
+		],
+		"fabric-datagen": [
+			"transitreport.client.JollyalchemyTransitReportDataGenerator"
+		]
+	},
+	"mixins": [
+		"jollyalchemy-transit-report.mixins.json",
+		{
+			"config": "jollyalchemy-transit-report.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	}
+}
