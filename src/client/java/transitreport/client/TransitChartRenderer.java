@@ -93,8 +93,15 @@ public class TransitChartRenderer implements BlockEntityRenderer<TransitChartBlo
 		// Quad authored to face south (+Z, normal (0,0,1)) at zero rotation.
 		float x0 = (1.0f - BASE_WIDTH) / 2.0f;
 		float x1 = x0 + BASE_WIDTH;
-		float y0 = 0.0f; // bottom-anchored (D-08)
-		float y1 = computedHeight;
+		// Vertically centered on the block's own middle (y=0.5), mirroring the horizontal
+		// centering above -- NOT bottom-anchored (04-01 checkpoint feedback, round 4; deliberate
+		// user-directed deviation from 04-CONTEXT.md D-08's locked "bottom-anchored" decision).
+		// D-08's own arithmetic assumed BASE_WIDTH=2.0f/~3.1 blocks tall; after round 2's
+		// BASE_WIDTH=1.5f shrink, computedHeight (~2.34 blocks) is still taller than the
+		// 1-block anchor, so bottom-anchoring made the chart read as floating too high above
+		// where the block actually sits. Centering it reads correctly instead.
+		float y0 = (1.0f - computedHeight) / 2.0f;
+		float y1 = y0 + computedHeight;
 		// Anchored to the near/wall-side face (local z=0), not the far face (04-01 checkpoint
 		// feedback, round 3): the invisible block's thin getShape() hitbox (TransitChartBlock)
 		// now hugs the face OPPOSITE FACING -- the wall-touching side -- so the rendered quad
