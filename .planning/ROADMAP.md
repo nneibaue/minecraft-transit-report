@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `./gradlew runDatagen` exits successfully and generated resource files are present under `src/main/generated`
   3. The `fabricApi { configureDataGeneration { client = true } }` question is settled by observation — either confirmed to do something meaningful on 1.20.1 or replaced with the bare `configureDataGeneration()` call, with the finding recorded
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
@@ -49,7 +49,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Wave 2: register a `FabricLanguageProvider` and make `runDatagen` write real, regenerable files under `src/main/generated` (TOOL-02)
+- [x] 01-02-PLAN.md — Wave 2: register a `FabricLanguageProvider` and make `runDatagen` write real, regenerable files under `src/main/generated` (TOOL-02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -229,7 +229,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Toolchain Verification | 1/3 | In Progress|  |
+| 1. Toolchain Verification | 2/3 | In Progress|  |
 | 2. Block Exists and Places | 0/TBD | Not started | - |
 | 3. Craft, Break, and Identify | 0/TBD | Not started | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |
