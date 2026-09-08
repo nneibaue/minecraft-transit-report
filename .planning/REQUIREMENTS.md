@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Toolchain
 
-- [ ] **TOOL-01**: `./gradlew runClient` launches a working Minecraft 1.20.1 dev client with the mod loaded
+- [x] **TOOL-01**: `./gradlew runClient` launches a working Minecraft 1.20.1 dev client with the mod loaded
 - [ ] **TOOL-02**: `./gradlew runDatagen` completes and writes generated resources to `src/main/generated`
 - [ ] **TOOL-03**: The `fabricApi { configureDataGeneration { client = true } }` block is confirmed either meaningful on 1.20.1 or corrected to bare `configureDataGeneration()`
 
@@ -147,7 +147,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOOL-01 | Phase 1 | Pending |
+| TOOL-01 | Phase 1 | Complete |
 | TOOL-02 | Phase 1 | Pending |
 | TOOL-03 | Phase 1 | Pending |
 | BLOCK-01 | Phase 2 | Pending |
@@ -201,6 +201,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CFG-05 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 52 total
 - Mapped to phases: 52
 - Unmapped: 0 ✓

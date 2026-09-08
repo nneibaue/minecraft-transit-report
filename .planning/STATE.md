@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Toolchain Verification
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-09-08T07:05:56.748Z"
-last_activity: 2026-09-07
-last_activity_desc: Roadmap created; 10 phases, 52/52 v1 requirements mapped
-state_head: 09c2104bd6f8214511b8e951580ec88b088d831c
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-09-08T07:24:26.747Z"
+last_activity: 2026-09-08
+last_activity_desc: Phase 01 execution started
+state_head: 46df12985c72760ab789f78f5b4c8110d3e7271f
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-07)
 
 **Core value:** A block placed in the world shows a current Human Design transit chart that keeps updating on its own, and never freezes or crashes Minecraft when the API misbehaves.
-**Current focus:** Phase 1 — Toolchain Verification
+**Current focus:** Phase 01 — Toolchain Verification
 
 ## Current Position
 
-Phase: 01 (Toolchain Verification) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 01 (Toolchain Verification) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-09-07 — Roadmap created; 10 phases, 52/52 v1 requirements mapped
+Last activity: 2026-09-08 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 17min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -68,6 +73,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Manual refresh sized as a small tail phase (10) after reliability, so it inherits failure handling rather than duplicating it.
 - [Project]: Toolchain verified working (`./gradlew build` exit 0). Phase 1 is a sanity check, not a rework phase — no Loom surgery budgeted.
 - [Project]: Prefer resolved sources (`genSources`, `javap`) over documentation on every 1.20.1 API question.
+- [Phase 01]: D-06 resolved: JDK 26 runs the Minecraft 1.20.1 Fabric dev client successfully end to end; Temurin 21 was not needed.
+- [Phase 01]: Approved deviation: added Mod Menu 7.2.2 (modLocalRuntime, dev-only) since Fabric ships no in-game Mods screen and Task 2's D-04 verification was otherwise unsatisfiable.
 
 ### Pending Todos
 
@@ -90,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-08T06:30:20.882Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-toolchain-verification/01-CONTEXT.md
+Last session: 2026-09-08T07:24:26.732Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
