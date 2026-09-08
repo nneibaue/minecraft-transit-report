@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `./gradlew runDatagen` exits successfully and generated resource files are present under `src/main/generated`
   3. The `fabricApi { configureDataGeneration { client = true } }` question is settled by observation — either confirmed to do something meaningful on 1.20.1 or replaced with the bare `configureDataGeneration()` call, with the finding recorded
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -53,7 +53,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — Wave 3: settle the `client = true` question by observation and write `docs/DEV.md` (TOOL-03)
+- [x] 01-03-PLAN.md — Wave 3: settle the `client = true` question by observation and write `docs/DEV.md` (TOOL-03)
 
 **Scope note**: This is a sanity check, not a rework phase. `./gradlew build` was already run against this repo and succeeded (exit 0, JDK 26), and the Loom 1.17 / `net.fabricmc.fabric-loom-remap` / MC 1.20.1 pairing was investigated and proved correct for obfuscated Minecraft versions. Do not budget Loom surgery. If the client launches and datagen writes files, this phase is done.
 
@@ -229,7 +229,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Toolchain Verification | 2/3 | In Progress|  |
+| 1. Toolchain Verification | 3/3 | In Progress|  |
 | 2. Block Exists and Places | 0/TBD | Not started | - |
 | 3. Craft, Break, and Identify | 0/TBD | Not started | - |
 | 4. Static Chart Rendering | 0/TBD | Not started | - |

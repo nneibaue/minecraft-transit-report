@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Toolchain Verification
-status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-09-08T07:33:01.354Z"
+status: verifying
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-09-08T07:42:05.129Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 01 execution started
-state_head: d8153776439105ce5b6c4cf9370278e730ac91a0
+state_head: 850dc861e63fe54b9ee546121b27c3420653c479
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-07)
 
 Phase: 01 (Toolchain Verification) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-08 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 17min | 2 tasks | 6 files |
 | Phase 01 P02 | 12min | 2 tasks | 3 files |
+| Phase 01 P03 | 22min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 01]: D-06 resolved: JDK 26 runs the Minecraft 1.20.1 Fabric dev client successfully end to end; Temurin 21 was not needed.
 - [Phase 01]: Approved deviation: added Mod Menu 7.2.2 (modLocalRuntime, dev-only) since Fabric ships no in-game Mods screen and Task 2's D-04 verification was otherwise unsatisfiable.
 - [Phase 01]: No outputDirectory override needed for datagen; runDatagen writes directly to src/main/generated at the required path with client=true present
+- [Phase 01]: TOOL-03 resolved: configureDataGeneration { client = true } is kept — it is load-bearing for this repo's split-source-set datagen entrypoint, not an inert flag; removing it makes runDatagen fail outright (ClassNotFoundException) rather than merely lose functionality.
+- [Phase 01]: docs/DEV.md created as the repo's first project-specific developer guide, covering the dev loop, JDK requirement, what verified means for Phase 1, and the datagen finding — with a reserved heading for the deferred real-Minecraft install walkthrough.
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-08T07:33:01.339Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-09-08T07:42:05.114Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
