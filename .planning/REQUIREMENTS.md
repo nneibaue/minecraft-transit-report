@@ -33,13 +33,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Rendering
 
-- [ ] **REND-01**: The block has a block entity with a registered `BlockEntityRenderer` that draws its face
-- [ ] **REND-02**: The renderer displays a PNG texture bundled with the mod on the block's face
-- [ ] **REND-03**: The rendered chart is larger than the block's own 1×1×1 footprint, with `getRenderBoundingBox()` overridden so the image does not cull or pop at its own edges while the anchor block is still on screen
-- [ ] **REND-04**: The chart renders at a fixed aspect ratio and is never stretched or squashed
-- [ ] **REND-05**: The chart renders emissive/unshaded and stays legible at any ambient light level, including a fully dark room
-- [ ] **REND-06**: The rendered chart is oriented according to the block's facing state
-- [ ] **REND-07**: The display remains visible out to the default 64-block block-entity render distance
+- [x] **REND-01**: The block has a block entity with a registered `BlockEntityRenderer` that draws its face
+- [x] **REND-02**: The renderer displays a PNG texture bundled with the mod on the block's face
+- [x] **REND-03**: The rendered chart is larger than the block's own 1×1×1 footprint, with `getRenderBoundingBox()` overridden so the image does not cull or pop at its own edges while the anchor block is still on screen
+- [x] **REND-04**: The chart renders at a fixed aspect ratio and is never stretched or squashed
+- [x] **REND-05**: The chart renders emissive/unshaded and stays legible at any ambient light level, including a fully dark room
+- [x] **REND-06**: The rendered chart is oriented according to the block's facing state
+- [x] **REND-07**: The display remains visible out to the default 64-block block-entity render distance
 
 ### Texture Pipeline
 
@@ -162,13 +162,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-06 | Phase 3 | Complete |
 | GEN-04 | Phase 3 | Complete |
 | GEN-05 | Phase 3 | Complete |
-| REND-01 | Phase 4 | Pending |
-| REND-02 | Phase 4 | Pending |
-| REND-03 | Phase 4 | Pending |
-| REND-04 | Phase 4 | Pending |
-| REND-05 | Phase 4 | Pending |
-| REND-06 | Phase 4 | Pending |
-| REND-07 | Phase 4 | Pending |
+| REND-01 | Phase 4 | Complete |
+| REND-02 | Phase 4 | Complete |
+| REND-03 | Phase 4 | Complete |
+| REND-04 | Phase 4 | Complete |
+| REND-05 | Phase 4 | Complete |
+| REND-06 | Phase 4 | Complete |
+| REND-07 | Phase 4 | Complete |
 | TEX-01 | Phase 6 | Pending |
 | TEX-02 | Phase 6 | Pending |
 | TEX-03 | Phase 6 | Pending |
