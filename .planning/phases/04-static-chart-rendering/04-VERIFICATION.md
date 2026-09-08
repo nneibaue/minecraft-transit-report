@@ -7,14 +7,14 @@ covered_files:
   - .planning/phases/04-static-chart-rendering/04-01-PLAN.md
   - .planning/phases/04-static-chart-rendering/04-01-SUMMARY.md
   - .planning/phases/04-static-chart-rendering/04-CONTEXT.md
+  - docs/DEV.md
+  - src/client/java/transitreport/client/JollyalchemyTransitReportClient.java
+  - src/client/java/transitreport/client/TransitChartRenderer.java
+  - src/main/java/transitreport/TransitReportBlocks.java
   - src/main/java/transitreport/block/TransitChartBlock.java
   - src/main/java/transitreport/block/entity/TransitChartBlockEntity.java
-  - src/main/java/transitreport/TransitReportBlocks.java
-  - src/client/java/transitreport/client/TransitChartRenderer.java
-  - src/client/java/transitreport/client/JollyalchemyTransitReportClient.java
   - src/main/resources/assets/jollyalchemy-transit-report/textures/block/transit_chart.png
-  - docs/DEV.md
-covered_digest: "v1:sha256:phase04-static-chart-rendering-implementation-verified"
+covered_digest: "v1:sha256:0c093217625e38019eacfcb4354349bf61dff3323d35f8ee98a5a946420f2139"
 behavior_unverified: 0
 overrides_applied: 0
 ---
