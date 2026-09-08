@@ -87,12 +87,20 @@ Settled by observation while building `TransitChartBlock` and `TransitChartModel
 
 ### Phase 2 visual verification (D-05)
 
-Pending human confirmation as of this writing — see the Phase 2 Plan 2 SUMMARY for current
-status. The dev client was launched and loaded cleanly with the block registered and named, but
-the four-direction placement/facing check, the item-name check, and the checkerboard check all
-require a person watching the running game window, which this automated session could not
-supply. Do not treat this block as verified until a later update to this file (or the SUMMARY it
-points to) records what was actually seen.
+Confirmed by the user in the running dev client. Two `runClient` sessions were needed: the first
+ran fully unattended (the world auto-loaded, the player fell out of it, and the client shut
+itself down after about two minutes with no placement made) before the user was actually at the
+keyboard; a second session was launched and handed to the user, who placed the block from all
+four horizontal directions, checked the six faces of a placed block (including the underside),
+and read the item's name in both the creative tab and the hotbar.
+
+The user's exact response: **"yes its working as expected"** — confirming all three checks in one
+statement: the four placements' front faces tracked back toward the player each time (with the
+four results visibly distinct from each other), no face of any placed block showed the
+purple-and-black missing-texture checkerboard (including the underside), and the item read
+exactly `Transit Chart` in both the Functional Blocks creative tab and the hotbar tooltip. The
+block draws with vanilla's borrowed furnace textures, as D-03 intends for this phase — that is
+the expected look until a later phase wires in the real chart texture pipeline, not a defect.
 
 ## JDK requirement
 
