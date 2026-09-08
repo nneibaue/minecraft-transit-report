@@ -18,7 +18,8 @@ affects: [01-02, 01-03, "any future phase that runs runClient for verification"]
 actuals:
   tokens: 1400
   tasks: 2
-  commits: 3
+  commits: 5
+plan_head_before: bcd5567c6cdc48106b6e874c224f865777824196
 
 # Tech tracking
 tech-stack:
@@ -115,7 +116,7 @@ Each task was committed atomically:
 1. **Task 1: Make the mod identify as itself, drop template mixins, prove it loads in a live 1.20.1 dev client** - `87c2b20` (feat)
 2. **Approved deviation (Task 2 support): add Mod Menu as dev-only dependency** - `46df129` (feat)
 
-**Plan metadata:** `c2d2b23` (docs: complete plan), `b258669` (docs: self-check addendum)
+**Plan metadata:** `c2d2b23` (docs: complete plan), `b258669` (docs: self-check addendum), `2cabdbf` (docs: summary fixups)
 
 _Note: Task 2 itself is a `checkpoint:human-action` — its own action (driving the game GUI, creating the world) produces only gitignored runtime artifacts under `run/`, not tracked source changes, so it carries no separate task commit beyond the deviation above._
 
