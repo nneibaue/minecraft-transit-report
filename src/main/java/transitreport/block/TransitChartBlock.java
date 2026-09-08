@@ -1,12 +1,21 @@
 package transitreport.block;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+
+import java.util.List;
+
+import transitreport.JollyalchemyTransitReport;
 
 /**
  * A block that stores a 4-way horizontal facing state, derived from the direction the
@@ -31,5 +40,17 @@ public class TransitChartBlock extends HorizontalDirectionalBlock {
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
 		return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+	}
+
+	// Tooltip lines for the item (BLOCK-06, GEN-05). BlockItem.appendHoverText already
+	// delegates to this block-level method - no BlockItem subclass is needed (confirmed via
+	// bytecode disassembly, 03-RESEARCH.md Pattern 3). Note the second parameter is
+	// BlockGetter here, not Level - that is the item-level appendHoverText signature and
+	// writing it here would silently never be called.
+	@Override
+	public void appendHoverText(ItemStack stack, BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
+		tooltip.add(Component.translatable("item." + JollyalchemyTransitReport.MOD_ID + ".transit_chart.tooltip"));
+		tooltip.add(Component.translatable("item." + JollyalchemyTransitReport.MOD_ID + ".transit_chart.flavor")
+				.withStyle(ChatFormatting.ITALIC));
 	}
 }

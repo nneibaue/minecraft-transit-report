@@ -1,4 +1,6 @@
 {
   "block.jollyalchemy-transit-report.transit_chart": "Transit Chart",
+  "item.jollyalchemy-transit-report.transit_chart.flavor": "What the sky is doing, right now.",
+  "item.jollyalchemy-transit-report.transit_chart.tooltip": "Right-click to refresh.",
   "text.jollyalchemy-transit-report.refreshing": "Refreshing transit chart..."
 }

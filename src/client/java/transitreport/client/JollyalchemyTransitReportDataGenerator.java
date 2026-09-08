@@ -45,6 +45,8 @@ public class JollyalchemyTransitReportDataGenerator implements DataGeneratorEntr
 		public void generateTranslations(FabricLanguageProvider.TranslationBuilder translationBuilder) {
 			translationBuilder.add("text." + JollyalchemyTransitReport.MOD_ID + ".refreshing", "Refreshing transit chart...");
 			translationBuilder.add("block." + JollyalchemyTransitReport.MOD_ID + ".transit_chart", "Transit Chart");
+			translationBuilder.add("item." + JollyalchemyTransitReport.MOD_ID + ".transit_chart.tooltip", "Right-click to refresh.");
+			translationBuilder.add("item." + JollyalchemyTransitReport.MOD_ID + ".transit_chart.flavor", "What the sky is doing, right now.");
 		}
 	}
 
