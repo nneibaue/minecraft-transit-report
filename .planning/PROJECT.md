@@ -18,7 +18,8 @@ A block placed in the world shows a current Human Design transit chart that keep
 
 ### Active
 
-- [ ] Toolchain verified: the project builds and the dev client launches against the configured Minecraft version
+- [ ] Toolchain verified end to end: the dev client launches and `runDatagen` produces output (`./gradlew build` already confirmed passing)
+- [ ] A local mock HTTP server exists in-repo that can serve PNGs and deliberately produce timeouts, non-200 statuses, and malformed image bytes
 - [ ] A display block exists, is craftable, and can be placed in the world
 - [ ] Static Minecraft resources (models, recipe, loot table, translations) are produced by Fabric Data Generation
 - [ ] The block renders an image on its face via a custom block entity renderer
@@ -45,7 +46,9 @@ A block placed in the world shows a current Human Design transit chart that keep
 
 **Repository state.** The repo is an unmodified Fabric example-mod template, one commit deep ("Initial template from Fabric"). Mod id `jollyalchemy-transit-report`, group `transitreport`, package root `transitreport`. Existing files are the template's `ExampleMixin`, `ExampleClientMixin`, the main/client/datagen entrypoints, and stock mixin configs. None of it is load-bearing.
 
-**Toolchain discrepancy — must be resolved first.** `gradle.properties` pins `minecraft_version=1.20.1` and `fabric_api_version=0.92.12+1.20.1`, but `build.gradle` is modern-generator output: it applies `net.fabricmc.fabric-loom-remap` at `loom_version=1.17-SNAPSHOT`, calls `splitEnvironmentSourceSets()`, uses `loom.officialMojangMappings()`, and configures datagen through the `fabricApi { configureDataGeneration { client = true } }` block. That is a current-Loom build script aimed at a game version from mid-2023. Whether this combination resolves at all is unverified. If it does not, downgrading the Loom plugin id/version and moving datagen configuration to the 1.20.1-era form is real work, not a formality — which is why toolchain verification is a first-class requirement rather than an assumed starting point.
+**Toolchain — verified working.** An earlier reading of this repo treated the pairing of `loom_version=1.17-SNAPSHOT` and plugin id `net.fabricmc.fabric-loom-remap` against `minecraft_version=1.20.1` as a suspicious mismatch. It is not. Fabric Loom is a single continuously-updated tool that builds old Minecraft versions from its current release, and Loom 1.14 (Dec 2024) split the plugin id by whether the target Minecraft version is obfuscated: `net.fabricmc.fabric-loom-remap` is the correct id for obfuscated versions (≤1.21.11, which includes 1.20.1), while plain `fabric-loom` now serves 26.1+. The live official `FabricMC/fabric-example-mod` 1.20 branch uses this exact pattern today. `./gradlew build` was run against this repo and succeeded (exit 0). Toolchain work is therefore a short sanity check — confirm the dev client actually launches and `runDatagen` produces output — not a rework phase.
+
+Two residual items, both small: the `fabricApi { configureDataGeneration { client = true } }` block is accepted at configuration time here (the build succeeds), but the `client = true` parameter is documented as a 1.21.4+ addition, so whether it does anything meaningful on 1.20.1 is worth confirming when datagen is first run. And Loom 1.17.x requires the *Gradle daemon* to run on JDK 17+ (21+ recommended) — a separate concern from the mod's own Java 17 bytecode target set by `options.release = 17`. This machine has JDK 26, so both are satisfied today.
 
 **Version tension, acknowledged deliberately.** The author is following current Fabric documentation but has deliberately chosen to stay on 1.20.1 for its mod ecosystem. Current Fabric docs describe post-1.21 APIs. Block entity renderers, `NativeImage` / `NativeImageBackedTexture` registration through `TextureManager`, render layers, and datagen provider signatures all differ meaningfully between 1.20.1 and current. Implementation must follow the 1.20.1 APIs as they exist in the resolved dependencies and Minecraft source, not what current tutorials or documentation show. Where the two disagree, the resolved sources win. This is the most likely source of wasted effort in the project.
 
@@ -84,7 +87,8 @@ refresh timer → `TransitApiClient` → HTTP GET → PNG bytes → `TransitText
 | Single logical block, not a multi-block structure | The renderer can draw the chart larger than the block; multi-block adds placement, state, and validation complexity that buys nothing yet | — Pending |
 | Dual dummy endpoints (public changing image + local mock) | The public URL proves refresh visually with zero setup; only a controllable local mock can produce the timeouts, 500s, and malformed PNGs the reliability requirements need | — Pending |
 | Fabric Data Generation for static JSON only | Datagen is build-time resource generation; forcing runtime HTTP, texture, or refresh behavior through it would be a category error | — Pending |
-| Toolchain verification is a real phase, not a formality | The build script is modern-Loom output pointed at 1.20.1; the combination is unverified and may require downgrading Loom and the datagen configuration | — Pending |
+| Toolchain kept as-is; verification is a sanity check | `./gradlew build` succeeds against the existing Loom 1.17 / `fabric-loom-remap` / MC 1.20.1 setup, which matches the official Fabric example mod's 1.20 branch. The earlier suspicion of a version mismatch was unfounded | ✓ Good |
+| Prefer resolved sources over documentation on every API question | Verified empirically this project: `javap` against the cached 1.20.1 Mojang-mappings jar settled signatures that docs and tutorials disagreed on. `./gradlew genSources` is the tie-breaker whenever 1.20.1 and current docs conflict | — Pending |
 
 ## Evolution
 
