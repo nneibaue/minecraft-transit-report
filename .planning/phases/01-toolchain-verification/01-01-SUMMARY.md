@@ -7,7 +7,7 @@ tags: [fabric, loom, minecraft-1.20.1, mixin, fabric.mod.json, modmenu, gradle]
 # Dependency graph
 requires: []
 provides:
-  - "A real, real, launched Minecraft 1.20.1 Fabric dev client with this mod's entrypoint proven to run, on JDK 26 (no JDK 21 install needed)"
+  - "A real, launched Minecraft 1.20.1 Fabric dev client with this mod's entrypoint proven to run, on JDK 26 (no JDK 21 install needed)"
   - "fabric.mod.json carrying real project identity (name, description, author, source URL) with no template placeholders"
   - "Both mixin configs emptied and the inert ExampleMixin/ExampleClientMixin packages fully removed (including Zone.Identifier sidecars)"
   - "A reusable Creative Superflat dev world at run/saves/gsd-dev for Phase 2 onward"
@@ -115,7 +115,7 @@ Each task was committed atomically:
 1. **Task 1: Make the mod identify as itself, drop template mixins, prove it loads in a live 1.20.1 dev client** - `87c2b20` (feat)
 2. **Approved deviation (Task 2 support): add Mod Menu as dev-only dependency** - `46df129` (feat)
 
-**Plan metadata:** commit pending (this SUMMARY commit)
+**Plan metadata:** `c2d2b23` (docs: complete plan), `b258669` (docs: self-check addendum)
 
 _Note: Task 2 itself is a `checkpoint:human-action` — its own action (driving the game GUI, creating the world) produces only gitignored runtime artifacts under `run/`, not tracked source changes, so it carries no separate task commit beyond the deviation above._
 
