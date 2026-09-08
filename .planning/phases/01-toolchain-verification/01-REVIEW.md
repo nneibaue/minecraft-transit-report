@@ -16,7 +16,7 @@ findings:
   warning: 1
   info: 0
   total: 2
-status: issues_found
+status: resolved
 ---
 
 # Phase 01: Code Review Report
@@ -107,3 +107,23 @@ jar tf build/libs/jollyalchemy-transit-report-*.jar | grep -i zone   # expect no
 _Reviewed: 2026-09-08T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+---
+
+## Resolution
+
+Both findings were fixed in commit `0434a60` after the phase verifier passed.
+
+**CR-01 — resolved.** The review's suggested remedy (`git rm --cached` + `.gitignore`)
+would have been insufficient. Inspection on disk showed these were **real 123-byte files**,
+not NTFS alternate data streams — they were materialized when the project template was
+copied out of WSL (`ReferrerUrl=\wsl.localhost\Ubuntu\...`). Because Gradle's
+`processResources` reads the filesystem rather than the git index, untracking alone would
+have left the jar contaminated. The files were therefore deleted outright, and
+`*Zone.Identifier*` added to `.gitignore` to prevent recurrence. Verified by a clean
+rebuild: `unzip -l` on both `jollyalchemy-transit-report-1.0.0.jar` and its `-sources`
+counterpart returns no matching entries.
+
+**WR-01 — resolved.** `"fabric-api"` changed from `"*"` to `">=0.92.12"`, matching the
+pinned `fabric_api_version=0.92.12+1.20.1` in `gradle.properties` and the constrained style
+of its siblings. Confirmed present in the packaged manifest inside the built jar.
