@@ -2,14 +2,13 @@
 	"schemaVersion": 1,
 	"id": "jollyalchemy-transit-report",
 	"version": "${version}",
-	"name": "jollyalchemy-transit-report",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "Human Design Transit Display",
+	"description": "A placeable block that displays a live Human Design transit chart, refreshed on its own and resilient when the API misbehaves.",
 	"authors": [
-		"Me!"
+		"Nate Neibauer"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/nneibaue/minecraft-transit-report"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/jollyalchemy-transit-report/icon.png",
