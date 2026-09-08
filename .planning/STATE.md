@@ -10,10 +10,10 @@ last_activity_desc: Phase 04 complete, transitioned to Phase 5
 state_head: f9746a8b75a590c3d1dcec51a2f821834ebde063
 progress:
   total_phases: 10
-  completed_phases: 1
+  completed_phases: 4
   total_plans: 8
   completed_plans: 8
-  percent: 10
+  percent: 40
 ---
 
 # Project State
@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-08)
 
 **Core value:** A block placed in the world shows a current Human Design transit chart that keeps updating on its own, and never freezes or crashes Minecraft when the API misbehaves.
-**Current focus:** Phase 04 — Static Chart Rendering
+**Current focus:** Phase 5 — Configuration and Async Fetch
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-08 — Phase 04 complete, transitioned to Phase 5
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -49,7 +49,7 @@ Progress: [█░░░░░░░░░] 10%
 | 01 | 3 | - | - |
 | 02 | 2 | - | - |
 | 03 | 2 | - | - |
-| 04 | 1 | - | - |
+| 04 | 1 | 38min | 38min |
 
 **Recent Trend:**
 
@@ -66,6 +66,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 01 P03 | 22min | 2 tasks | 1 files |
 | Phase 03 P01 | 9 min | 2 tasks | 8 files |
 | Phase 03 P02 | 10 min | 2 tasks | 4 files |
+| Phase 04 P01 | 38min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,11 @@ Recent decisions affecting current work:
 - [Phase 03]: git.allow_default_branch_commits: true added to config.json to make explicit the branching_strategy: none convention this repo has used since Phase 1. — All 5 prior plan commits already landed on main; the executor's pre-commit safety assertion needed the explicit flag to match established behavior.
 - [Phase 03]: Tooltip attached via Block.appendHoverText override, not a BlockItem subclass — BlockItem.appendHoverText already delegates to the block's own hover-text method (confirmed by disassembly), so TransitReportBlocks and the block item construction stay untouched
 - [Phase 03]: MEDIUM-confidence FabricRecipeProvider method-shape risk closed — Confirmed empirically via runDatagen/build across plans 03-01 and 03-02, and recorded in docs/DEV.md
+- [Phase 04]: TransitChartBlock made fully invisible in-world (getRenderShape() -> RenderShape.INVISIBLE) with a thin, wall-hugging VoxelShape, replacing the original full-cube design — direct in-game visual review showed the full cube reading as a chunky block, not a mounted picture
+- [Phase 04]: Chart quad shrunk to 1.5 blocks wide (from 2.0), anchored flush to the wall-side face, and vertically centered (not bottom-anchored) — four rounds of live checkpoint iteration after user visual review; all documented as deliberate deviations from 04-CONTEXT.md's locked D-05/D-08
+- [Phase 04]: noOcclusion() added to TransitChartBlock's properties to stop the now-thin invisible block from wrongly culling its neighbor's shared face
+- [Phase 04]: Rotation sign (-facing.toYRot()) confirmed correct across all four orientations via javap-verified Direction.toYRot() values and live in-game testing — no flip needed
+- [Phase 04]: Code review (04-REVIEW.md) found 2 non-blocking warnings for Phase 6 to be aware of: TransitChartRenderer's class Javadoc still says "bottom-anchored" (stale, now centered), and the centered quad overflows ~0.67 blocks below the block's footprint (floor-adjacent placement not checkpoint-tested)
 
 ### Pending Todos
 
@@ -100,6 +106,7 @@ None yet.
 - **REQUIREMENTS.md coverage count was stale.** It stated 48 v1 requirements; the actual count of defined IDs is 52. Corrected in the traceability section during roadmap creation.
 - **The real Human Design API does not exist yet.** All fetch verification runs against a public changing-image dummy endpoint. The API contract (paths, parameters) may still shift.
 - **One MEDIUM-confidence research finding still needs empirical settling during execution:** `registerTexture` / `NativeImageBackedTexture` close semantics plus F3+T reload survival (Phase 6). The other two (`configureDataGeneration { client = true }` on 1.20.1, Phase 1; `FabricRecipeProvider`/`FabricBlockLootTableProvider` method shape, Phase 3) are now closed and confirmed against real `runDatagen`/`build` runs.
+- **[Phase 04] Vertically-centered chart quad overflows ~0.67 blocks below the block's own footprint** — not checkpoint-tested for floor-adjacent placement (only mid-wall placements were visually confirmed). Worth a quick visual check if/when a floor-level placement matters.
 
 ## Deferred Items
 
@@ -111,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-08T16:10:48.377Z
+Last session: 2026-09-08
 Stopped at: Phase 04 complete, ready to plan Phase 5
-Resume file: .planning/phases/04-static-chart-rendering/04-CONTEXT.md
+Resume file: None

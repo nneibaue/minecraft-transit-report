@@ -17,10 +17,10 @@ A block placed in the world shows a current Human Design transit chart that keep
 - ✓ Toolchain verified end to end: the dev client launches and `runDatagen` produces output — Phase 1
 - ✓ A display block exists, is craftable, and can be placed in the world — Phases 2-3
 - ✓ Static Minecraft resources (models, recipe, loot table, translations) are produced by Fabric Data Generation — Phases 2-3
+- ✓ The block renders an image on its face via a custom block entity renderer — Phase 4
 
 ### Active
 
-- [ ] The block renders an image on its face via a custom block entity renderer
 - [ ] A dynamic texture pipeline turns arbitrary PNG bytes into a renderable texture and can swap it at runtime without leaking GPU resources
 - [ ] An HTTP client fetches PNG bytes from a configurable base URL asynchronously, off the main/render thread
 - [ ] Downloaded chart images appear on the placed block
@@ -89,6 +89,9 @@ refresh timer → `TransitApiClient` → HTTP GET → PNG bytes → `TransitText
 | Toolchain kept as-is; verification is a sanity check | `./gradlew build` succeeds against the existing Loom 1.17 / `fabric-loom-remap` / MC 1.20.1 setup, which matches the official Fabric example mod's 1.20 branch. The earlier suspicion of a version mismatch was unfounded | ✓ Good |
 | Prefer resolved sources over documentation on every API question | Verified empirically this project: `javap` against the cached 1.20.1 Mojang-mappings jar settled signatures that docs and tutorials disagreed on. `./gradlew genSources` is the tie-breaker whenever 1.20.1 and current docs conflict | ✓ Good — confirmed again in Phase 3: `FabricRecipeProvider.buildRecipes(Consumer<FinishedRecipe>)` and `FabricBlockLootTableProvider.generate()` (no-arg) settled the MEDIUM-confidence signature risk research had flagged, closing it against real `runDatagen`/`build` runs rather than current (post-1.21) Fabric docs |
 | Single-dirt shapeless recipe as the shipped Phase 3 recipe, thematic 3x3 recipe kept commented-out beside it | Zero-effort testing convenience so iteration never requires gathering materials; the intended Amethyst Shard / Echo Shard / Clock / Glow Ink Sac recipe is preserved verbatim (all ingredients, all pattern rows) so swapping it in later is uncommenting, not re-deriving from REQUIREMENTS.md | ✓ Good — Phase 3 |
+| `TransitChartBlock` renders fully invisible in-world (`getRenderShape()` → `RenderShape.INVISIBLE`) with a thin, wall-hugging `VoxelShape`, rather than the originally-planned full 1x1x1 cube with the chart floating in front of it | Direct in-game visual review (Phase 4 checkpoints) showed the full-cube version reading as a chunky block bolted to the wall, not a mounted picture; suppressing the vanilla model and thinning the hitbox makes only the floating chart quad visible, matching the "painting on the wall" look the author wanted | ✓ Good — Phase 4 |
+| Chart quad anchored flush to the wall-side face, vertically centered on the block, and sized 1.5 blocks wide (not the original 2.0-block, bottom-anchored, far-face-anchored quad) | Four rounds of live visual iteration: the far-face anchor left the chart floating a full block off the wall once the block became invisible; bottom-anchoring read as "too high" once the quad was taller than one block; 1.5 blocks reads as a wall panel rather than an oversized poster | ✓ Good — Phase 4 |
+| `noOcclusion()` added to `TransitChartBlock`'s properties | The now-thin, invisible block was still treated as a full opaque cube for neighbor face-culling, leaving a rendering hole in the wall behind it until a chunk rebuild; `noOcclusion()` fixes this at the source | ✓ Good — Phase 4 |
 
 ## Evolution
 
@@ -108,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-08 after Phase 3*
+*Last updated: 2026-09-08 after Phase 4*
