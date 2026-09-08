@@ -22,6 +22,8 @@ public class JollyalchemyTransitReport implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("Hello Fabric world!");
+
+		TransitReportBlocks.register();
 	}
 
 	public static ResourceLocation id(String path) {

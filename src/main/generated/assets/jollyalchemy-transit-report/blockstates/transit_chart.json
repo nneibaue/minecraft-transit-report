@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "jollyalchemy-transit-report:block/transit_chart",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "jollyalchemy-transit-report:block/transit_chart"
+    },
+    "facing=south": {
+      "model": "jollyalchemy-transit-report:block/transit_chart",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "jollyalchemy-transit-report:block/transit_chart",
+      "y": 270
+    }
+  }
+}
