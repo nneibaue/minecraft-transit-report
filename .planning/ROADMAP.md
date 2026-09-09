@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Block Exists and Places** - A display block obtainable in creative, placeable, storing 4-way facing, with generated models (completed 2026-09-08)
 - [x] **Phase 3: Craft, Break, and Identify** - Shapeless dirt recipe, self-drop loot table, translated name and tooltip (completed 2026-09-08)
 - [x] **Phase 4: Static Chart Rendering** - Block entity renderer draws an oversized, self-lit, correctly-oriented bundled image (completed 2026-09-08)
-- [ ] **Phase 5: Configuration and Async Fetch** - Config-driven base URL and interval; PNG bytes fetched off-thread and logged (parallel to 2-4)
+- [x] **Phase 5: Configuration and Async Fetch** - Config-driven base URL and interval; PNG bytes fetched off-thread and logged (parallel to 2-4) (completed 2026-09-08)
 - [ ] **Phase 6: Dynamic Texture Pipeline** - Arbitrary PNG bytes become a live, swappable, non-leaking texture on the block
 - [ ] **Phase 7: Fetched Chart on the Block** - The two tracks join: a downloaded chart appears on a placed block
 - [ ] **Phase 8: Scheduled Refresh** - The chart keeps itself current on a configurable cadence with no overlap or per-tick spam
@@ -261,7 +261,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 | 2. Block Exists and Places | 2/2 | Complete    | 2026-09-08 |
 | 3. Craft, Break, and Identify | 2/2 | Complete    | 2026-09-08 |
 | 4. Static Chart Rendering | 1/1 | Complete    | 2026-09-08 |
-| 5. Configuration and Async Fetch | 1/1 | In Progress|  |
+| 5. Configuration and Async Fetch | 1/1 | Complete    | 2026-09-08 |
 | 6. Dynamic Texture Pipeline | 0/TBD | Not started | - |
 | 7. Fetched Chart on the Block | 0/TBD | Not started | - |
 | 8. Scheduled Refresh | 0/TBD | Not started | - |
