@@ -18,7 +18,7 @@ findings:
   warning: 3
   info: 1
   total: 5
-status: issues_found
+status: fixed
 ---
 
 # Phase 05: Code Review Report
@@ -26,7 +26,7 @@ status: issues_found
 **Reviewed:** 2026-09-08
 **Depth:** standard
 **Files Reviewed:** 9
-**Status:** issues_found
+**Status:** fixed (CR-01, WR-01, WR-02, WR-03 applied 2026-09-08, commit `7aa7d60`; IN-01 left as documented residual, in-scope only for `--fix --all`)
 
 ## Summary
 
@@ -174,6 +174,18 @@ private String substituteTokens(String template) {
                    .replace("{time}", now.format(TIME_FORMAT));
 }
 ```
+
+---
+
+## Fixes Applied (2026-09-08, commit `7aa7d60`)
+
+- **CR-01**: `TransitApiClient.fetchChart` now branches on `response.statusCode() != 200` before `onSuccess`, routing any non-200 response through `callback.onFailure(...)` with a logged status code.
+- **WR-01**: `SizedBodySubscriber.onNext` now returns immediately if `sizeExceeded` is already true, guarding against a chunk arriving after `cancel()` (best-effort per the Reactive Streams spec).
+- **WR-02**: Added `TransitApiClient.shutdown()`; the one-shot startup fetch in `JollyalchemyTransitReportClient` calls it in both `onSuccess`/`onFailure` so its two executor threads don't outlive the fetch.
+- **WR-03**: Added `SizedBodySubscriberTest#onNextAfterCapExceededIsIgnored`, covering the WR-01 regression.
+- **IN-01**: Not fixed — Info severity, outside the default (Critical + Warning) fix scope. `substituteTokens`'s two-call date/time read remains a documented, low-probability, self-correcting residual.
+
+All of 05-01-PLAN.md's structural `<verify>` grep assertions re-confirmed passing after the fix; `./gradlew build` green (7 tests, all passing).
 
 ---
 
