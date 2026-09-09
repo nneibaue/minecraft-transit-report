@@ -84,4 +84,22 @@ class SizedBodySubscriberTest {
             }
         });
     }
+
+    @Test
+    void onNextAfterCapExceededIsIgnored() {
+        SizedBodySubscriber subscriber = new SizedBodySubscriber(10);
+        RecordingSubscription subscription = new RecordingSubscription();
+
+        subscriber.onSubscribe(subscription);
+        subscriber.onNext(List.of(ByteBuffer.wrap(new byte[20])));
+        assertTrue(subscriber.isSizeExceeded());
+        assertEquals(1, subscription.cancelCount());
+
+        // Simulates a chunk already in flight arriving after cancel() (best-effort/async
+        // per the Reactive Streams spec) -- must not mutate state or re-trigger completion.
+        subscriber.onNext(List.of(ByteBuffer.wrap(new byte[1])));
+
+        assertEquals(1, subscription.cancelCount());
+        assertTrue(subscriber.getBody().toCompletableFuture().isCompletedExceptionally());
+    }
 }

@@ -30,6 +30,7 @@ public class JollyalchemyTransitReportClient implements ClientModInitializer {
 				Minecraft.getInstance().execute(() ->
 						JollyalchemyTransitReport.LOGGER.info(
 								"Startup chart fetch succeeded: {} bytes", pngBytes.length));
+				apiClient.shutdown();
 			}
 
 			@Override
@@ -37,6 +38,7 @@ public class JollyalchemyTransitReportClient implements ClientModInitializer {
 				Minecraft.getInstance().execute(() ->
 						JollyalchemyTransitReport.LOGGER.warn(
 								"Startup chart fetch failed: {}", error.getMessage()));
+				apiClient.shutdown();
 			}
 		});
 	}

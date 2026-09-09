@@ -44,6 +44,11 @@ public class SizedBodySubscriber implements HttpResponse.BodySubscriber<byte[]> 
 
     @Override
     public void onNext(List<ByteBuffer> item) {
+        if (sizeExceeded) {
+            // cancel() is best-effort/async (Reactive Streams spec) -- a chunk already in
+            // flight can still arrive after the cap was flagged, so guard here too.
+            return;
+        }
         for (ByteBuffer buf : item) {
             if (buffer.size() + buf.remaining() > maxSize) {
                 sizeExceeded = true;

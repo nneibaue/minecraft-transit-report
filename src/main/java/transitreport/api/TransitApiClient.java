@@ -69,12 +69,25 @@ public class TransitApiClient {
                     if (throwable != null) {
                         JollyalchemyTransitReport.LOGGER.warn("Chart fetch failed: {}", throwable.getMessage());
                         callback.onFailure(throwable);
+                    } else if (response.statusCode() != 200) {
+                        JollyalchemyTransitReport.LOGGER.warn("Chart fetch failed: HTTP status {}", response.statusCode());
+                        callback.onFailure(new java.io.IOException("Unexpected HTTP status " + response.statusCode()));
                     } else {
                         JollyalchemyTransitReport.LOGGER.info("Chart fetch succeeded: status {}, {} bytes",
                                 response.statusCode(), response.body().length);
                         callback.onSuccess(response.body());
                     }
                 });
+    }
+
+    /**
+     * Shuts down this client's dedicated executor. Safe to call once any in-flight
+     * {@link #fetchChart(String, ChartCallback)} calls have completed; a short-lived
+     * caller (e.g. a one-shot diagnostic fetch) should call this after its callback fires
+     * so the two dedicated worker threads don't outlive the fetch.
+     */
+    public void shutdown() {
+        executor.shutdown();
     }
 
     private String substituteTokens(String template) {
