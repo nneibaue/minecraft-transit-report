@@ -147,12 +147,12 @@ Plans:
   4. A fetch against an unreachable host gives up within the configured connect and request timeouts instead of hanging, and an oversized response body is cut off at the configured cap rather than growing without bound
   5. Shipped config defaults contain no API secret or credential, and all requests are built through one shared path such that a second chart endpoint would be a single added method — confirmable by inspection
 
-**Plans**: 0/1 plans executed
+**Plans**: 1/1 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Wave 1 (tracer + expansion): `TransitConfig` + `TransitApiClient` + `SizedBodySubscriber` wired end to end (JUnit-tested config recovery and size-cap logic), the D-05 one-shot startup fetch wired into `JollyalchemyTransitReportClient`, and a live verification pass against the real API confirming the success path, the unreachable-host failure path, and responsiveness (CFG-01, CFG-02, CFG-03, CFG-05, API-01, API-02, API-03, API-04, API-05)
+- [x] 05-01-PLAN.md — Wave 1 (tracer + expansion): `TransitConfig` + `TransitApiClient` + `SizedBodySubscriber` wired end to end (JUnit-tested config recovery and size-cap logic), the D-05 one-shot startup fetch wired into `JollyalchemyTransitReportClient`, and a live verification pass against the real API confirming the success path, the unreachable-host failure path, and responsiveness (CFG-01, CFG-02, CFG-03, CFG-05, API-01, API-02, API-03, API-04, API-05)
 
 **Notes**: This is the parallel track. `TransitApiClient` has zero dependencies on the block, the renderer, or the texture pipeline, and building it alongside Phases 2-4 de-risks Phase 7 by ensuring both halves of that join are independently proven first. Nothing here touches `TextureManager`, `NativeImage`, or any GL call — this phase logs bytes and stops. `TransitConfig` stays free of client-only imports so it can live in `src/main`. Correction during planning (05-CONTEXT.md D-01): the shipped default and verification target is the real Human Design API (`https://human-design-4u01.onrender.com`), confirmed live in Phase 4 and again during Phase 5 planning via direct curl — not the public changing-image dummy endpoint this note originally assumed.
 
@@ -261,7 +261,7 @@ Phase 3 and Phase 4 are also independent of each other; both need only Phase 2.
 | 2. Block Exists and Places | 2/2 | Complete    | 2026-09-08 |
 | 3. Craft, Break, and Identify | 2/2 | Complete    | 2026-09-08 |
 | 4. Static Chart Rendering | 1/1 | Complete    | 2026-09-08 |
-| 5. Configuration and Async Fetch | 0/TBD | Not started | - |
+| 5. Configuration and Async Fetch | 1/1 | In Progress|  |
 | 6. Dynamic Texture Pipeline | 0/TBD | Not started | - |
 | 7. Fetched Chart on the Block | 0/TBD | Not started | - |
 | 8. Scheduled Refresh | 0/TBD | Not started | - |

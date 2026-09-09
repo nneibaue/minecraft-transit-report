@@ -52,11 +52,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### API Client
 
-- [ ] **API-01**: `TransitApiClient` fetches PNG bytes from the configured endpoint via an asynchronous HTTP GET
-- [ ] **API-02**: Connect timeout and request timeout are both configured to finite values
-- [ ] **API-03**: No HTTP call blocks the Minecraft main or render thread — the game stays responsive while a request is in flight
-- [ ] **API-04**: Adding a second chart endpoint requires adding a method to the client, not restructuring the HTTP layer
-- [ ] **API-05**: Response body size is capped so a hostile or broken endpoint cannot exhaust memory
+- [x] **API-01**: `TransitApiClient` fetches PNG bytes from the configured endpoint via an asynchronous HTTP GET
+- [x] **API-02**: Connect timeout and request timeout are both configured to finite values
+- [x] **API-03**: No HTTP call blocks the Minecraft main or render thread — the game stays responsive while a request is in flight
+- [x] **API-04**: Adding a second chart endpoint requires adding a method to the client, not restructuring the HTTP layer
+- [x] **API-05**: Response body size is capped so a hostile or broken endpoint cannot exhaust memory
 - [ ] **API-06**: Response content type and image decodability are validated before the bytes reach the texture pipeline
 - [ ] **API-07**: The renderer performs no HTTP, and the API client touches no rendering or texture state
 
@@ -80,11 +80,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **CFG-01**: API base URL is read from a configuration file, not hardcoded
-- [ ] **CFG-02**: Refresh interval is read from configuration, not a magic number in code
-- [ ] **CFG-03**: A malformed or missing config file produces a usable default and a clear log line rather than a crash during initialization
+- [x] **CFG-01**: API base URL is read from a configuration file, not hardcoded
+- [x] **CFG-02**: Refresh interval is read from configuration, not a magic number in code
+- [x] **CFG-03**: A malformed or missing config file produces a usable default and a clear log line rather than a crash during initialization
 - [ ] **CFG-04**: An author-only client command can reload configuration and set the base URL at runtime, without editing a file and restarting
-- [ ] **CFG-05**: No API secrets or credentials are present in the mod or its configuration defaults
+- [x] **CFG-05**: No API secrets or credentials are present in the mod or its configuration defaults
 
 ## v2 Requirements
 
@@ -175,11 +175,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEX-04 | Phase 6 | Pending |
 | TEX-05 | Phase 6 | Pending |
 | TEX-06 | Phase 6 | Pending |
-| API-01 | Phase 5 | Pending |
-| API-02 | Phase 5 | Pending |
-| API-03 | Phase 5 | Pending |
-| API-04 | Phase 5 | Pending |
-| API-05 | Phase 5 | Pending |
+| API-01 | Phase 5 | Complete |
+| API-02 | Phase 5 | Complete |
+| API-03 | Phase 5 | Complete |
+| API-04 | Phase 5 | Complete |
+| API-05 | Phase 5 | Complete |
 | API-06 | Phase 7 | Pending |
 | API-07 | Phase 7 | Pending |
 | REF-01 | Phase 8 | Pending |
@@ -194,11 +194,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REL-04 | Phase 9 | Pending — review-only verification, see Verification Notes |
 | REL-05 | Phase 9 | Pending |
 | REL-06 | Phase 9 | Pending |
-| CFG-01 | Phase 5 | Pending |
-| CFG-02 | Phase 5 | Pending |
-| CFG-03 | Phase 5 | Pending |
+| CFG-01 | Phase 5 | Complete |
+| CFG-02 | Phase 5 | Complete |
+| CFG-03 | Phase 5 | Complete |
 | CFG-04 | Phase 10 | Pending |
-| CFG-05 | Phase 5 | Pending |
+| CFG-05 | Phase 5 | Complete |
 
 **Coverage:**
 

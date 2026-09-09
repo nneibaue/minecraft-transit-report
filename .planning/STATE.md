@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Configuration and Async Fetch
-status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-09T00:47:24.371Z"
+status: verifying
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-09-09T01:26:07.411Z"
 last_activity: 2026-09-08
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
-state_head: 27c4288d5f9f29486f615c790af2e06da76ae7ea
+last_activity_desc: Phase 05 execution started
+state_head: f9f4cd8265d2a7d0605f600f7b47c52c37d217f1
 progress:
   total_phases: 10
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 9
-  completed_plans: 8
-  percent: 10
+  completed_plans: 9
+  percent: 0
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-08)
 
 **Core value:** A block placed in the world shows a current Human Design transit chart that keeps updating on its own, and never freezes or crashes Minecraft when the API misbehaves.
-**Current focus:** Phase 5 — Configuration and Async Fetch
+**Current focus:** Phase 05 — Configuration and Async Fetch
 
 ## Current Position
 
-Phase: 05 (Configuration and Async Fetch) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-09-08 — Phase 04 complete, transitioned to Phase 5
+Phase: 05 (Configuration and Async Fetch) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-09-08 — Phase 05 execution started
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 03 P01 | 9 min | 2 tasks | 8 files |
 | Phase 03 P02 | 10 min | 2 tasks | 4 files |
 | Phase 04 P01 | 38min | 2 tasks | 7 files |
+| Phase 05 P01 | 40min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,10 @@ Recent decisions affecting current work:
 - [Phase 04]: noOcclusion() added to TransitChartBlock's properties to stop the now-thin invisible block from wrongly culling its neighbor's shared face
 - [Phase 04]: Rotation sign (-facing.toYRot()) confirmed correct across all four orientations via javap-verified Direction.toYRot() values and live in-game testing — no flip needed
 - [Phase 04]: Code review (04-REVIEW.md) found 2 non-blocking warnings for Phase 6 to be aware of: TransitChartRenderer's class Javadoc still says "bottom-anchored" (stale, now centered), and the centered quad overflows ~0.67 blocks below the block's footprint (floor-adjacent placement not checkpoint-tested)
+- [Phase 05]: [Phase 05] Gson's default HTML-safe escaping mangled the hand-edited baseUrl (&/= chars) -- fixed via disableHtmlEscaping() on the config-defaults writer
+- [Phase 05]: [Phase 05] Added testRuntimeOnly junit-platform-launcher beyond plan spec -- Gradle 9.5.1 needs it explicitly or ./gradlew test fails before running any test
+- [Phase 05]: [Phase 05] Confirmed live: Render.com free-tier cold start can exceed the 45s request timeout on first fetch after idle; a warm retry succeeds in ~2s -- matches D-08's own reasoning
+- [Phase 05]: [Phase 05] D-07 (no-frame-hitch responsiveness) not yet confirmed by a human -- automated log evidence shows the fetch never hangs the client, but the felt experience needs a human runClient session
 
 ### Pending Todos
 
@@ -107,6 +112,7 @@ None yet.
 - **The real Human Design API does not exist yet.** All fetch verification runs against a public changing-image dummy endpoint. The API contract (paths, parameters) may still shift.
 - **One MEDIUM-confidence research finding still needs empirical settling during execution:** `registerTexture` / `NativeImageBackedTexture` close semantics plus F3+T reload survival (Phase 6). The other two (`configureDataGeneration { client = true }` on 1.20.1, Phase 1; `FabricRecipeProvider`/`FabricBlockLootTableProvider` method shape, Phase 3) are now closed and confirmed against real `runDatagen`/`build` runs.
 - **[Phase 04] Vertically-centered chart quad overflows ~0.67 blocks below the block's own footprint** — not checkpoint-tested for floor-adjacent placement (only mid-wall placements were visually confirmed). Worth a quick visual check if/when a floor-level placement matters.
+- [Phase 05] D-07 no-frame-hitch/responsiveness needs a human to watch an active runClient session -- not observable by the executor; does not block phase completion but is an open UAT item
 
 ## Deferred Items
 
@@ -118,6 +124,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-09T00:14:14.676Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-configuration-and-async-fetch/05-CONTEXT.md
+Last session: 2026-09-09T01:26:07.371Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
