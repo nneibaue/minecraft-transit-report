@@ -147,9 +147,14 @@ Plans:
   4. A fetch against an unreachable host gives up within the configured connect and request timeouts instead of hanging, and an oversized response body is cut off at the configured cap rather than growing without bound
   5. Shipped config defaults contain no API secret or credential, and all requests are built through one shared path such that a second chart endpoint would be a single added method — confirmable by inspection
 
-**Plans**: TBD
+**Plans**: 0/1 plans executed
 
-**Notes**: This is the parallel track. `TransitApiClient` has zero dependencies on the block, the renderer, or the texture pipeline, and building it alongside Phases 2-4 de-risks Phase 7 by ensuring both halves of that join are independently proven first. Nothing here touches `TextureManager`, `NativeImage`, or any GL call — this phase logs bytes and stops. `TransitConfig` stays free of client-only imports so it can live in `src/main`. Verification uses the public changing-image dummy endpoint; the real Human Design API does not exist yet.
+Plans:
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Wave 1 (tracer + expansion): `TransitConfig` + `TransitApiClient` + `SizedBodySubscriber` wired end to end (JUnit-tested config recovery and size-cap logic), the D-05 one-shot startup fetch wired into `JollyalchemyTransitReportClient`, and a live verification pass against the real API confirming the success path, the unreachable-host failure path, and responsiveness (CFG-01, CFG-02, CFG-03, CFG-05, API-01, API-02, API-03, API-04, API-05)
+
+**Notes**: This is the parallel track. `TransitApiClient` has zero dependencies on the block, the renderer, or the texture pipeline, and building it alongside Phases 2-4 de-risks Phase 7 by ensuring both halves of that join are independently proven first. Nothing here touches `TextureManager`, `NativeImage`, or any GL call — this phase logs bytes and stops. `TransitConfig` stays free of client-only imports so it can live in `src/main`. Correction during planning (05-CONTEXT.md D-01): the shipped default and verification target is the real Human Design API (`https://human-design-4u01.onrender.com`), confirmed live in Phase 4 and again during Phase 5 planning via direct curl — not the public changing-image dummy endpoint this note originally assumed.
 
 ### Phase 6: Dynamic Texture Pipeline
 
