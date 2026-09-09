@@ -49,6 +49,17 @@ dependencies {
 	// for the approved-deviation rationale. Plan 01-03 also touches this file
 	// (configureDataGeneration work) - preserve this dependency and the repository above.
 	modLocalRuntime "com.terraformersmc:modmenu:7.2.2"
+
+	// JUnit 5 for unit-testing TransitConfig and SizedBodySubscriber (Phase 5) -- pure JDK/JUnit,
+	// no Minecraft/Fabric runtime involved. No BOM needed for a single pinned version.
+	testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+	// Gradle 9's test task needs the JUnit Platform launcher explicitly on the runtime
+	// classpath -- it is not pulled in transitively by junit-jupiter alone on this Gradle version.
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
 }
 
 processResources {
