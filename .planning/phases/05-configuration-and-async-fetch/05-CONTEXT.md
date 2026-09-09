@@ -68,7 +68,7 @@ Covers CFG-01, CFG-02, CFG-03, CFG-05, API-01, API-02, API-03, API-04, API-05.
 
 ### Claude's Discretion
 
-- **D-14** above (log message wording/specificity on config fallback) — the question was raised but not answered; treat "include the reason" as the default unless planning finds a concrete reason against it.
+- The D-14 log-message wording above — the question was raised but not answered; treat "include the reason" as the default unless planning finds a concrete reason against it.
 - Exact Gson field names, Java types (e.g. whether interval is stored as `int` seconds or something richer), and the config POJO's class name/location are unconstrained implementation details — follow CLAUDE.md §5's "hand-rolled Gson + `FabricLoader.getConfigDir()`" guidance directly.
 - Whether the one-shot startup verification fetch (D-05) is deleted or merely left inert once Phase 8's scheduler exists is left to whichever agent implements Phase 8 to decide, not locked here.
 
