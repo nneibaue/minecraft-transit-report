@@ -259,7 +259,95 @@ appears larger than the block's footprint, at its real aspect ratio, oriented pe
 in all four horizontal directions, fully legible in total darkness, and visible without
 popping/culling at the default 64-block render distance.
 
-## JDK requirement
+### Phase 5 configuration and async fetch findings
+
+Settled by observation while building `TransitConfig`, `TransitApiClient`, and
+`SizedBodySubscriber` (05-01-PLAN.md; full detail in
+`.planning/phases/05-configuration-and-async-fetch/05-01-SUMMARY.md`). This closes
+05-RESEARCH.md's Open Question 1 (date/time format and URI-encoding) and the phase's D-06/D-07
+verification triggers.
+
+**JUnit 5 test infrastructure, added for the first time this phase.** No test source set
+existed before Phase 5 (`git ls-files` showed zero test files). `build.gradle` now adds
+`testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"` plus a `test { useJUnitPlatform() }`
+block. One extra dependency was needed beyond what 05-01-PLAN.md specified:
+`testRuntimeOnly "org.junit.platform:junit-platform-launcher"` -- without it, `./gradlew test`
+fails outright with "Failed to load JUnit Platform" before running a single test, because this
+project's Gradle 9.5.1 does not pull the platform launcher in transitively from
+`junit-jupiter` alone the way older Gradle versions did.
+
+**Package-private `load(Path)` testability pattern.** `TransitConfig.load()` (public, no-arg)
+resolves `FabricLoader.getInstance().getConfigDir()` and delegates to a package-private
+`load(Path configDir)` that does all the actual parse/validate/default-fallback work.
+`TransitConfigTest` (same package, `@TempDir Path`) calls `load(Path)` directly with zero
+Fabric or Minecraft runtime involved -- the whole CFG-01/02/03/D-11 behavior surface is unit
+-testable in plain JUnit 5.
+
+**Gson's default HTML-safe escaping mangles this config's URL value -- confirmed, and fixed.**
+`new Gson().toJson(...)` (no builder options) escapes `&`, `=`, `<`, `>`, and `'` as unicode
+sequences by default, on the theory that JSON is often embedded in HTML. `TransitConfig`'s
+`baseUrl` default is a URL template packed with `&` and `=` (D-02) that a human is expected to
+open and hand-edit -- with default escaping, the written file would show `&` in place of
+every `&`, unreadable and easy to break when hand-editing. Caught by
+`TransitConfigTest`'s malformed-JSON-recovery case (`onDiskAfterLoad.contains(DEFAULT_BASE_URL)`
+failed) before this ever reached a live config file. Fix: `writeDefaults` now builds its Gson
+instance with `new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()`. Confirmed
+live: `run/config/transit-config.json`'s `baseUrl` reads exactly as `DEFAULT_BASE_URL` is
+written in code, `&`/`=` intact, no escaping.
+
+**Date/time format and URI-encoding -- confirmed, closing Open Question 1.** During planning,
+`curl "https://human-design-4u01.onrender.com/api/viz/transit?date=2026-09-08&time=12%3A00&width=512&height=800&transparent=false"`
+and the same URL with a literal (non-percent-encoded) `time=12:00` both returned
+`HTTP_STATUS:200`, `image/png`, byte-identical 512x800 PNG output (107875 bytes). Re-confirmed
+during this phase's live verification with a fresh `curl` call immediately before the second
+`runClient` session (`HTTP_STATUS:200 TIME_TOTAL:2.13s SIZE:107875`). This settles: (a) the API
+expects `date` as ISO-8601 `yyyy-MM-dd` and `time` as 24-hour `HH:mm`, exactly matching
+`TransitConfig.DEFAULT_BASE_URL`/`TransitApiClient.substituteTokens`; (b) `:` is a legal,
+unescaped character inside a URI query component per RFC 3986's `pchar` grammar, so
+`java.net.URI.create(url)` needs no manual percent-encoding of the substituted `{time}` token --
+`TransitApiClient`'s plain `template.replace(...)` + `URI.create(...)` is sufficient as written.
+
+**Render.com free-tier cold start observed directly, exactly as D-08 anticipated.** The very
+first live `runClient` launch (client had been idle, nothing had hit the API in a while) timed
+out: `Chart fetch failed: java.net.http.HttpTimeoutException: request timed out` at the full
+45-second `REQUEST_TIMEOUT` boundary. A `curl` to the same endpoint moments later (which woke
+the service) returned in 2.13 seconds. A second `runClient` launch immediately after that curl
+succeeded cleanly: `Chart fetch succeeded: status 200, 107855 bytes` (byte count differs
+slightly from the curl's 107875 because the live chart is timestamp-parametrized, as expected).
+This is precisely the cold-start-vs-warm behavior D-08's 45-second request timeout was chosen
+to tolerate, observed on the very first real attempt rather than merely reasoned about.
+
+**Unreachable-host failure path (D-06), confirmed clean.** With `run/config/transit-config.json`
+edited to `baseUrl: "https://this-host-does-not-exist.invalid/x?date={date}&time={time}"` (the
+`.invalid` TLD is reserved by RFC 2606 to always fail to resolve), a third `runClient` launch
+logged `Chart fetch failed: java.net.ConnectException` about one second after mod init -- DNS
+resolution failure is immediate, well under either configured timeout. The client did not hang
+or crash; it continued loading normally afterward and later shut down cleanly on its own (no
+world was ever joined this session, unlike the two successful-fetch sessions -- an idle-timeout
+behavior already documented for this project's unattended `runClient` sessions in the Phase 2
+visual verification notes above, not a Phase 5 regression). Config was reverted afterward by
+deleting `run/config/transit-config.json` outright rather than hand-editing the URL back --
+`run/` is gitignored dev-instance state, and deleting it guarantees the next launch's
+`TransitConfig.load()` treats it as a fresh first run and writes back the exact canonical
+default JSON, with zero risk of a typo in a hand-restored URL.
+
+**Surprising thread-naming detail, recorded but not treated as a defect.** Every
+`Chart fetch succeeded`/`Chart fetch failed` log line (from `TransitApiClient`'s
+`.whenComplete(...)`) was observed running on a thread named `ForkJoinPool.commonPool-worker-1`,
+not one of the two threads from `TransitApiClient`'s own `Executors.newFixedThreadPool(2)`
+(`HttpClient.newBuilder().executor(executor)` was still passed unconditionally). This appears to
+be a JDK `java.net.http.HttpClient` internal implementation detail in how a custom
+`BodySubscriber`'s own `CompletableFuture` (`SizedBodySubscriber.getBody()`) is combined with
+the response-received stage internally -- not a bug in this project's code, and not a violation
+of API-03's actual requirement (no blocking on the main/render thread): the callback still ran
+off the Render thread every single time, and `JollyalchemyTransitReportClient` still correctly
+marshals the result back via `Minecraft.getInstance().execute(...)` before touching anything.
+Recorded here so a future phase chasing thread-pool contention doesn't waste time assuming
+`TransitApiClient`'s dedicated executor is broken -- the requirement it exists to satisfy
+(off-main-thread, no `Runnable::run` synchronous fallback) is met regardless of this JDK
+internal routing detail.
+
+
 
 There are two separate JDK questions here, and conflating them is the most common setup mistake
 for this generation of Fabric Loom:
