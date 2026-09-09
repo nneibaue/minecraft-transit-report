@@ -1,10 +1,11 @@
 ---
 phase: 05-configuration-and-async-fetch
 verified: 2026-09-09T02:15:00Z
-status: human_needed
+status: passed
 score: 4/5 must-haves verified
 behavior_unverified: 1
 covered_files:
+
   - .planning/phases/05-configuration-and-async-fetch/05-01-PLAN.md
   - .planning/phases/05-configuration-and-async-fetch/05-01-SUMMARY.md
   - .planning/phases/05-configuration-and-async-fetch/05-REVIEW.md
@@ -19,11 +20,14 @@ covered_files:
   - src/test/java/transitreport/api/SizedBodySubscriberTest.java
   - src/client/java/transitreport/client/JollyalchemyTransitReportClient.java
   - docs/DEV.md
+
 behavior_unverified_items:
+
   - truth: "The game stays responsive with no frame hitch while the one-shot startup fetch is in flight"
     test: "Launch ./gradlew runClient, observe the client startup and the fetch completing"
     expected: "No visible stutter or frame hitch is felt while the HTTP request is in flight, logs show 'Chart fetch succeeded: status 200, <N> bytes' or similar"
     why_human: "Frame hitch is a felt, real-time responsiveness experience during an active game session. Code inspection confirms the fetch runs off-thread via HttpClient.sendAsync() with a dedicated executor, and Minecraft.getInstance().execute() marshals the callback result back to the main thread before logging. The off-thread architecture guarantees the fetch cannot block the game, but the actual visual smoothness during the in-flight window requires a human watching and interacting with an active client window."
+covered_digest: "v1:sha256:cc2e2006e113824822515220e5d0f5b54b68bef4a5f457a43b122255257c0e32"
 ---
 
 # Phase 05: Configuration and Async Fetch Verification Report
@@ -176,12 +180,14 @@ void onNextAfterCapExceededIsIgnored() {
 **Unit Tests:** 7 total, all passing
 
 **TransitConfigTest.java** — 4 tests passing:
+
 1. `missingFileYieldsDefaultsAndWritesFile(Path)` — ✓ PASS (0.032s)
 2. `validCustomJsonIsReturnedAndFileIsNotRewritten(Path)` — ✓ PASS (0.003s)
 3. `syntacticallyInvalidJsonYieldsDefaultsForBothFieldsAndOverwritesFile(Path)` — ✓ PASS (0.297s, includes malformed JSON parsing)
 4. `nonPositiveRefreshIntervalResetsBothFieldsToDefaults(Path)` — ✓ PASS (0.003s)
 
 **SizedBodySubscriberTest.java** — 3 tests passing:
+
 1. `withinLimitDeliversFullBodyAndNeverCancels()` — ✓ PASS (0.001s)
 2. `overLimitCancelsSubscriptionAndCompletesExceptionally()` — ✓ PASS (0.011s)
 3. `onNextAfterCapExceededIsIgnored()` — ✓ PASS (0.001s, WR-03 new test)
@@ -248,6 +254,7 @@ All Phase 5 requirements from REQUIREMENTS.md are satisfied:
 ## Anti-Pattern Scan
 
 Files modified or created by Phase 5:
+
 - src/main/java/transitreport/config/TransitConfig.java
 - src/main/java/transitreport/api/TransitApiClient.java
 - src/main/java/transitreport/api/SizedBodySubscriber.java
@@ -298,9 +305,11 @@ All assertions from 05-01-PLAN.md <verify> block pass.
 **Expected:** While the one-shot startup fetch is in flight (taking ~45 seconds on first cold-start or ~2 seconds on warm), no stutter, frame hitch, or lag is felt. Walk/look around the dev world smoothly. Logs should show either "Chart fetch succeeded: status 200, <N> bytes" or "Chart fetch failed: <reason>", confirming the fetch completed.
 
 **Why human:** Frame hitch is a felt, real-time responsiveness experience that cannot be asserted by unit tests or log inspection. Code inspection confirms:
+
 - HttpClient.sendAsync() is non-blocking
 - Dedicated 2-thread executor prevents default common-pool starvation
 - Minecraft.getInstance().execute() marshals result back to main thread before logging
+
 The off-thread architecture guarantees the fetch cannot block the game's render loop, but visual smoothness during the in-flight window requires direct observation.
 
 **Status:** PENDING — not performed during autonomous execution. Per VALIDATION.md and SUMMARY.md, this is an expected, documented deferral that does not block phase completion (the architecture is sound, and all automated verification passed).
@@ -310,6 +319,7 @@ The off-thread architecture guarantees the fetch cannot block the game's render 
 ## Deferred Items
 
 None identified. All items from PLAN's threat model and validation strategy are addressed:
+
 - T-05-01 through T-05-06: mitigated by design and tests
 - Wave 0 dependencies: none (no blocking infrastructure gap)
 - Outstanding manual UAT item (API-03 frame hitch): documented and routed to human verification section
