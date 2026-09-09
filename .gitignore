@@ -39,6 +39,10 @@ replay_*.log
 *.hprof
 *.jfr
 
+# Log4j2's rolling-file appender writes here whenever the JUnit test JVM (or a dev-client
+# run outside run/) logs via SLF4J -- runtime output, not source (Phase 5).
+logs/
+
 # Windows NTFS "mark of the web" sidecars. Materialized as real files when the
 # project template was copied out of WSL; processResources otherwise copies them
 # into the shipped jar. See .planning/phases/01-toolchain-verification/01-REVIEW.md CR-01.
