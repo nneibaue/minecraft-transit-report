@@ -976,7 +976,9 @@ end
 -- which the normal wedge-only BFS finds no way home. This is a
 -- small, dumb navigator for the ring of cells around the chest:
 -- plan over everything within two blocks of the chest (except the
--- chest itself), move with plain forward() calls (never digging),
+-- chest itself), move with stepTo() -- so it will dig through plain
+-- stone on the sides of the chest no turtle has mined yet, while the
+-- whitelist still protects the chest, torches, ores and the like --
 -- and re-plan around anything that turns out to be in the way.
 local function walkNearHome()
     local blocked = {}
@@ -1020,12 +1022,9 @@ local function walkNearHome()
         if not path then return false end
 
         local step = path[1]
-        face(headingForDelta(step.dx, step.dz))
 
-        if turtle.forward() then
-            state.x, state.z = state.x + step.dx, state.z + step.dz
-            saveState()
-        else
+        -- stepTo digs junk, refuses keep/lava, and keeps state in sync.
+        if not stepTo(step.dx, step.dz) then
             blocked[key(state.x + step.dx, state.z + step.dz)] = true
             failures = failures + 1
             if failures > 12 then return false end
@@ -1036,37 +1035,42 @@ local function walkNearHome()
     return true
 end
 
-local function goHome(reason, retried)
+local function atHome()
+    return state.x == 1 and state.z == 0
+end
+
+-- Get next to the chest and face it. The goal is "can unload into the
+-- chest", not "standing on exactly (1,0)": the chest takes items from
+-- any side, so a turtle that has re-anchored onto a neighbouring cell
+-- services from there rather than stranding itself with a full hold.
+local function goHome(reason)
     print("Going home: " .. reason .. ".")
 
+    -- Normal route: through the wedge's cleared cells.
     local path = bfsSearch(function(x, z) return x == 1 and z == 0 end)
 
-    if not path then
-        -- Just re-anchored and standing off-wedge next to the chest:
-        -- use the local navigator instead of the wedge BFS.
-        if retried and walkNearHome() then
-            path = {}
-        else
-            error("No path home from (" .. state.x .. "," .. state.z .. "). Stuck.")
+    if path then
+        for _, step in ipairs(path) do
+            if not stepTo(step.dx, step.dz) then
+                print("Blocked on the way home at (" .. state.x .. "," ..
+                      state.z .. "); trying the cells around the chest.")
+                break
+            end
         end
     end
 
-    for _, step in ipairs(path) do
-        if not stepTo(step.dx, step.dz) then
-            error("Blocked on the way home at (" .. state.x .. "," .. state.z .. ").")
+    -- Off the wedge, or the route was blocked: local navigator.
+    if not atHome() and not walkNearHome() then
+        if math.max(math.abs(state.x), math.abs(state.z)) > 2 then
+            error("Blocked on the way home at (" .. state.x .. "," .. state.z ..
+                  "). Clear the route and run me again.")
         end
     end
 
-    face(2) -- toward the chest
+    face(2) -- toward the chest, if we are where we think we are
 
     local ok, data = turtle.inspect()
     if ok and data.name:find("chest") then return end
-
-    if retried then
-        error("Expected the chest at home but found " ..
-              (ok and data.name or "nothing") ..
-              " even after re-anchoring. Stopping -- check the turtle's position.")
-    end
 
     print("Chest isn't where I expected (" .. (ok and data.name or "nothing") ..
           " ahead). Searching nearby...")
@@ -1076,8 +1080,18 @@ local function goHome(reason, retried)
               "Put me back beside it, facing away, and run me again.")
     end
 
-    -- Position is corrected; now actually go stand at home.
-    goHome(reason .. ", re-anchored", true)
+    -- Re-anchored and adjacent to the chest. Prefer to stand at home
+    -- properly, but never let that stop the unload.
+    if not atHome() and not walkNearHome() then
+        print("Can't reach my home cell -- servicing from here.")
+    end
+
+    local h = chestHeading()
+    if not h then
+        error("Lost sight of the chest right after finding it. " ..
+              "Stopping -- check around the chest.")
+    end
+    -- chestHeading() leaves us facing the chest.
 end
 
 local function topUpJunkReserve()
@@ -1196,6 +1210,14 @@ end
 local function goHomeAndService(reason)
     goHome(reason)
     serviceChest()
+
+    -- The sweep's own pathing only knows the wedge, so make sure we
+    -- resume from inside it. This is the one remaining hard stop.
+    if not (state.x == 1 and state.z == 0) and not walkNearHome() then
+        error("Unloaded, but can't get back to my home cell from (" ..
+              state.x .. "," .. state.z .. "). Clear the blocks around " ..
+              "the chest and run me again.")
+    end
 end
 
 -- After servicing, is there enough fuel left to go back out to
