@@ -89,6 +89,20 @@ local JUNK_NAME_FRAGMENTS = {
     "andesite", "diorite", "granite", "smooth_basalt",
 }
 
+-- Things people build. Checked BEFORE the junk lists, so a
+-- "cobbled_deepslate_stairs" or "stone_brick_wall" never counts as
+-- plain stone just because its name contains "deepslate" or "stone".
+-- Cobblestone and cobbled deepslate never generate naturally down
+-- here, so as placed blocks they are always somebody's work -- the
+-- player's floor, or this turtle's own lava seals. Both stay.
+local BUILT_NAME_FRAGMENTS = {
+    "stairs", "slab", "wall", "brick", "polished", "chiseled", "tile",
+    "pillar", "cut_", "smooth_stone", "cobbled_deepslate", "cobblestone",
+    "planks", "fence", "door", "trapdoor", "button", "pressure_plate",
+    "torch", "lantern", "chest", "barrel", "sign", "rail", "glass",
+    "ladder", "scaffolding", "path", "carpet",
+}
+
 -- Ores worth digging on sight. Everything else that carries an ore
 -- tag (or an "_ore" name) is left standing -- see classify() below.
 local ORE_ALLOWED_TAGS = {
@@ -119,6 +133,12 @@ local function classify(ok, data)
     if name:find("turtle") then return "turtle" end
     if name:find("lava") then return "lava" end
     if name:find("water") then return "water" end
+
+    -- Built things win over everything below: stairs, slabs, walls,
+    -- placed cobble... all "keep", however stony the name looks.
+    for _, frag in ipairs(BUILT_NAME_FRAGMENTS) do
+        if name:find(frag) then return "keep" end
+    end
 
     for tag in pairs(tags) do
         if JUNK_TAGS[tag] or ORE_ALLOWED_TAGS[tag] then return "junk" end
@@ -181,6 +201,28 @@ end
 -- is marked KEEP too, so the sweep must never dig into it again.
 local function markKeep(x, z)
     state.map[key(x, z)] = KEEP
+end
+
+-- Safe space around a hazard. When lava/water shows up at (hx, hz),
+-- every unmined cell touching it becomes no-dig as well, so the
+-- natural stone stays as a one-block rim around the lake instead
+-- of the turtle mining right up to the edge and patching it with
+-- cobble. Those rim cells are never entered, so their ceilings are
+-- never opened either -- which is what keeps a lake whose surface
+-- sits at head height from pouring in from the side. Cells already
+-- CLEAR are left alone (they got a cobble seal on the hazard face).
+local function markBuffer(hx, hz)
+    markKeep(hx, hz)
+
+    local around = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+
+    for _, d in ipairs(around) do
+        local nx, nz = hx + d[1], hz + d[2]
+
+        if inTerritory(nx, nz) and not isClear(nx, nz) then
+            markKeep(nx, nz)
+        end
+    end
 end
 
 local function freshState()
@@ -323,8 +365,16 @@ end
 -- new target cell and for walking an already-CLEAR BFS path (in
 -- which case the block ahead is almost always "air", so this just
 -- falls through to pushForward()).
+--
+-- Returns ok, dug: dug is true when the turtle had to dig its way
+-- into the cell -- i.e. the cell was natural stone, not somewhere
+-- that was already open (a cave, or a tunnel/stairwell the player
+-- built). handleFloor() uses that to decide whether a missing floor
+-- is a fresh hole worth patching or somebody's stairs.
 local function stepTo(dx, dz)
     face(headingForDelta(dx, dz))
+
+    local dug = false
 
     while true do
         local ok, data = turtle.inspect()
@@ -337,6 +387,7 @@ local function stepTo(dx, dz)
             -- loop back around and re-check; never dig, never KEEP
         elseif class == "lava" or class == "water" then
             sealAheadHazard(class, data)
+            markBuffer(state.x + dx, state.z + dz)
             return false
         elseif class == "keep" then
             return false
@@ -348,6 +399,8 @@ local function stepTo(dx, dz)
                     return false
                 end
 
+                dug = true
+
                 -- Gravel/sand can fall in, or the block just dug out
                 -- can turn out to have been the only thing holding
                 -- back a hazard -- re-check before stepping in.
@@ -356,6 +409,7 @@ local function stepTo(dx, dz)
 
                 if class2 == "lava" or class2 == "water" then
                     sealAheadHazard(class2, data2)
+                    markBuffer(state.x + dx, state.z + dz)
                     return false
                 elseif class2 == "turtle" then
                     print("Another turtle is in the way. Waiting " ..
@@ -375,7 +429,7 @@ local function stepTo(dx, dz)
                 state.x = state.x + dx
                 state.z = state.z + dz
                 saveState()         -- position must never lag the real turtle
-                return true
+                return true, dug
             end
         end
     end
@@ -670,7 +724,7 @@ local function scanSides(arrivedFrom)
                 end
 
                 local dx, dz = deltaForHeading(h)
-                markKeep(state.x + dx, state.z + dz)
+                markBuffer(state.x + dx, state.z + dz)
             end
         end
     end
@@ -705,13 +759,18 @@ end
 -- Floor check once the turtle has stepped into a new cell: seal
 -- lava/water below, patch a missing floor. A solid floor -- junk
 -- or an ore -- is left exactly as it is.
-local function handleFloor()
+-- dugIn: true when the turtle dug its own way into this cell. Only
+-- then is a missing floor a fresh hole worth patching. A cell that
+-- was already open when the turtle got there -- a cave, a tunnel,
+-- the top of the player's staircase -- is left exactly as found;
+-- plugging it could wall off the stairs down.
+local function handleFloor(dugIn)
     local ok, data = turtle.inspectDown()
     local class = classify(ok, data)
 
     if class == "lava" or class == "water" then
         sealBelow(class, data)
-    elseif not ok then
+    elseif not ok and dugIn then
         if placeJunk(turtle.placeDown) then
             state.stats.hazards = state.stats.hazards + 1
         else
@@ -962,7 +1021,7 @@ end
 -- cell facing it -- the very first cell of a run, or the one it
 -- resumed standing on after a reboot -- so there's no reliable
 -- "direction traveled" to skip; scan all four sides instead of three.
-local function enterCell(x, z, isStart)
+local function enterCell(x, z, isStart, dugIn)
     local arrivedFrom = nil
     if not isStart then
         arrivedFrom = (state.heading + 2) % 4
@@ -970,7 +1029,7 @@ local function enterCell(x, z, isStart)
 
     handleHead()
     scanSides(arrivedFrom)
-    handleFloor()
+    handleFloor(dugIn)
     maybePlaceLight(x, z)
 
     state.map[key(x, z)] = CLEAR
@@ -992,8 +1051,9 @@ local function visitTarget(tx, tz)
     local dx, dz = tx - state.x, tz - state.z
 
     if math.abs(dx) + math.abs(dz) == 1 then
-        if stepTo(dx, dz) then
-            enterCell(tx, tz)
+        local ok, dug = stepTo(dx, dz)
+        if ok then
+            enterCell(tx, tz, false, dug)
             return true
         end
 
@@ -1019,8 +1079,9 @@ local function visitTarget(tx, tz)
 
     dx, dz = tx - state.x, tz - state.z
 
-    if stepTo(dx, dz) then
-        enterCell(tx, tz)
+    local ok, dug = stepTo(dx, dz)
+    if ok then
+        enterCell(tx, tz, false, dug)
         return true
     end
 

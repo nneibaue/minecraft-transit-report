@@ -51,6 +51,16 @@ quarry reset
 - Lock coal and lanterns into the chest's first slots so top-ups are instant —
   a turtle pulls stacks from the chest in slot order and only recognizes the
   first few it finds.
+- Anything built is left alone: stairs, slabs, walls, bricks, placed cobble,
+  chests, torches, rails, ladders, and so on. The turtle only digs natural
+  stone, dirt, gravel, and coal/copper/iron ore. It also never plugs a hole in
+  the floor of a cell that was already open when it arrived, so a staircase
+  down through the room stays open.
+- Optional: a stack of **signs** anywhere in cargo. Each sealed lava face gets a
+  sign reading `LAVA` standing on the seal. Without signs it still seals, just
+  silently.
+- Lava and water are walled off on sight, and every unmined cell touching them
+  becomes no-dig, so a one-block rim of natural stone is left around each lake.
 - Run the turtles with their feet at **y ≥ -52**. In 1.18+ worlds every cave
   below y = -54 is flooded with lava, so mining at bedrock depth means
   constant lakes. Two blocks higher the ores are the same and the lakes are
