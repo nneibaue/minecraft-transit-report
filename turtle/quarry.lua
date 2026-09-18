@@ -23,8 +23,12 @@
 --     whatever the chest considers its first stack.
 --
 -- Usage:
---   quarry            dig forever (or until stopped / out of fuel)
+--   quarry            dig forever (or until stopped / out of fuel);
+--                     this turtle takes its quadrant (see Territory)
+--   quarry solo        one turtle takes the whole square around the
+--                     chest (only when no other turtle shares it)
 --   quarry reset       forget the saved dig and start over
+--   quarry reset solo  ...and start over in solo layout
 --   Q (in the terminal) finish the current cell, save, and stop.
 --                     Use this -- not Ctrl+T -- before updating or
 --                     moving the turtle. Ctrl+T can land between a
@@ -37,32 +41,36 @@
 -- their files), so `reset` is only for after the chest or turtle
 -- has actually been moved.
 --
--- Territory -- four wedges tiling an expanding square:
+-- Territory -- quadrants pinwheeling around the chest:
 --
---   Each turtle works in its OWN local coordinate frame: the
---   chest is (0,0), the turtle's home cell is (1,0), +x is
---   whichever way the turtle was facing when it started (away
---   from the chest), and +z is the turtle's right. Because every
---   turtle defines its own +x/+z this way, the SAME code, with no
---   rotation logic at all, tiles the whole square around the
---   chest once all four turtles are running it.
+--   Each turtle works in its OWN local coordinate frame: the chest
+--   is (0,0), the turtle's home cell is (1,0), +x is whichever way
+--   the turtle was facing when it started (away from the chest),
+--   and +z is the turtle's right. Because every turtle defines its
+--   own +x/+z this way, the SAME code, with no rotation logic at
+--   all, tiles the whole square around the chest once all four
+--   turtles are running it.
 --
---   Ring r is the strip x = r, z in [-(r-1), r] (length 2r). A
---   few rings, in one turtle's local frame (H = home, x grows to
---   the right, z grows upward):
+--   This turtle owns the quarter-plane x >= 1, z >= 0 -- a square
+--   with the chest at its corner. It is swept in L-shaped shells,
+--   numbered below (H = home, x grows to the right, z upward):
 --
---         x=1  x=2  x=3
---       +----------------
---     2 |  .    .    .
---     1 |  .    .    .
---   z=0 |  H    .    .
---    -1 |       .    .
---    -2 |            .
---       +----------------
+--         x=1  x=2  x=3  x=4
+--       +--------------------
+--     3 |  4    4    4    4
+--     2 |  3    3    3    4
+--     1 |  2    2    3    4
+--   z=0 |  H    2    3    4
+--       +--------------------
 --
---   Sweep serpentine, ring by ring: ring 1 ascends z (0 then 1),
---   ring 2 descends (2, 1, 0, -1), ring 3 ascends again, and so
---   on -- covering every cell of the wedge, forever outward.
+--   Four turtles, one per side of the chest, each facing away from
+--   it: their quadrants pinwheel around the chest with no gaps and
+--   no overlap (in the east turtle's frame: E owns x>=1,z>=0;
+--   S owns x>=0,z<=-1; W owns x<=-1,z<=0; N owns x<=0,z>=1).
+--
+--   `quarry solo` instead gives ONE turtle everything but the chest:
+--   full square rings, so the room is a square centred on the chest.
+--   Don't run solo alongside other turtles -- they would share cells.
 -- =========================================================
 
 -- =========================================================
@@ -210,7 +218,8 @@ end
 --
 -- map["x,z"] is CLEAR, KEEP, or unset (unknown). State is saved
 -- after every cell, every turn at home, and every hazard seal, so
--- a reboot resumes exactly at (ring, z_next).
+-- a reboot resumes exactly at (ring, idx) -- the idx-th cell of the
+-- current shell (see the Sweep section).
 -- =========================================================
 
 local CLEAR = "CLEAR"
@@ -218,16 +227,22 @@ local KEEP  = "KEEP"
 
 local state -- assigned by freshState()/loadState() in Main, below
 
+-- Forward declaration: defined in the Sweep section, but the fuel
+-- estimate in the Home section needs it.
+local shellCells
+
 local function key(x, z)
     return x .. "," .. z
 end
 
--- Cells this turtle is allowed to path through: its own wedge
--- (x >= 1, -(x-1) <= z <= x), plus home -- which already satisfies
--- that formula, but is called out explicitly to match the spec.
+-- Cells this turtle is allowed to dig and path through. Never the
+-- chest. In the default "quadrant" layout that is the quarter-plane
+-- x >= 1, z >= 0 (home (1,0) included); in "solo" layout it is
+-- everything.
 local function inTerritory(x, z)
-    if x == 1 and z == 0 then return true end
-    return x >= 1 and z >= -(x - 1) and z <= x
+    if x == 0 and z == 0 then return false end
+    if state.layout == "solo" then return true end
+    return x >= 1 and z >= 0
 end
 
 local function isClear(x, z)
@@ -262,10 +277,11 @@ local function markBuffer(hx, hz)
     end
 end
 
-local function freshState()
+local function freshState(layout)
     return {
+        layout = layout or "quadrant",
         x = 1, z = 0, heading = 0,
-        ring = 1, dir = 1, z_next = 0,
+        ring = 1, idx = 1,
         map = {},
         stats = { cleared = 0, lights = 0, hazards = 0 },
         needLanterns = false,
@@ -884,7 +900,8 @@ end
 -- Used only to size the chest top-up and to decide whether it's
 -- worth trying to go back out at all.
 local function pendingRoundTrip()
-    return 2 * (math.abs(state.ring - 1) + math.abs(state.z_next)) + FUEL_MARGIN
+    local c = shellCells(state.ring)[state.idx]
+    return 2 * (math.abs(c.x - 1) + math.abs(c.z)) + FUEL_MARGIN
 end
 
 -- Face each way in turn looking for the chest. Returns the heading
@@ -1228,19 +1245,49 @@ end
 
 -- =========================================================
 -- Sweep
+--
+-- The territory is swept in "shells" -- one ring's worth of cells
+-- at a time, each listed in walking order so consecutive cells are
+-- adjacent and the last cell of one shell touches the first cell of
+-- the next. Two layouts:
+--
+--   quadrant (default): this turtle owns the quarter-plane x >= 1,
+--   z >= 0. Shell r is the L-shape max(x, z+1) == r (2r-1 cells).
+--   Odd shells walk the column out and the row back; even shells
+--   walk the row out and the column back, so the walk never has to
+--   double back on itself.
+--
+--   solo: one turtle owns everything but the chest. Shell r is the
+--   full square ring max(|x|,|z|) == r (8r cells), walked round
+--   from (r, -(r-1)) to (r, -r); the next ring picks up at
+--   (r+1, -r), right next door.
 -- =========================================================
 
-local function ringBounds(r)
-    return -(r - 1), r
+shellCells = function(r)
+    local cells = {}
+    local function add(x, z) cells[#cells + 1] = { x = x, z = z } end
+
+    if state.layout == "solo" then
+        for z = -(r - 1), r do add(r, z) end          -- up the +x side
+        for x = r - 1, -r, -1 do add(x, r) end        -- across the +z side
+        for z = r - 1, -r, -1 do add(-r, z) end       -- down the -x side
+        for x = -r + 1, r do add(x, -r) end           -- back along the -z side
+        return cells
+    end
+
+    if r % 2 == 1 then
+        for z = 0, r - 1 do add(r, z) end             -- column, going out
+        for x = r - 1, 1, -1 do add(x, r - 1) end     -- row, coming back
+    else
+        for x = 1, r do add(x, r - 1) end             -- row, going out
+        for z = r - 2, 0, -1 do add(r, z) end         -- column, coming back
+    end
+
+    return cells
 end
 
-local function ringLength(r)
-    return 2 * r
-end
-
-local function isFirstOfRing(ring, dir, z)
-    local lo, hi = ringBounds(ring)
-    return (dir == 1 and z == lo) or (dir == -1 and z == hi)
+local function currentTarget()
+    return shellCells(state.ring)[state.idx]
 end
 
 -- Head-level, floor, neighbour, and light-grid checks for the cell
@@ -1327,30 +1374,15 @@ local function visitTarget(tx, tz)
     return false
 end
 
--- Advance (ring, dir, z_next) to the next target in the serpentine
--- sweep: one more step within the current ring, or -- if the ring
--- is done -- the next ring's own starting extreme, direction
--- flipped.
+-- Advance (ring, idx) to the next cell: the next one in this shell,
+-- or the first cell of the next shell out.
 local function advanceTarget()
-    local lo, hi = ringBounds(state.ring)
+    state.idx = state.idx + 1
 
-    if state.dir == 1 then
-        if state.z_next < hi then
-            state.z_next = state.z_next + 1
-            return
-        end
-    else
-        if state.z_next > lo then
-            state.z_next = state.z_next - 1
-            return
-        end
+    if state.idx > #shellCells(state.ring) then
+        state.ring = state.ring + 1
+        state.idx = 1
     end
-
-    state.ring = state.ring + 1
-    state.dir = -state.dir
-
-    local newLo, newHi = ringBounds(state.ring)
-    state.z_next = (state.dir == 1) and newLo or newHi
 end
 
 -- Set by the key watcher in Main when Q is pressed; checked between
@@ -1386,11 +1418,12 @@ local function runSweep()
             end
         end
 
-        if isFirstOfRing(state.ring, state.dir, state.z_next) then
-            print("Ring " .. state.ring .. " (" .. ringLength(state.ring) .. " cells)")
+        if state.idx == 1 then
+            print("Shell " .. state.ring .. " (" .. #shellCells(state.ring) .. " cells)")
         end
 
-        visitTarget(state.ring, state.z_next)
+        local cell = currentTarget()
+        visitTarget(cell.x, cell.z)
         advanceTarget()
         saveState()
     end
@@ -1402,18 +1435,33 @@ end
 
 local args = { ... }
 
-if args[1] == "reset" and fs.exists(STATE_FILE) then
+-- quarry [solo]  |  quarry reset [solo]
+local wantReset = args[1] == "reset"
+local layoutArg = (args[1] == "solo" or args[2] == "solo") and "solo" or "quadrant"
+
+if wantReset and fs.exists(STATE_FILE) then
     fs.delete(STATE_FILE)
     print("Forgot the old dig.")
 end
 
-if args[1] ~= "reset" and loadState() then
-    print("Resuming at ring " .. state.ring .. ", " ..
+if not wantReset and loadState() then
+    if not state.layout or not state.idx then
+        print("Saved map is from an older version of this program.")
+        print("Run `startup reset` (or `startup reset solo`) to start fresh here.")
+        return
+    end
+
+    if args[1] == "solo" and state.layout ~= "solo" then
+        print("(Ignoring 'solo': the saved dig is " .. state.layout ..
+              " layout. Use `startup reset solo` to switch.)")
+    end
+
+    print("Resuming " .. state.layout .. " layout at shell " .. state.ring .. ", " ..
           state.stats.cleared .. " cell(s) cleared so far.")
 else
-    state = freshState()
+    state = freshState(layoutArg)
     saveState()
-    print("Starting a new quarry.")
+    print("Starting a new quarry (" .. layoutArg .. " layout).")
 end
 
 -- Q in the terminal asks for a clean stop. The watcher never returns

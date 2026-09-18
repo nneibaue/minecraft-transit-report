@@ -66,6 +66,13 @@ for it, and corrects its position.)
   inventory peripheral).
 - One turtle per chest side, directly adjacent to the chest, facing AWAY from
   it. Up to four turtles, never two on the same side.
+- **Layout.** Each turtle owns the quarter-plane in front of it and to its
+  right — a square with the chest at its corner — and sweeps it in L-shaped
+  shells. Four turtles' quadrants pinwheel around the chest into one big
+  square with no gaps or overlap. Running a **single** turtle? Start it with
+  `startup solo` (or `startup reset solo` to switch an existing dig): it then
+  takes the whole square around the chest, ring by ring. Never run `solo`
+  alongside other turtles on the same chest — they'd fight over cells.
 - Turtle inventory slots:
   - `1` — lanterns
   - `2` — fuel (coal / charcoal)
