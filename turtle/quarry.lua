@@ -971,12 +971,84 @@ local function findChest()
     return false
 end
 
+-- After re-anchoring, the turtle may be standing on a cell outside
+-- its own wedge -- a neighbouring turtle's home cell, say -- from
+-- which the normal wedge-only BFS finds no way home. This is a
+-- small, dumb navigator for the ring of cells around the chest:
+-- plan over everything within two blocks of the chest (except the
+-- chest itself), move with plain forward() calls (never digging),
+-- and re-plan around anything that turns out to be in the way.
+local function walkNearHome()
+    local blocked = {}
+    local failures = 0
+
+    local function allowed(x, z)
+        if x == 0 and z == 0 then return false end
+        if math.max(math.abs(x), math.abs(z)) > 2 then return false end
+        return not blocked[key(x, z)]
+    end
+
+    while not (state.x == 1 and state.z == 0) do
+        local visited = { [key(state.x, state.z)] = true }
+        local queue = { { x = state.x, z = state.z, path = {} } }
+        local head, path = 1, nil
+
+        while head <= #queue and not path do
+            local cur = queue[head]
+            head = head + 1
+
+            for _, d in ipairs(NEIGHBOR_DELTAS) do
+                local nx, nz = cur.x + d.dx, cur.z + d.dz
+                local nk = key(nx, nz)
+
+                if not visited[nk] and allowed(nx, nz) then
+                    visited[nk] = true
+
+                    local npath = shallowCopy(cur.path)
+                    npath[#npath + 1] = d
+
+                    if nx == 1 and nz == 0 then
+                        path = npath
+                        break
+                    end
+
+                    queue[#queue + 1] = { x = nx, z = nz, path = npath }
+                end
+            end
+        end
+
+        if not path then return false end
+
+        local step = path[1]
+        face(headingForDelta(step.dx, step.dz))
+
+        if turtle.forward() then
+            state.x, state.z = state.x + step.dx, state.z + step.dz
+            saveState()
+        else
+            blocked[key(state.x + step.dx, state.z + step.dz)] = true
+            failures = failures + 1
+            if failures > 12 then return false end
+            sleep(0.5)
+        end
+    end
+
+    return true
+end
+
 local function goHome(reason, retried)
     print("Going home: " .. reason .. ".")
 
     local path = bfsSearch(function(x, z) return x == 1 and z == 0 end)
+
     if not path then
-        error("No path home from (" .. state.x .. "," .. state.z .. "). Stuck.")
+        -- Just re-anchored and standing off-wedge next to the chest:
+        -- use the local navigator instead of the wedge BFS.
+        if retried and walkNearHome() then
+            path = {}
+        else
+            error("No path home from (" .. state.x .. "," .. state.z .. "). Stuck.")
+        end
     end
 
     for _, step in ipairs(path) do
