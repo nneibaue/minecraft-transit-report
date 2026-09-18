@@ -58,6 +58,7 @@ for it, and corrects its position.)
 | `quarry.lua` | Multi-turtle radial 2-tall room miner. Leaves ores standing, places lanterns on a grid, seals lava/water, resumes after reboot. |
 | `tunnel.lua` | Resumable 2x2 tunnel miner with lava diversion and netherrack junction markers. |
 | `sorter.lua` | Hallway chest sorter that learns chest contents as it goes. Untested. |
+| `crater.lua` | Crafting turtle that laps a chest-lined room, crates bulk food (9 → 1 crate), maps what each chest holds, and refuels itself from coal or coal essence. Untested. |
 | `mail-display.lua` | Monitor "You've got mail" gift display. |
 
 ## `quarry.lua` setup
@@ -96,6 +97,36 @@ for it, and corrects its position.)
   below y = -54 is flooded with lava, so mining at bedrock depth means
   constant lakes. Two blocks higher the ores are the same and the lakes are
   gone.
+
+## `crater.lua` setup
+
+- A **crafting turtle** with the crafting table on its **right** (chests are
+  read through the left side). Its inventory must be **empty**: `turtle.craft()`
+  refuses to run unless every slot outside the 3×3 grid is clear, so the turtle
+  can't carry a coal stack. Any fuel left in it is burned at startup instead.
+- Chests line the walls of a roughly rectangular room (Sophisticated Storage is
+  fine). Keep the one-block lane along the walls clear: the turtle turns at the
+  first block in its way, so a furnace standing in the lane looks like a corner.
+- Park it in an inside corner cell with the chest wall on its **left**, facing
+  along that wall. It walks the ring clockwise and ends each lap back there.
+- Each lap it reads every chest and, when a chest holds at least `MIN_STACKS`
+  (3) full stacks of something tagged as a crop, vegetable, fruit, grain,
+  berry, nut or mushroom, crafts 9 of it into a crate until only `KEEP_STACKS`
+  (1) loose stack is left. Whether an item actually has a 9-of-a-kind recipe
+  is found out by trying once; the result (either way) is remembered, so
+  9 × 4 → 1 style recipes and non-food never get crafted by accident.
+- **Fuel.** When it is low it takes coal, charcoal or coal blocks from any
+  chest that has them, or crafts coal essence into coal, but only enough to
+  reach `FUEL_TARGET` (3000). The essence recipe shape (hollow ring vs full
+  grid) is worked out by trying and remembered. It won't leave home unless the
+  fuel covers a lap or at least reaches a chest the map says has fuel.
+- **Map.** `crater map` prints what it remembers about every chest (top items
+  and whether it has fuel) without moving. `crater reset` forgets the map and
+  the learned recipes; items moving between chests needs no reset since every
+  chest is re-read each lap.
+- **Q** finishes the current lap, parks at home, and stops.
+- Set `CHEST_ROWS = 2` at the top of the script for walls of chests two high;
+  it laps once per row.
 
 ### Light grid
 
