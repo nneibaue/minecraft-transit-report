@@ -4,10 +4,10 @@ current_phase: 6
 current_phase_name: Dynamic Texture Pipeline
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-09-18T02:13:23.108Z"
+last_updated: "2026-09-18T02:29:45.032Z"
 last_activity: 2026-09-17
 last_activity_desc: "Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)"
-state_head: 3b98357184ba8a2b319eab5f69129d15f91c76dd
+state_head: ceadd9e2f692fbd2c93e870dfb8ec4472282afe4
 progress:
   total_phases: 10
   completed_phases: 1
@@ -122,6 +122,7 @@ None yet.
 | 260917-o2m | Add turtle/ scripts and multi-turtle radial quarry.lua | 2026-09-17 | 89a684e | [260917-o2m-add-turtle-scripts-and-multi-turtle-radi](./quick/260917-o2m-add-turtle-scripts-and-multi-turtle-radi/) |
 | 260917-pze | Fix quarry.lua lava handling: scan neighbours, stone rim, built blocks, stairwells | 2026-09-17 | 1da8172 | [260917-pze-fix-quarry-lua-lava-handling-scan-neighb](./quick/260917-pze-fix-quarry-lua-lava-handling-scan-neighb/) |
 | 3 | Denser lantern grid in quarry.lua (LIGHT_SPACING 8 -> 5, commit 3b98357) | 2026-09-18 | 3b98357 | — |
+| 4 | Fix quarry.lua classify(): ores decided before stone names (deepslate ore variants were dug), commit ceadd9e | 2026-09-18 | ceadd9e | — |
 
 ## Deferred Items
 
