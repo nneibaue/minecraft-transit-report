@@ -66,13 +66,14 @@ for it, and corrects its position.)
   inventory peripheral).
 - One turtle per chest side, directly adjacent to the chest, facing AWAY from
   it. Up to four turtles, never two on the same side.
-- **Layout.** Each turtle owns the quarter-plane in front of it and to its
-  right — a square with the chest at its corner — and sweeps it in L-shaped
-  shells. Four turtles' quadrants pinwheel around the chest into one big
-  square with no gaps or overlap. Running a **single** turtle? Start it with
-  `startup solo` (or `startup reset solo` to switch an existing dig): it then
-  takes the whole square around the chest, ring by ring. Never run `solo`
-  alongside other turtles on the same chest — they'd fight over cells.
+- **Layout.** By default each turtle mines the **wedge** in front of it: ring
+  by ring, fanning out at 45°, never behind or around the chest. Four turtles'
+  wedges tile the square around the chest with no gaps or overlap. Two other
+  layouts can be picked by argument — `startup quadrant` (the quarter-plane
+  ahead and to the right, a square with the chest at its corner; four of them
+  pinwheel) and `startup solo` (one turtle takes the whole square around the
+  chest; never alongside other turtles on the same chest). To switch an
+  existing dig: `startup reset <layout>`.
 - Turtle inventory slots:
   - `1` — lanterns
   - `2` — fuel (coal / charcoal)

@@ -23,12 +23,14 @@
 --     whatever the chest considers its first stack.
 --
 -- Usage:
---   quarry            dig forever (or until stopped / out of fuel);
---                     this turtle takes its quadrant (see Territory)
+--   quarry            dig forever (or until stopped / out of fuel)
+--                     in the default "wedge" layout (see Territory)
+--   quarry quadrant    alternative layout: the quarter-plane ahead
+--                     and to the right (square, chest at its corner)
 --   quarry solo        one turtle takes the whole square around the
 --                     chest (only when no other turtle shares it)
---   quarry reset       forget the saved dig and start over
---   quarry reset solo  ...and start over in solo layout
+--   quarry reset       forget the saved dig and start over (wedge)
+--   quarry reset solo  ...and start over in another layout
 --   Q (in the terminal) finish the current cell, save, and stop.
 --                     Use this -- not Ctrl+T -- before updating or
 --                     moving the turtle. Ctrl+T can land between a
@@ -41,7 +43,7 @@
 -- their files), so `reset` is only for after the chest or turtle
 -- has actually been moved.
 --
--- Territory -- quadrants pinwheeling around the chest:
+-- Territory -- a wedge in front of the turtle (default):
 --
 --   Each turtle works in its OWN local coordinate frame: the chest
 --   is (0,0), the turtle's home cell is (1,0), +x is whichever way
@@ -51,26 +53,39 @@
 --   all, tiles the whole square around the chest once all four
 --   turtles are running it.
 --
---   This turtle owns the quarter-plane x >= 1, z >= 0 -- a square
---   with the chest at its corner. It is swept in L-shaped shells,
+--   The wedge is everything in FRONT of the turtle, fanning out:
+--   x >= 1 and -(x-1) <= z <= x. It never goes behind or around the
+--   chest. Ring r is the strip x = r, z in [-(r-1), r] (2r cells),
 --   numbered below (H = home, x grows to the right, z upward):
 --
 --         x=1  x=2  x=3  x=4
 --       +--------------------
---     3 |  4    4    4    4
---     2 |  3    3    3    4
---     1 |  2    2    3    4
+--     4 |                 4
+--     3 |            3    4
+--     2 |       2    3    4
+--     1 |  1    2    3    4
 --   z=0 |  H    2    3    4
+--    -1 |       2    3    4
+--    -2 |            3    4
+--    -3 |                 4
 --       +--------------------
 --
---   Four turtles, one per side of the chest, each facing away from
---   it: their quadrants pinwheel around the chest with no gaps and
---   no overlap (in the east turtle's frame: E owns x>=1,z>=0;
---   S owns x>=0,z<=-1; W owns x<=-1,z<=0; N owns x<=0,z>=1).
+--   Rings are walked serpentine (1 up, 2 down, 3 up, ...). Each ring
+--   starts with a one-cell "hook" so every step is adjacent to the
+--   last: the old code jumped diagonally to the new ring's corner,
+--   could not reach it through cleared ground, and skipped it --
+--   leaving a diagonal line of standing stone along both edges.
 --
---   `quarry solo` instead gives ONE turtle everything but the chest:
---   full square rings, so the room is a square centred on the chest.
---   Don't run solo alongside other turtles -- they would share cells.
+--   Four turtles, one per side of the chest, each facing away from
+--   it: four wedges tile the square around the chest with no gaps
+--   and no overlap.
+--
+--   Other layouts (pick with an argument, see Usage):
+--     quadrant  the quarter-plane x >= 1, z >= 0 -- a square with
+--               the chest at its corner; four of them pinwheel.
+--     solo      ONE turtle owns everything but the chest: full
+--               square rings, a square centred on the chest. Never
+--               alongside other turtles -- they would share cells.
 -- =========================================================
 
 -- =========================================================
@@ -236,13 +251,13 @@ local function key(x, z)
 end
 
 -- Cells this turtle is allowed to dig and path through. Never the
--- chest. In the default "quadrant" layout that is the quarter-plane
--- x >= 1, z >= 0 (home (1,0) included); in "solo" layout it is
--- everything.
+-- chest. Default "wedge": x >= 1 and -(x-1) <= z <= x (home (1,0)
+-- included). "quadrant": x >= 1, z >= 0. "solo": everything.
 local function inTerritory(x, z)
     if x == 0 and z == 0 then return false end
     if state.layout == "solo" then return true end
-    return x >= 1 and z >= 0
+    if state.layout == "quadrant" then return x >= 1 and z >= 0 end
+    return x >= 1 and z >= -(x - 1) and z <= x
 end
 
 local function isClear(x, z)
@@ -279,7 +294,7 @@ end
 
 local function freshState(layout)
     return {
-        layout = layout or "quadrant",
+        layout = layout or "wedge",
         x = 1, z = 0, heading = 0,
         ring = 1, idx = 1,
         map = {},
@@ -1280,18 +1295,23 @@ end
 -- The territory is swept in "shells" -- one ring's worth of cells
 -- at a time, each listed in walking order so consecutive cells are
 -- adjacent and the last cell of one shell touches the first cell of
--- the next. Two layouts:
+-- the next. Three layouts:
 --
---   quadrant (default): this turtle owns the quarter-plane x >= 1,
---   z >= 0. Shell r is the L-shape max(x, z+1) == r (2r-1 cells).
---   Odd shells walk the column out and the row back; even shells
---   walk the row out and the column back, so the walk never has to
---   double back on itself.
+--   wedge (default): the strip x = r, z in [-(r-1), r], serpentine
+--   (odd rings ascend z, even rings descend). The ring before ends
+--   one row short of the new ring's corner, so each ring opens with
+--   a one-cell hook: step to the cell beside the corner, into the
+--   corner, then back and along the whole strip. One cell is walked
+--   twice per ring; in exchange nothing is ever skipped.
 --
---   solo: one turtle owns everything but the chest. Shell r is the
---   full square ring max(|x|,|z|) == r (8r cells), walked round
---   from (r, -(r-1)) to (r, -r); the next ring picks up at
---   (r+1, -r), right next door.
+--   quadrant: the quarter-plane x >= 1, z >= 0. Shell r is the
+--   L-shape max(x, z+1) == r (2r-1 cells). Odd shells walk the
+--   column out and the row back; even shells the row out and the
+--   column back, so the walk never doubles back.
+--
+--   solo: everything but the chest. Shell r is the full square ring
+--   max(|x|,|z|) == r (8r cells), walked round from (r, -(r-1)) to
+--   (r, -r); the next ring picks up at (r+1, -r), right next door.
 -- =========================================================
 
 shellCells = function(r)
@@ -1306,12 +1326,31 @@ shellCells = function(r)
         return cells
     end
 
-    if r % 2 == 1 then
-        for z = 0, r - 1 do add(r, z) end             -- column, going out
-        for x = r - 1, 1, -1 do add(x, r - 1) end     -- row, coming back
+    if state.layout == "quadrant" then
+        if r % 2 == 1 then
+            for z = 0, r - 1 do add(r, z) end         -- column, going out
+            for x = r - 1, 1, -1 do add(x, r - 1) end -- row, coming back
+        else
+            for x = 1, r do add(x, r - 1) end         -- row, going out
+            for z = r - 2, 0, -1 do add(r, z) end     -- column, coming back
+        end
+        return cells
+    end
+
+    -- wedge
+    local lo, hi = -(r - 1), r
+
+    if r == 1 then
+        add(1, 0)
+        add(1, 1)
+    elseif r % 2 == 1 then
+        add(r, lo + 1)                                -- hook: beside the corner...
+        add(r, lo)                                    -- ...into the corner...
+        for z = lo + 1, hi do add(r, z) end           -- ...and all the way up
     else
-        for x = 1, r do add(x, r - 1) end             -- row, going out
-        for z = r - 2, 0, -1 do add(r, z) end         -- column, coming back
+        add(r, hi - 1)
+        add(r, hi)
+        for z = hi - 1, lo, -1 do add(r, z) end       -- all the way down
     end
 
     return cells
@@ -1466,9 +1505,13 @@ end
 
 local args = { ... }
 
--- quarry [solo]  |  quarry reset [solo]
+-- quarry [layout]  |  quarry reset [layout]   (layout: wedge | quadrant | solo)
+local LAYOUTS = { wedge = true, quadrant = true, solo = true }
 local wantReset = args[1] == "reset"
-local layoutArg = (args[1] == "solo" or args[2] == "solo") and "solo" or "quadrant"
+local layoutArg = "wedge"
+for _, a in ipairs(args) do
+    if LAYOUTS[a] then layoutArg = a end
+end
 
 if wantReset and fs.exists(STATE_FILE) then
     fs.delete(STATE_FILE)
@@ -1482,9 +1525,9 @@ if not wantReset and loadState() then
         return
     end
 
-    if args[1] == "solo" and state.layout ~= "solo" then
-        print("(Ignoring 'solo': the saved dig is " .. state.layout ..
-              " layout. Use `startup reset solo` to switch.)")
+    if LAYOUTS[args[1]] and args[1] ~= state.layout then
+        print("(Ignoring '" .. args[1] .. "': the saved dig is " .. state.layout ..
+              " layout. Use `startup reset " .. args[1] .. "` to switch.)")
     end
 
     print("Resuming " .. state.layout .. " layout at shell " .. state.ring .. ", " ..
