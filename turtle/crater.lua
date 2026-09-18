@@ -967,7 +967,16 @@ end
 eatLooseFuel()
 
 while not inventoryEmpty() do
-    print("My inventory must be empty (crafting needs all 16 slots). Take everything out.")
+    local held = {}
+
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d then held[#held + 1] = d.count .. " x " .. (d.name:gsub("^[^:]+:", "")) end
+    end
+
+    print("Fuel " .. tostring(turtle.getFuelLevel()) .. "/" .. tostring(turtle.getFuelLimit()) ..
+          " -- I've burned all the fuel that fits. Crafting needs all 16 slots clear, so please take out: " ..
+          table.concat(held, ", "))
     sleep(10)
     eatLooseFuel()
 end
