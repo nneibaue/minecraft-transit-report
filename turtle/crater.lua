@@ -11,9 +11,9 @@
 --   map says is on the route.
 --
 -- Setup:
---   * A crafting turtle (crafting table upgrade). Put the
---     crafting table on its RIGHT -- chests are read through
---     the LEFT side.
+--   * A crafting turtle (crafting table upgrade). Either side
+--     works; with the table on the right it can read chests
+--     without turning, so laps are a little quicker.
 --   * Its inventory must be EMPTY. turtle.craft() refuses to
 --     run unless every slot outside the 3x3 grid is clear, so
 --     it can't carry a coal stack around. Any fuel you leave
@@ -236,6 +236,33 @@ local function chestAt(side)
 
     if p and p.list then return p end
     return nil
+end
+
+-- The crafting table upgrade is itself a peripheral ("workbench"),
+-- so if it sits on the left it hides whatever block is there. In
+-- that case the turtle has to turn to look at each chest.
+local function leftIsBlocked()
+    local p = peripheral.wrap("left")
+    return p ~= nil and p.craft ~= nil
+end
+
+local LEFT_BLOCKED = leftIsBlocked()
+
+-- Is there a chest on the left? Ends facing it when there is,
+-- facing forward as before when there isn't.
+local function faceChestOnLeft()
+    if not LEFT_BLOCKED then
+        if chestAt("left") then
+            turtle.turnLeft()
+            return true
+        end
+        return false
+    end
+
+    turtle.turnLeft()
+    if chestAt("front") then return true end
+    turtle.turnRight()
+    return false
 end
 
 -- name -> count of everything in the chest. Stacks with NBT are
@@ -792,9 +819,8 @@ local function lap()
                 local key = string.format("R%d W%d C%02d", row, wall, cell)
                 seen[key] = true
 
-                if chestAt("left") then
+                if faceChestOnLeft() then
                     chests = chests + 1
-                    turtle.turnLeft()
                     visitChest(key, moves)
                     turtle.turnRight()
                 else
@@ -914,7 +940,7 @@ local function run()
               chests, stats.crates, tostring(turtle.getFuelLevel())))
 
         if chests == 0 then
-            print("No chests on my left. Chests go on the LEFT, crafting table on the RIGHT.")
+            print("Found no chests. Am I parked with the chest wall directly on my LEFT?")
         end
 
         if stopRequested then break end
@@ -938,6 +964,10 @@ local function keyWatcher()
             print("Q pressed -- finishing this lap, then stopping at home.")
         end
     end
+end
+
+if LEFT_BLOCKED then
+    print("Crafting table is on my left, so I'll turn to look at each chest.")
 end
 
 print("Press Q to stop at home after the current lap.")

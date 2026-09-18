@@ -100,8 +100,10 @@ for it, and corrects its position.)
 
 ## `crater.lua` setup
 
-- A **crafting turtle** with the crafting table on its **right** (chests are
-  read through the left side). Its inventory must be **empty**: `turtle.craft()`
+- A **crafting turtle**. The crafting table can be on either side; on the
+  right it can read chests through its left side without turning, on the left
+  (where it hides the block beside it) the turtle turns to look at each chest,
+  which is a little slower. Its inventory must be **empty**: `turtle.craft()`
   refuses to run unless every slot outside the 3×3 grid is clear, so the turtle
   can't carry a coal stack. Any fuel left in it is burned at startup instead.
 - Chests line the walls of a roughly rectangular room (Sophisticated Storage is
