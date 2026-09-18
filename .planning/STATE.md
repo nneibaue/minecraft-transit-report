@@ -4,10 +4,10 @@ current_phase: 6
 current_phase_name: Dynamic Texture Pipeline
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-09-18T02:29:45.032Z"
+last_updated: "2026-09-18T02:57:42.896Z"
 last_activity: 2026-09-17
 last_activity_desc: "Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)"
-state_head: ceadd9e2f692fbd2c93e870dfb8ec4472282afe4
+state_head: 23dd0050a062d77c7c838ed07e6953c6cbafa322
 progress:
   total_phases: 10
   completed_phases: 1
@@ -124,6 +124,7 @@ None yet.
 | 3 | Denser lantern grid in quarry.lua (LIGHT_SPACING 8 -> 5, commit 3b98357) | 2026-09-18 | 3b98357 | — |
 | 260917-rei | quarry.lua: re-anchor at chest, Q to stop, skip side scan in open cells | 2026-09-17 | 1cfaa6d | [260917-rei-quarry-lua-re-anchor-at-chest-q-to-stop-](./quick/260917-rei-quarry-lua-re-anchor-at-chest-q-to-stop-/) |
 | 4 | Fix quarry.lua classify(): ores decided before stone names (deepslate ore variants were dug), commit ceadd9e | 2026-09-18 | ceadd9e | — |
+| 6 | quarry.lua: walkNearHome() so goHome works from off-wedge cells after re-anchoring, commit 23dd005 | 2026-09-18 | 23dd005 | — |
 
 ## Deferred Items
 
