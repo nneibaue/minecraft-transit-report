@@ -133,6 +133,21 @@ local function classify(ok, data)
     return "keep"
 end
 
+-- A "source" fluid sits at level 0 and keeps flowing forever unless
+-- walled off; "flowing" (level > 0) is just spreading out from a
+-- source elsewhere. Used only to word the seal messages below.
+local function isSourceFluid(data)
+    return data and data.state and data.state.level == 0
+end
+
+local function fluidLabel(class, data)
+    if isSourceFluid(data) then
+        return class .. " source"
+    end
+
+    return "flowing " .. class
+end
+
 -- =========================================================
 -- Map & state
 --
@@ -162,6 +177,8 @@ local function isClear(x, z)
     return state.map[key(x, z)] == CLEAR
 end
 
+-- KEEP doubles as "walled off": a cell where lava/water got sealed
+-- is marked KEEP too, so the sweep must never dig into it again.
 local function markKeep(x, z)
     state.map[key(x, z)] = KEEP
 end
@@ -243,6 +260,17 @@ local function headingForDelta(dx, dz)
     error("headingForDelta: not a unit step (" .. dx .. "," .. dz .. ")")
 end
 
+-- Inverse of headingForDelta: the unit step a given heading points to.
+local function deltaForHeading(h)
+    if h == 0 then return 1, 0
+    elseif h == 1 then return 0, 1
+    elseif h == 2 then return -1, 0
+    elseif h == 3 then return 0, -1
+    end
+
+    error("deltaForHeading: not a heading (" .. tostring(h) .. ")")
+end
+
 -- Dig until the space is clear, coping with gravel/sand that keeps
 -- falling back in. Bails out after ~20 tries so a stubborn block
 -- (or a chain of falling sand) doesn't loop forever.
@@ -308,25 +336,47 @@ local function stepTo(dx, dz)
             sleep(TURTLE_WAIT_SECONDS)
             -- loop back around and re-check; never dig, never KEEP
         elseif class == "lava" or class == "water" then
-            sealAheadHazard(class)
+            sealAheadHazard(class, data)
             return false
         elseif class == "keep" then
             return false
         else
+            local proceed = true
+
             if class == "junk" then
                 if not digLoop(turtle.dig, turtle.detect) then
                     return false
                 end
+
+                -- Gravel/sand can fall in, or the block just dug out
+                -- can turn out to have been the only thing holding
+                -- back a hazard -- re-check before stepping in.
+                local ok2, data2 = turtle.inspect()
+                local class2 = classify(ok2, data2)
+
+                if class2 == "lava" or class2 == "water" then
+                    sealAheadHazard(class2, data2)
+                    return false
+                elseif class2 == "turtle" then
+                    print("Another turtle is in the way. Waiting " ..
+                          TURTLE_WAIT_SECONDS .. "s...")
+                    sleep(TURTLE_WAIT_SECONDS)
+                    proceed = false
+                elseif class2 == "keep" then
+                    return false
+                end
             end
 
-            if not pushForward() then
-                return false
-            end
+            if proceed then
+                if not pushForward() then
+                    return false
+                end
 
-            state.x = state.x + dx
-            state.z = state.z + dz
-            saveState()            -- position must never lag the real turtle
-            return true
+                state.x = state.x + dx
+                state.z = state.z + dz
+                saveState()         -- position must never lag the real turtle
+                return true
+            end
         end
     end
 end
@@ -502,7 +552,7 @@ end
 -- Seal lava/water directly ahead, then -- lava only -- climb up
 -- and post a "LAVA" sign on the wall above the seal, if one is
 -- carried. This is decorative/informational, never required.
-sealAheadHazard = function(class)
+sealAheadHazard = function(class, data)
     if not placeJunk(turtle.place) then
         print("Couldn't seal " .. class .. " ahead of (" ..
               state.x .. "," .. state.z .. ") -- out of junk.")
@@ -510,7 +560,8 @@ sealAheadHazard = function(class)
     end
 
     state.stats.hazards = state.stats.hazards + 1
-    print("Sealed " .. class .. " ahead of (" .. state.x .. "," .. state.z .. ").")
+    print("Sealed " .. fluidLabel(class, data) .. " ahead of (" ..
+          state.x .. "," .. state.z .. ").")
 
     if class ~= "lava" then return end
 
@@ -519,15 +570,45 @@ sealAheadHazard = function(class)
 
     if not turtle.up() then return end
 
-    if turtle.detect() then
-        local ok, data = turtle.inspect()
-        if classify(ok, data) == "junk" then
-            turtle.dig()
+    -- Never dig blind for the sign: re-check what's actually above
+    -- the seal, and if digging a junk block exposes lava/water up
+    -- there too, wall it off instead of posting the sign.
+    local ok, headData = turtle.inspect()
+    local headClass = classify(ok, headData)
+
+    if headClass == "junk" then
+        turtle.dig()
+        ok, headData = turtle.inspect()
+        headClass = classify(ok, headData)
+
+        if headClass == "lava" or headClass == "water" then
+            if placeJunk(turtle.place) then
+                state.stats.hazards = state.stats.hazards + 1
+                print("Sealed " .. fluidLabel(headClass, headData) ..
+                      " above the seal at (" .. state.x .. "," .. state.z ..
+                      ") -- skipping the sign.")
+            else
+                print("Couldn't seal " .. headClass .. " above the seal at (" ..
+                      state.x .. "," .. state.z .. ") -- out of junk, skipping the sign.")
+            end
+        else
+            turtle.select(signSlot)
+            turtle.place("LAVA")
+        end
+    elseif headClass == "air" then
+        turtle.select(signSlot)
+        turtle.place("LAVA")
+    elseif headClass == "lava" or headClass == "water" then
+        if placeJunk(turtle.place) then
+            state.stats.hazards = state.stats.hazards + 1
+            print("Sealed " .. fluidLabel(headClass, headData) ..
+                  " above the seal at (" .. state.x .. "," .. state.z .. ").")
+        else
+            print("Couldn't seal " .. headClass .. " above the seal at (" ..
+                  state.x .. "," .. state.z .. ") -- out of junk.")
         end
     end
-
-    turtle.select(signSlot)
-    turtle.place("LAVA")
+    -- "keep" or "turtle": nothing to dig, nothing to seal -- skip the sign.
 
     -- Getting back down is not optional: the map assumes the turtle
     -- lives on one y level. Retry past anything that wandered under.
@@ -541,23 +622,57 @@ sealAheadHazard = function(class)
           ") after placing a LAVA sign. Move me down and run me again.")
 end
 
-local function sealAbove(class)
+local function sealAbove(class, data)
     if placeJunk(turtle.placeUp) then
         state.stats.hazards = state.stats.hazards + 1
-        print("Sealed " .. class .. " above (" .. state.x .. "," .. state.z .. ").")
+        print("Sealed " .. fluidLabel(class, data) .. " above (" ..
+              state.x .. "," .. state.z .. ").")
     else
         print("Couldn't seal " .. class .. " above (" ..
               state.x .. "," .. state.z .. ") -- out of junk.")
     end
 end
 
-local function sealBelow(class)
+local function sealBelow(class, data)
     if placeJunk(turtle.placeDown) then
         state.stats.hazards = state.stats.hazards + 1
-        print("Sealed " .. class .. " below (" .. state.x .. "," .. state.z .. ").")
+        print("Sealed " .. fluidLabel(class, data) .. " below (" ..
+              state.x .. "," .. state.z .. ").")
     else
         print("Couldn't seal " .. class .. " below (" ..
               state.x .. "," .. state.z .. ") -- out of junk.")
+    end
+end
+
+-- Look all the way around a just-entered cell, skipping arrivedFrom
+-- (the wall the turtle just walked through -- already handled by
+-- whatever got it here), or scanning all four sides when arrivedFrom
+-- is nil (first cell of a run, or resuming after a reboot). Any
+-- lava/water found gets walled off immediately and the neighbour
+-- cell marked KEEP so the sweep never walks into it and re-breaches
+-- the seal. Inspect and place only -- this never digs.
+local function scanSides(arrivedFrom)
+    for h = 0, 3 do
+        if h ~= arrivedFrom then
+            face(h)
+
+            local ok, data = turtle.inspect()
+            local class = classify(ok, data)
+
+            if class == "lava" or class == "water" then
+                if placeJunk(turtle.place) then
+                    state.stats.hazards = state.stats.hazards + 1
+                    print("Sealed " .. fluidLabel(class, data) .. " beside (" ..
+                          state.x .. "," .. state.z .. ").")
+                else
+                    print("Couldn't seal " .. class .. " beside (" ..
+                          state.x .. "," .. state.z .. ") -- out of junk.")
+                end
+
+                local dx, dz = deltaForHeading(h)
+                markKeep(state.x + dx, state.z + dz)
+            end
+        end
     end
 end
 
@@ -569,9 +684,18 @@ local function handleHead()
     local class = classify(ok, data)
 
     if class == "lava" or class == "water" then
-        sealAbove(class)
+        sealAbove(class, data)
     elseif class == "junk" then
-        if not digLoop(turtle.digUp, turtle.detectUp) then
+        if digLoop(turtle.digUp, turtle.detectUp) then
+            -- Re-check: the block just cleared could have been the
+            -- only thing holding a hazard above out of the room.
+            ok, data = turtle.inspectUp()
+            class = classify(ok, data)
+
+            if class == "lava" or class == "water" then
+                sealAbove(class, data)
+            end
+        else
             print("Couldn't clear the block above (" ..
                   state.x .. "," .. state.z .. "); leaving it.")
         end
@@ -586,7 +710,7 @@ local function handleFloor()
     local class = classify(ok, data)
 
     if class == "lava" or class == "water" then
-        sealBelow(class)
+        sealBelow(class, data)
     elseif not ok then
         if placeJunk(turtle.placeDown) then
             state.stats.hazards = state.stats.hazards + 1
@@ -831,10 +955,21 @@ local function isFirstOfRing(ring, dir, z)
     return (dir == 1 and z == lo) or (dir == -1 and z == hi)
 end
 
--- Head-level, floor, and light-grid checks for the cell the
--- turtle is now standing in, then mark it CLEAR and save.
-local function enterCell(x, z)
+-- Head-level, floor, neighbour, and light-grid checks for the cell
+-- the turtle is now standing in, then mark it CLEAR and save.
+--
+-- isStart is true only when the turtle didn't just step into this
+-- cell facing it -- the very first cell of a run, or the one it
+-- resumed standing on after a reboot -- so there's no reliable
+-- "direction traveled" to skip; scan all four sides instead of three.
+local function enterCell(x, z, isStart)
+    local arrivedFrom = nil
+    if not isStart then
+        arrivedFrom = (state.heading + 2) % 4
+    end
+
     handleHead()
+    scanSides(arrivedFrom)
     handleFloor()
     maybePlaceLight(x, z)
 
@@ -850,7 +985,7 @@ end
 -- mark the target KEEP and give up on it for good.
 local function visitTarget(tx, tz)
     if state.x == tx and state.z == tz then
-        enterCell(tx, tz)
+        enterCell(tx, tz, true)
         return true
     end
 

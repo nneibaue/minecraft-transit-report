@@ -51,6 +51,10 @@ quarry reset
 - Lock coal and lanterns into the chest's first slots so top-ups are instant —
   a turtle pulls stacks from the chest in slot order and only recognizes the
   first few it finds.
+- Run the turtles with their feet at **y ≥ -52**. In 1.18+ worlds every cave
+  below y = -54 is flooded with lava, so mining at bedrock depth means
+  constant lakes. Two blocks higher the ores are the same and the lakes are
+  gone.
 
 ### Light grid
 
