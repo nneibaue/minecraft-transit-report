@@ -140,16 +140,42 @@ local function classify(ok, data)
         if name:find(frag) then return "keep" end
     end
 
+    -- Ores are decided BEFORE any stone check. This must come first:
+    -- "minecraft:deepslate_diamond_ore" contains "deepslate", and the
+    -- junk name list below would happily call it plain stone.
+    --
+    -- Bug history: the first in-game run mined a diamond for exactly
+    -- that reason -- every deepslate-variant ore (diamond, gold,
+    -- redstone, lapis, emerald, modded) slipped past as "deepslate".
+    local isOre = name:find("_ore") or name:find("raw_")
+                  or name:find("ancient_debris") or name:find("amethyst")
+
+    if not isOre then
+        for tag in pairs(tags) do
+            if tag:find("^forge:ores") or tag:find("^c:ores") then
+                isOre = true
+                break
+            end
+        end
+    end
+
+    if isOre then
+        for tag in pairs(tags) do
+            if ORE_ALLOWED_TAGS[tag] then return "junk" end
+        end
+
+        return "keep"          -- every other ore stays for the player
+    end
+
     for tag in pairs(tags) do
-        if JUNK_TAGS[tag] or ORE_ALLOWED_TAGS[tag] then return "junk" end
+        if JUNK_TAGS[tag] then return "junk" end
     end
 
     for _, frag in ipairs(JUNK_NAME_FRAGMENTS) do
         if name:find(frag) then return "junk" end
     end
 
-    -- Any other ore (tagged forge:ores, or an "_ore" name), plus
-    -- everything else not otherwise recognized: leave it be.
+    -- Everything else not otherwise recognized: leave it be.
     return "keep"
 end
 
