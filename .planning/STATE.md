@@ -4,10 +4,10 @@ current_phase: 6
 current_phase_name: Dynamic Texture Pipeline
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-09-18T03:03:10.604Z"
+last_updated: "2026-09-18T03:22:11.225Z"
 last_activity: 2026-09-17
 last_activity_desc: "Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)"
-state_head: 6e6921236ed5700a2f159c2da853bba612f467f9
+state_head: 4bef8d645bec7e39985d13a7d5f83e39568f25e6
 progress:
   total_phases: 10
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 Phase: 6 — Dynamic Texture Pipeline
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-09-17 - Completed quick task 260917-rei: quarry.lua re-anchor at chest, Q to stop, skip side scan in open cells
+Last activity: 2026-09-17 - Completed quick task 260917-s7i: quarry.lua quadrant territories (pinwheel) and solo full-square layout
 
 Progress: [█░░░░░░░░░] 10%
 
@@ -126,6 +126,7 @@ None yet.
 | 4 | Fix quarry.lua classify(): ores decided before stone names (deepslate ore variants were dug), commit ceadd9e | 2026-09-18 | ceadd9e | — |
 | 6 | quarry.lua: walkNearHome() so goHome works from off-wedge cells after re-anchoring, commit 23dd005 | 2026-09-18 | 23dd005 | — |
 | 7 | quarry.lua: unload from any side of the chest, near-home walker digs junk, commit 6e69212 | 2026-09-18 | 6e69212 | — |
+| 260917-s7i | quarry.lua: quadrant territories (pinwheel) and solo full-square layout | 2026-09-18 | 4bef8d6 | [260917-s7i-quarry-lua-quadrant-territories-pinwheel](./quick/260917-s7i-quarry-lua-quadrant-territories-pinwheel/) |
 
 ## Deferred Items
 
