@@ -37,9 +37,12 @@
 --
 -- Memory: crater_db.txt on the turtle -- the room map, the
 -- chest list, the turtle's own position, and the learned
--- recipes. Its position is saved after every move, so a reboot
--- resumes in place. If you carry the turtle somewhere else, put
--- it back at home and run `crater reset`.
+-- recipes. Its position is saved around every move, so a reboot
+-- resumes in place. If it was stopped mid-move, or what's around
+-- it doesn't match the map (you carried it somewhere, the room
+-- changed), or it can't reach a chest or home, it rediscovers
+-- the room from wherever it is -- no reset needed. `reset` is
+-- only for forgetting learned recipes.
 -- =========================================================
 
 -- =========================================================
@@ -55,7 +58,7 @@ local TARGETS = { "potato", "wheat", "corn" }
 local KEEP_LOOSE = 0
 
 -- How far from home (in blocks, each axis) discovery may wander
-local SEARCH_RADIUS = 6
+local SEARCH_RADIUS = 8
 
 -- Seconds to rest at home between rounds
 local ROUND_INTERVAL = 120
@@ -199,15 +202,26 @@ local function ahead()
     return db.pos.x + DX[db.pos.h], db.pos.z + DZ[db.pos.h]
 end
 
+-- Every motion is bracketed by a "moving" flag in the save file.
+-- If the program dies mid-motion (Ctrl+T, chunk unload) the flag
+-- is still set at the next start, which means the saved position
+-- can't be trusted and the room gets rediscovered from wherever
+-- the turtle actually is.
 local function turnRight()
+    db.moving = true
+    saveDB()
     turtle.turnRight()
     db.pos.h = (db.pos.h + 1) % 4
+    db.moving = nil
     saveDB()
 end
 
 local function turnLeft()
+    db.moving = true
+    saveDB()
     turtle.turnLeft()
     db.pos.h = (db.pos.h + 3) % 4
+    db.moving = nil
     saveDB()
 end
 
@@ -244,13 +258,19 @@ local function forward()
     local warned = false
 
     while true do
-        if turtle.forward() then
+        db.moving = true
+        saveDB()
+        local moved = turtle.forward()
+
+        if moved then
             local nx, nz = ahead()
             db.pos.x, db.pos.z = nx, nz
-            saveDB()
-            return true
         end
 
+        db.moving = nil
+        saveDB()
+
+        if moved then return true end
         if turtle.detect() then return false end
 
         if not warned then
@@ -732,6 +752,10 @@ end
 local function discover()
     print("Discovering chests within " .. SEARCH_RADIUS .. " blocks...")
 
+    -- Wherever the turtle is right now becomes home
+    db.pos = { x = 0, z = 0, h = 0 }
+    db.moving = nil
+    db.discovered = false
     db.cells = {}
     db.chests = {}
     db.cells[key(0, 0)] = "open"
@@ -778,7 +802,11 @@ end
 -- =========================================================
 
 -- Breadth-first search over open cells; returns a list of headings.
-local function pathTo(tx, tz)
+-- `avoid` is a set of cells found blocked on this trip; it's kept
+-- out of the saved map on purpose, because a step that fails when
+-- the turtle isn't where it thinks it is would otherwise poison
+-- the map for good.
+local function pathTo(tx, tz, avoid)
     local start = key(db.pos.x, db.pos.z)
     local goal = key(tx, tz)
 
@@ -796,7 +824,7 @@ local function pathTo(tx, tz)
             local nx, nz = cx + DX[d], cz + DZ[d]
             local k = key(nx, nz)
 
-            if prev[k] == nil and db.cells[k] == "open" then
+            if prev[k] == nil and db.cells[k] == "open" and not avoid[k] then
                 prev[k] = { key(cx, cz), d }
 
                 if k == goal then
@@ -818,13 +846,15 @@ local function pathTo(tx, tz)
     return nil
 end
 
+-- Walk to a cell over the map. False if it can't get there, which
+-- means either the room changed or the turtle isn't where it
+-- thinks it is; the caller then rediscovers.
 local function goTo(tx, tz)
-    for _ = 1, 5 do
-        local path = pathTo(tx, tz)
+    local avoid = {}
 
-        if not path then
-            error("No known path to (" .. tx .. "," .. tz .. "). Run: crater reset")
-        end
+    for _ = 1, 5 do
+        local path = pathTo(tx, tz, avoid)
+        if not path then return false end
 
         local blocked = false
 
@@ -832,37 +862,61 @@ local function goTo(tx, tz)
             face(d)
 
             if not forward() then
-                -- A block has appeared on the route: forget that
-                -- cell and plan around it.
                 local bx, bz = ahead()
-                db.cells[key(bx, bz)] = "block"
-                saveDB()
+                avoid[key(bx, bz)] = true
                 blocked = true
                 break
             end
         end
 
-        if not blocked then return end
+        if not blocked then return true end
     end
 
-    error("Can't reach (" .. tx .. "," .. tz .. "); the room has changed. Run: crater reset")
+    return false
+end
+
+-- After a restart: does what's around the turtle agree with the
+-- map at its saved position? Only cells the map knows are compared.
+local function surroundingsMatch()
+    for _ = 1, 4 do
+        local nx, nz = ahead()
+        local expected = db.cells[key(nx, nz)]
+
+        if expected then
+            local observed = "open"
+            if chestAt("front") then
+                observed = "chest"
+            elseif turtle.detect() then
+                observed = "block"
+            end
+
+            if observed ~= expected then return false end
+        end
+
+        turnRight()
+    end
+
+    return true
 end
 
 -- =========================================================
 -- Phase 2: one chest visit
 -- =========================================================
 
+-- True when done; false plus a reason when the turtle is lost.
 local function visitChest(c)
     local label = "chest (" .. c.x .. "," .. c.z .. ")"
 
-    goTo(c.stand.x, c.stand.z)
+    if not goTo(c.stand.x, c.stand.z) then
+        return false, "no way to " .. label
+    end
+
     face(c.face)
 
     local chest = chestAt("front")
 
     if not chest then
-        print(label .. " is gone. Run `crater reset` to rediscover.")
-        return
+        return false, label .. " isn't where I expected"
     end
 
     local counts, details = summarize(chest, true)
@@ -875,7 +929,7 @@ local function visitChest(c)
 
     if not inventoryEmpty() then
         print(label .. ": my inventory isn't clear, so no crafting here")
-        return
+        return true
     end
 
     if c.fuel and fuelLow() then
@@ -908,6 +962,8 @@ local function visitChest(c)
     c.items = summarize(chest, false)
     c.fuel = hasFuel(c.items)
     saveDB()
+
+    return true
 end
 
 -- =========================================================
@@ -984,37 +1040,61 @@ end
 local function run()
     if not db.discovered then
         discover()
+    elseif db.moving then
+        print("I was stopped mid-move last time, so my position is unsure. Rediscovering from here.")
+        discover()
+    elseif not surroundingsMatch() then
+        print("The room doesn't match my map from where I stand. Rediscovering from here.")
+        discover()
     else
         print("Loaded " .. #db.chests .. " chest(s); I'm at (" .. db.pos.x .. "," .. db.pos.z .. ").")
     end
 
-    if #db.chests == 0 then
-        print("No chests found within " .. SEARCH_RADIUS .. " blocks of home. Move me or the chests, then run: crater reset")
-        return
-    end
-
     while not stopRequested do
-        stats.crates = 0
+        if #db.chests == 0 then
+            print("No chests within " .. SEARCH_RADIUS .. " blocks of me. Move me (or the chests) and I'll look again in a minute.")
+            for _ = 1, 60 do
+                if stopRequested then return end
+                sleep(1)
+            end
+            discover()
+        else
+            stats.crates = 0
+            local lost = nil
 
-        for _, c in ipairs(db.chests) do
-            visitChest(c)
-        end
+            for _, c in ipairs(db.chests) do
+                local ok, why = visitChest(c)
 
-        goTo(0, 0)
-        face(0)
+                if not ok then
+                    lost = why
+                    break
+                end
+            end
 
-        if not inventoryEmpty() then
-            print("I'm holding items no chest will take. Please take them out of me.")
-        end
+            if not lost and not goTo(0, 0) then
+                lost = "no way home"
+            end
 
-        print(string.format("Round done: %d crate(s) made, fuel %s.",
-              stats.crates, tostring(turtle.getFuelLevel())))
+            if lost then
+                print("I'm lost (" .. lost .. "). Rediscovering the room from here.")
+                discover()
+            else
+                face(0)
 
-        if stopRequested then break end
+                if not inventoryEmpty() then
+                    print("I'm holding items no chest will take. Please take them out of me.")
+                end
 
-        for _ = 1, ROUND_INTERVAL do
-            if stopRequested then break end
-            sleep(1)
+                print(string.format("Round done: %d crate(s) made, fuel %s.",
+                      stats.crates, tostring(turtle.getFuelLevel())))
+
+                if stopRequested then break end
+
+                for _ = 1, ROUND_INTERVAL do
+                    if stopRequested then break end
+                    sleep(1)
+                end
+            end
         end
     end
 end

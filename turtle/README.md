@@ -126,9 +126,12 @@ for it, and corrects its position.)
   `FUEL_TARGET` (3000). The essence recipe shape (hollow ring vs full grid) is
   worked out by trying and remembered.
 - **Map.** `crater map` prints the chests it knows, their coordinates relative
-  to home, and their top items. `crater reset` forgets everything so the next
-  run rediscovers; do that after moving the turtle or the chests. A reboot
-  resumes in place, since the turtle saves its position after every move.
+  to home, and their top items. A reboot resumes in place, since the turtle
+  saves its position around every move. If it was killed mid-move, or the
+  blocks around it don't match its map (it was carried somewhere, the room
+  changed), or it can't reach a chest or home, it rediscovers the room from
+  wherever it is, on its own. `crater reset` is only needed to forget learned
+  recipes (say, after adding a mod that gives corn a crate).
 - **Q** finishes the current round, returns home, and stops.
 
 ### Light grid
