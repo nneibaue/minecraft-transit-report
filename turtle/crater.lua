@@ -1,90 +1,73 @@
 -- =========================================================
--- Chest-room crater
+-- Chest crater
 --
---   A crafting turtle that walks the inside edge of a
---   chest-lined room, looks into every chest on its way, and
---   packs bulk food down (9 of a kind -> 1 crate) so the
---   chests stop overflowing with carrots. While it does that
---   it builds a map of which chest holds what, and when its
---   fuel runs low it helps itself: coal straight from a
---   chest, or coal essence crafted into coal, whichever the
---   map says is on the route.
+--   A crafting turtle that first finds the chests in a room,
+--   then shuttles between them crafting potatoes, wheat and
+--   corn into crates (9 -> 1) so the chests stop filling up.
+--   It remembers the chests, what was in each one, and which
+--   9-of-a-kind recipes work, and when its fuel runs low it
+--   helps itself to coal -- or crafts coal essence into coal
+--   -- from any chest that has some.
 --
 -- Setup:
---   * A crafting turtle (crafting table upgrade). Either side
---     works; with the table on the right it can read chests
---     without turning, so laps are a little quicker.
+--   * A crafting turtle (crafting table upgrade, either side).
 --   * Its inventory must be EMPTY. turtle.craft() refuses to
 --     run unless every slot outside the 3x3 grid is clear, so
 --     it can't carry a coal stack around. Any fuel you leave
 --     in it gets burned at startup instead.
---   * Chests line the walls (Sophisticated Storage is fine).
---     Keep the lane along the walls clear: it turns at the
---     first block in its way, so a furnace or crafting table
---     standing in the lane looks like a corner to it.
---   * Park it in an inside corner cell, chest wall on its
---     LEFT, facing along that wall. That's home.
+--   * Put it on the floor of the room. Wherever it starts is
+--     "home": it explores every floor cell it can reach within
+--     SEARCH_RADIUS blocks of home, on this level, and notes
+--     every inventory it sees beside it (chests, Sophisticated
+--     Storage, barrels...). Doorways inside that radius are
+--     explored too, so keep the radius smaller than the room
+--     if there's a corridor of chests next door.
 --
---         C C C C C C
---         C . . . T C     T faces down the page; the right-hand
---         C . . . . C     wall is on its left. It walks the ring
---         C C C C C C     clockwise and ends up back here.
+-- Phases:
+--   1. Discovering chests -- one-time walk of the room (the
+--      turtle turns to look at all four sides of every cell).
+--   2. Work loop -- visit each chest in turn, crate what's
+--      there, rest, repeat. With two chests that's a shuttle.
 --
 -- Usage:
---   crater            lap the room forever (a lap, then a rest)
---   crater map        print what it remembers, without moving
---   crater reset      forget the map and the learned recipes
---   Q (in the terminal) finish the current lap, park at home, stop.
+--   crater            discover chests (first run), then work forever
+--   crater map        print the chests it knows, without moving
+--   crater reset      forget everything; rediscover on the next run
+--   Q (in the terminal) finish this round, go home, stop.
 --
--- Memory: crater_db.txt on the turtle. It holds the chest map,
--- which 9-of-a-kind recipes worked (and which didn't, so each
--- item is only ever tested once), and how essence turns into
--- fuel. Chests are re-read every lap, so moving items around
--- needs no reset -- `reset` is only for after you've changed
--- what the script should think of as food or fuel.
+-- Memory: crater_db.txt on the turtle -- the room map, the
+-- chest list, the turtle's own position, and the learned
+-- recipes. Its position is saved after every move, so a reboot
+-- resumes in place. If you carry the turtle somewhere else, put
+-- it back at home and run `crater reset`.
 -- =========================================================
 
 -- =========================================================
 -- Config
 -- =========================================================
 
--- Rows of chests up the wall. 1 = floor level only. With 2 it
--- laps the room at floor level, goes up one, and laps again.
-local CHEST_ROWS = 1
+-- Item names (the part after the colon, exactly) to crate.
+-- "potato" matches minecraft:potato but not baked_potato;
+-- "corn" matches croptopia:corn but not corn_seeds or popcorn.
+local TARGETS = { "potato", "wheat", "corn" }
 
--- Seconds to rest at home between laps
-local LAP_INTERVAL = 600
+-- Leave this many loose items of each target in the chest
+local KEEP_LOOSE = 0
 
--- Only crate an item when a chest holds at least MIN_STACKS full
--- stacks of it ("many stacks"), and always leave KEEP_STACKS
--- stacks loose so there's still some to grab by hand.
-local MIN_STACKS = 3
-local KEEP_STACKS = 1
+-- How far from home (in blocks, each axis) discovery may wander
+local SEARCH_RADIUS = 6
 
--- What counts as food. An item qualifies if any of its tags
--- starts with one of these prefixes (vanilla, Farmer's Delight
--- and Croptopia all tag their crops this way) or if it is listed
--- in ALWAYS. NEVER wins over everything. Whether 9 of it actually
--- craft into something is worked out by trying, once.
-local FOOD_TAGS = {
-    "forge:crops", "forge:vegetables", "forge:fruits", "forge:grain",
-    "forge:berries", "forge:nuts", "forge:mushrooms",
-}
-local ALWAYS = {
-    ["minecraft:melon_slice"] = true,
-    ["minecraft:dried_kelp"] = true,
-}
-local NEVER = {}
+-- Seconds to rest at home between rounds
+local ROUND_INTERVAL = 120
 
 -- Fuel. FUEL_ITEMS burn as they are; ESSENCE_ITEMS get crafted
--- first (Mystical Agriculture). Fuel is only taken when the turtle
--- is running low, and only enough to get back up to FUEL_TARGET.
+-- first (Mystical Agriculture). Fuel is only taken from a chest
+-- when the level drops under FUEL_LOW, and only enough to get
+-- back up to FUEL_TARGET.
 local FUEL_ITEMS = { "minecraft:coal", "minecraft:charcoal", "minecraft:coal_block" }
 local ESSENCE_ITEMS = { "mysticalagriculture:coal_essence" }
+local FUEL_LOW = 500
 local FUEL_TARGET = 3000
-
--- Longest wall it will walk before deciding it is lost
-local MAX_WALL = 64
 
 local DB_FILE = "crater_db.txt"
 
@@ -128,13 +111,23 @@ end
 -- State
 -- =========================================================
 
+-- pos               = where the turtle is: x, z and heading h
+--                     (0 = the way it faced at home; right turn = +1)
+-- cells["x,z"]      = "open" | "block" | "chest"
+-- chests[i]         = { x, z, stand = {x, z}, face = h, items = { name = count }, fuel = bool }
 -- recipes[item]     = { result = name } or false (tested, no recipe)
 -- fuelRecipes[item] = { pattern, result, count, value } or false
--- chests[key]       = { items = { name = count }, fuel = bool, dist = moves from home }
-local db = { recipes = {}, fuelRecipes = {}, chests = {}, lapMoves = nil }
+local db = {
+    pos = { x = 0, z = 0, h = 0 },
+    cells = {},
+    chests = {},
+    recipes = {},
+    fuelRecipes = {},
+    discovered = false,
+}
 
 local stopRequested = false
-local stats = { crates = 0, fuelCrafts = 0 }
+local stats = { crates = 0 }
 
 local function saveDB()
     local f = fs.open(DB_FILE, "w")
@@ -149,8 +142,9 @@ local function loadDB()
     local data = textutils.unserialize(f.readAll())
     f.close()
 
-    if type(data) == "table" and data.chests then
+    if type(data) == "table" and data.pos and data.cells then
         db = data
+        db.chests = db.chests or {}
         db.recipes = db.recipes or {}
         db.fuelRecipes = db.fuelRecipes or {}
         return true
@@ -191,8 +185,44 @@ local function eatLooseFuel()
 end
 
 -- =========================================================
--- Movement
+-- Movement, with dead reckoning
 -- =========================================================
+
+local DX = { [0] = 0, [1] = 1, [2] = 0, [3] = -1 }
+local DZ = { [0] = 1, [1] = 0, [2] = -1, [3] = 0 }
+
+local function key(x, z)
+    return x .. "," .. z
+end
+
+local function ahead()
+    return db.pos.x + DX[db.pos.h], db.pos.z + DZ[db.pos.h]
+end
+
+local function turnRight()
+    turtle.turnRight()
+    db.pos.h = (db.pos.h + 1) % 4
+    saveDB()
+end
+
+local function turnLeft()
+    turtle.turnLeft()
+    db.pos.h = (db.pos.h + 3) % 4
+    saveDB()
+end
+
+local function face(h)
+    local d = (h - db.pos.h) % 4
+
+    if d == 1 then
+        turnRight()
+    elseif d == 2 then
+        turnRight()
+        turnRight()
+    elseif d == 3 then
+        turnLeft()
+    end
+end
 
 local function waitForAnyFuel()
     if turtle.getFuelLevel() == "unlimited" then return end
@@ -207,25 +237,30 @@ local function waitForAnyFuel()
     end
 end
 
-local function moveWith(move, detect, what)
+-- One step forward. False if a block is in the way; waits out
+-- anything that isn't a block (a mob, usually).
+local function forward()
     waitForAnyFuel()
+    local warned = false
 
-    for _ = 1, 40 do
-        if move() then return end
-
-        if detect() then
-            error("A block appeared in my way (" .. what .. "). Clear it and reboot me.")
+    while true do
+        if turtle.forward() then
+            local nx, nz = ahead()
+            db.pos.x, db.pos.z = nx, nz
+            saveDB()
+            return true
         end
 
-        sleep(0.5)     -- probably a mob
+        if turtle.detect() then return false end
+
+        if not warned then
+            print("Something is in my way at (" .. db.pos.x .. "," .. db.pos.z .. "); waiting for it to move.")
+            warned = true
+        end
+
+        sleep(1)
     end
-
-    error("Stuck moving " .. what .. ". Clear the path and reboot me.")
 end
-
-local function forward() moveWith(turtle.forward, turtle.detect, "forward") end
-local function up() moveWith(turtle.up, turtle.detectUp, "up") end
-local function down() moveWith(turtle.down, turtle.detectDown, "down") end
 
 -- =========================================================
 -- Talking to the chest in front
@@ -238,37 +273,10 @@ local function chestAt(side)
     return nil
 end
 
--- The crafting table upgrade is itself a peripheral ("workbench"),
--- so if it sits on the left it hides whatever block is there. In
--- that case the turtle has to turn to look at each chest.
-local function leftIsBlocked()
-    local p = peripheral.wrap("left")
-    return p ~= nil and p.craft ~= nil
-end
-
-local LEFT_BLOCKED = leftIsBlocked()
-
--- Is there a chest on the left? Ends facing it when there is,
--- facing forward as before when there isn't.
-local function faceChestOnLeft()
-    if not LEFT_BLOCKED then
-        if chestAt("left") then
-            turtle.turnLeft()
-            return true
-        end
-        return false
-    end
-
-    turtle.turnLeft()
-    if chestAt("front") then return true end
-    turtle.turnRight()
-    return false
-end
-
 -- name -> count of everything in the chest. Stacks with NBT are
 -- skipped: they're rarely food and suck() can't tell them apart.
 -- With details, also one getItemDetail() per distinct item for
--- its tags and stack size.
+-- its stack size.
 local function summarize(chest, withDetails)
     local counts, details = {}, {}
 
@@ -278,15 +286,23 @@ local function summarize(chest, withDetails)
 
             if withDetails and not details[item.name] then
                 local d = chest.getItemDetail(slot)
-                details[item.name] = {
-                    maxCount = (d and d.maxCount) or 64,
-                    tags = (d and d.tags) or {},
-                }
+                details[item.name] = { maxCount = (d and d.maxCount) or 64 }
             end
         end
     end
 
     return counts, details
+end
+
+-- How many of an item the chest in front holds right now
+local function countOf(chest, name)
+    local n = 0
+
+    for _, it in pairs(chest.list()) do
+        if it.name == name and not it.nbt then n = n + it.count end
+    end
+
+    return n
 end
 
 -- Move whatever stack the chest considers "first" into a spare
@@ -336,7 +352,7 @@ local function returnAll()
     end
 
     if not ok then
-        print("  the chest won't take some items back; unloading them at the next chest with room")
+        print("  this chest won't take some items back; I'll try the other chests")
     end
 
     return ok
@@ -397,17 +413,6 @@ local function pull(chest, name, want, slot)
     return got
 end
 
--- How many of an item the chest in front holds right now
-local function countOf(chest, name)
-    local n = 0
-
-    for _, it in pairs(chest.list()) do
-        if it.name == name and not it.nbt then n = n + it.count end
-    end
-
-    return n
-end
-
 -- Whatever is in the turtle that isn't the ingredient: the craft
 -- output, with its total count and the first slot it's in.
 local function findResult(ingredient)
@@ -431,14 +436,11 @@ end
 -- Crating
 -- =========================================================
 
-local function isFood(name, detail)
-    if NEVER[name] then return false end
-    if ALWAYS[name] then return true end
+local function isTarget(name)
+    local path = name:match("^[^:]+:(.+)$") or name
 
-    for tag in pairs(detail.tags) do
-        for _, prefix in ipairs(FOOD_TAGS) do
-            if tag:sub(1, #prefix) == prefix then return true end
-        end
+    for _, t in ipairs(TARGETS) do
+        if path == t then return true end
     end
 
     return false
@@ -492,7 +494,7 @@ local function crate(chest, name, maxCount)
         -- the chest can't supply would leave a cell empty and the
         -- craft would fail outright.
         local avail = countOf(chest, name)
-        local batches = math.floor((avail - KEEP_STACKS * maxCount) / 9)
+        local batches = math.floor((avail - KEEP_LOOSE) / 9)
         if batches < 1 then break end
 
         local n = math.min(batches, maxCount, 64)
@@ -523,13 +525,9 @@ end
 -- Fuel
 -- =========================================================
 
-local function lapCost()
-    return (db.lapMoves or 200) + 20
-end
-
 local function fuelLow()
     local level = turtle.getFuelLevel()
-    return level ~= "unlimited" and level < 2 * lapCost()
+    return level ~= "unlimited" and level < FUEL_LOW
 end
 
 local function fuelTarget()
@@ -668,9 +666,7 @@ local function refuelEssence(chest, name, r)
 
         returnAll()
 
-        if burned == 0 then break end
-        stats.fuelCrafts = stats.fuelCrafts + 1
-        if short then break end
+        if burned == 0 or short then break end
     end
 end
 
@@ -698,74 +694,191 @@ local function refuelFrom(chest, counts)
     end
 end
 
--- Moves from home to the nearest chest the map says has fuel
-local function nearestFuelDist()
-    local best
+-- =========================================================
+-- Phase 1: discovering chests
+--
+-- Depth-first walk over every open floor cell within reach. At
+-- each new cell the turtle turns a full circle and classifies
+-- the four neighbours: chest, block, or open. The map it builds
+-- is what the work loop later navigates over.
+-- =========================================================
 
-    for _, c in pairs(db.chests) do
-        if c.fuel and (not best or c.dist < best) then best = c.dist end
-    end
+local function lookAround()
+    for _ = 1, 4 do
+        local nx, nz = ahead()
+        local k = key(nx, nz)
 
-    return best
-end
-
--- Don't leave home unless the fuel covers a lap, or at least
--- reaches a chest that can top it up.
-local function waitForLapFuel()
-    if turtle.getFuelLevel() == "unlimited" then return end
-
-    local warned = false
-
-    while true do
-        eatLooseFuel()
-        local level = turtle.getFuelLevel()
-
-        if level >= lapCost() then return end
-
-        local reach = nearestFuelDist()
-
-        if reach and level >= reach + 10 then
-            print(string.format("Fuel %d is low; the nearest fuel chest is %d moves out, so heading there first.",
-                  level, reach))
-            return
+        if not db.cells[k] then
+            if chestAt("front") then
+                db.cells[k] = "chest"
+                db.chests[#db.chests + 1] = {
+                    x = nx, z = nz,
+                    stand = { x = db.pos.x, z = db.pos.z },
+                    face = db.pos.h,
+                    items = {}, fuel = false,
+                }
+                print("Found a chest at (" .. nx .. "," .. nz .. ")")
+            elseif turtle.detect() then
+                db.cells[k] = "block"
+            else
+                db.cells[k] = "open"
+            end
         end
 
-        if not warned then
-            print(string.format("Fuel %d won't cover a lap (%d)%s. Put coal in any slot.",
-                  level, lapCost(), reach and "" or " and I don't know a chest with fuel"))
-            warned = true
-        end
-
-        sleep(15)
+        turnRight()
     end
 end
 
+local function discover()
+    print("Discovering chests within " .. SEARCH_RADIUS .. " blocks...")
+
+    db.cells = {}
+    db.chests = {}
+    db.cells[key(0, 0)] = "open"
+
+    local visited = {}
+
+    local function dfs()
+        visited[key(db.pos.x, db.pos.z)] = true
+        lookAround()
+
+        for d = 0, 3 do
+            local nx, nz = db.pos.x + DX[d], db.pos.z + DZ[d]
+            local k = key(nx, nz)
+
+            if db.cells[k] == "open" and not visited[k]
+               and math.abs(nx) <= SEARCH_RADIUS and math.abs(nz) <= SEARCH_RADIUS then
+                face(d)
+
+                if forward() then
+                    dfs()
+                    face((d + 2) % 4)
+
+                    if not forward() then
+                        error("Couldn't step back while exploring. Put me at home and run: crater reset")
+                    end
+                else
+                    db.cells[k] = "block"      -- something's there after all
+                end
+            end
+        end
+    end
+
+    dfs()
+    face(0)
+
+    db.discovered = true
+    saveDB()
+
+    print("Discovery done: " .. #db.chests .. " chest(s).")
+end
+
 -- =========================================================
--- One chest
+-- Navigation over the discovered map
 -- =========================================================
 
-local function visitChest(key, dist)
+-- Breadth-first search over open cells; returns a list of headings.
+local function pathTo(tx, tz)
+    local start = key(db.pos.x, db.pos.z)
+    local goal = key(tx, tz)
+
+    if start == goal then return {} end
+
+    local prev = { [start] = false }
+    local queue = { { db.pos.x, db.pos.z } }
+    local qi = 1
+
+    while qi <= #queue do
+        local cx, cz = queue[qi][1], queue[qi][2]
+        qi = qi + 1
+
+        for d = 0, 3 do
+            local nx, nz = cx + DX[d], cz + DZ[d]
+            local k = key(nx, nz)
+
+            if prev[k] == nil and db.cells[k] == "open" then
+                prev[k] = { key(cx, cz), d }
+
+                if k == goal then
+                    local path, cur = {}, k
+
+                    while prev[cur] do
+                        table.insert(path, 1, prev[cur][2])
+                        cur = prev[cur][1]
+                    end
+
+                    return path
+                end
+
+                queue[#queue + 1] = { nx, nz }
+            end
+        end
+    end
+
+    return nil
+end
+
+local function goTo(tx, tz)
+    for _ = 1, 5 do
+        local path = pathTo(tx, tz)
+
+        if not path then
+            error("No known path to (" .. tx .. "," .. tz .. "). Run: crater reset")
+        end
+
+        local blocked = false
+
+        for _, d in ipairs(path) do
+            face(d)
+
+            if not forward() then
+                -- A block has appeared on the route: forget that
+                -- cell and plan around it.
+                local bx, bz = ahead()
+                db.cells[key(bx, bz)] = "block"
+                saveDB()
+                blocked = true
+                break
+            end
+        end
+
+        if not blocked then return end
+    end
+
+    error("Can't reach (" .. tx .. "," .. tz .. "); the room has changed. Run: crater reset")
+end
+
+-- =========================================================
+-- Phase 2: one chest visit
+-- =========================================================
+
+local function visitChest(c)
+    local label = "chest (" .. c.x .. "," .. c.z .. ")"
+
+    goTo(c.stand.x, c.stand.z)
+    face(c.face)
+
     local chest = chestAt("front")
 
     if not chest then
-        db.chests[key] = nil
+        print(label .. " is gone. Run `crater reset` to rediscover.")
         return
     end
 
     local counts, details = summarize(chest, true)
-    local entry = { items = counts, fuel = hasFuel(counts), dist = dist }
-    db.chests[key] = entry
+    c.items = counts
+    c.fuel = hasFuel(counts)
     saveDB()
 
     -- Leftovers from a chest that refused them go here instead
     if not inventoryEmpty() then returnAll() end
 
     if not inventoryEmpty() then
-        print(key .. ": my inventory isn't clear, so no crafting here")
+        print(label .. ": my inventory isn't clear, so no crafting here")
         return
     end
 
-    if entry.fuel and fuelLow() then
+    if c.fuel and fuelLow() then
         refuelFrom(chest, counts)
     end
 
@@ -774,92 +887,27 @@ local function visitChest(key, dist)
     table.sort(names)
 
     for _, name in ipairs(names) do
-        local d = details[name]
         local recipe = db.recipes[name]
 
-        if recipe ~= false and counts[name] >= MIN_STACKS * d.maxCount and isFood(name, d) then
+        if recipe ~= false and isTarget(name) and counts[name] >= 9 + KEEP_LOOSE then
             if recipe == nil then recipe = learnCrate(chest, name) end
 
             if recipe then
-                local made = crate(chest, name, d.maxCount)
+                local made = crate(chest, name, details[name].maxCount)
 
                 if made > 0 then
                     stats.crates = stats.crates + made
                     print(string.format("%s: %d x %s -> %d x %s",
-                          key, made * 9, name, made, recipe.result))
+                          label, made * 9, name, made, recipe.result))
                 end
             end
         end
     end
 
     -- Remember what's there now, after crating and refuelling
-    entry.items = summarize(chest, false)
-    entry.fuel = hasFuel(entry.items)
+    c.items = summarize(chest, false)
+    c.fuel = hasFuel(c.items)
     saveDB()
-end
-
--- =========================================================
--- The lap
---
--- Wall on the left, walk until a block is in front, turn right,
--- four times. Every cell gets a key of row / wall / cell so the
--- map lines up lap after lap.
--- =========================================================
-
-local function lap()
-    local moves, chests = 0, 0
-    local seen = {}
-
-    for row = 1, CHEST_ROWS do
-        for wall = 1, 4 do
-            local cell = 0
-
-            while true do
-                cell = cell + 1
-                local key = string.format("R%d W%d C%02d", row, wall, cell)
-                seen[key] = true
-
-                if faceChestOnLeft() then
-                    chests = chests + 1
-                    visitChest(key, moves)
-                    turtle.turnRight()
-                else
-                    db.chests[key] = nil
-                end
-
-                if turtle.detect() then break end
-
-                if cell >= MAX_WALL then
-                    error("Walked " .. MAX_WALL .. " cells without meeting a wall. Am I in the right room?")
-                end
-
-                forward()
-                moves = moves + 1
-            end
-
-            turtle.turnRight()
-        end
-
-        if row < CHEST_ROWS then
-            up()
-            moves = moves + 1
-        end
-    end
-
-    for _ = 2, CHEST_ROWS do
-        down()
-        moves = moves + 1
-    end
-
-    -- Chests from a room that has since shrunk
-    for key in pairs(db.chests) do
-        if not seen[key] then db.chests[key] = nil end
-    end
-
-    db.lapMoves = moves
-    saveDB()
-
-    return chests
 end
 
 -- =========================================================
@@ -867,33 +915,28 @@ end
 -- =========================================================
 
 local function printMap()
-    local keys = {}
-    for k in pairs(db.chests) do keys[#keys + 1] = k end
-    table.sort(keys)
-
-    if #keys == 0 then
-        print("No map yet. Do a lap first.")
+    if #db.chests == 0 then
+        print("No chests known yet. Run `crater` to discover them.")
         return
     end
 
-    for _, k in ipairs(keys) do
-        local c = db.chests[k]
+    for i, c in ipairs(db.chests) do
         local names = {}
         for name in pairs(c.items) do names[#names + 1] = name end
         table.sort(names, function(a, b) return c.items[a] > c.items[b] end)
 
         local parts = {}
-        for i = 1, math.min(#names, 4) do
-            local short = (names[i]:gsub("^[^:]+:", ""))
-            parts[#parts + 1] = short .. " x" .. c.items[names[i]]
+        for j = 1, math.min(#names, 4) do
+            local short = (names[j]:gsub("^[^:]+:", ""))
+            parts[#parts + 1] = short .. " x" .. c.items[names[j]]
         end
         if #names > 4 then parts[#parts + 1] = "+" .. (#names - 4) .. " more" end
 
-        print(k .. (c.fuel and " [fuel]" or "") .. ": " ..
-              (#parts > 0 and table.concat(parts, ", ") or "empty"))
+        print(string.format("%d. (%d,%d)%s: %s", i, c.x, c.z, c.fuel and " [fuel]" or "",
+              #parts > 0 and table.concat(parts, ", ") or "empty / not visited yet"))
     end
 
-    print(#keys .. " chest(s); a lap is " .. tostring(db.lapMoves) .. " moves.")
+    print("Home is (0,0); I'm at (" .. db.pos.x .. "," .. db.pos.z .. ").")
 end
 
 -- =========================================================
@@ -904,7 +947,7 @@ local args = { ... }
 
 if args[1] == "reset" then
     if fs.exists(DB_FILE) then fs.delete(DB_FILE) end
-    print("Forgot the map and the learned recipes.")
+    print("Forgot the map, the chests and the learned recipes.")
     return
 end
 
@@ -930,47 +973,58 @@ while not inventoryEmpty() do
 end
 
 local function run()
+    if not db.discovered then
+        discover()
+    else
+        print("Loaded " .. #db.chests .. " chest(s); I'm at (" .. db.pos.x .. "," .. db.pos.z .. ").")
+    end
+
+    if #db.chests == 0 then
+        print("No chests found within " .. SEARCH_RADIUS .. " blocks of home. Move me or the chests, then run: crater reset")
+        return
+    end
+
     while not stopRequested do
-        waitForLapFuel()
-        stats.crates, stats.fuelCrafts = 0, 0
+        stats.crates = 0
 
-        print("Lap starting (fuel " .. tostring(turtle.getFuelLevel()) .. ")")
-        local chests = lap()
-        print(string.format("Lap done: %d chest(s), %d crate(s) made, fuel %s.",
-              chests, stats.crates, tostring(turtle.getFuelLevel())))
-
-        if chests == 0 then
-            print("Found no chests. Am I parked with the chest wall directly on my LEFT?")
+        for _, c in ipairs(db.chests) do
+            visitChest(c)
         end
+
+        goTo(0, 0)
+        face(0)
+
+        if not inventoryEmpty() then
+            print("I'm holding items no chest will take. Please take them out of me.")
+        end
+
+        print(string.format("Round done: %d crate(s) made, fuel %s.",
+              stats.crates, tostring(turtle.getFuelLevel())))
 
         if stopRequested then break end
 
-        for _ = 1, LAP_INTERVAL do
+        for _ = 1, ROUND_INTERVAL do
             if stopRequested then break end
             sleep(1)
         end
     end
 end
 
--- Q in the terminal asks for a clean stop at the end of the lap.
+-- Q in the terminal asks for a clean stop at the end of the round.
 -- The watcher never returns on its own (that would end waitForAny
--- and kill the lap mid-move); it just raises the flag.
+-- and kill the run mid-move); it just raises the flag.
 local function keyWatcher()
     while true do
         local _, k = os.pullEvent("key")
 
         if k == keys.q and not stopRequested then
             stopRequested = true
-            print("Q pressed -- finishing this lap, then stopping at home.")
+            print("Q pressed -- finishing this round, then stopping at home.")
         end
     end
 end
 
-if LEFT_BLOCKED then
-    print("Crafting table is on my left, so I'll turn to look at each chest.")
-end
-
-print("Press Q to stop at home after the current lap.")
+print("Press Q to stop at home after the current round.")
 
 parallel.waitForAny(run, keyWatcher)
 

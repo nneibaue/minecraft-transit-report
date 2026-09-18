@@ -58,7 +58,7 @@ for it, and corrects its position.)
 | `quarry.lua` | Multi-turtle radial 2-tall room miner. Leaves ores standing, places lanterns on a grid, seals lava/water, resumes after reboot. |
 | `tunnel.lua` | Resumable 2x2 tunnel miner with lava diversion and netherrack junction markers. |
 | `sorter.lua` | Hallway chest sorter that learns chest contents as it goes. Untested. |
-| `crater.lua` | Crafting turtle that laps a chest-lined room, crates bulk food (9 → 1 crate), maps what each chest holds, and refuels itself from coal or coal essence. Untested. |
+| `crater.lua` | Crafting turtle that discovers the chests in a room, then shuttles between them crating potatoes, wheat and corn (9 → 1 crate). Maps what each chest holds and refuels itself from coal or coal essence. |
 | `mail-display.lua` | Monitor "You've got mail" gift display. |
 
 ## `quarry.lua` setup
@@ -100,35 +100,36 @@ for it, and corrects its position.)
 
 ## `crater.lua` setup
 
-- A **crafting turtle**. The crafting table can be on either side; on the
-  right it can read chests through its left side without turning, on the left
-  (where it hides the block beside it) the turtle turns to look at each chest,
-  which is a little slower. Its inventory must be **empty**: `turtle.craft()`
-  refuses to run unless every slot outside the 3×3 grid is clear, so the turtle
-  can't carry a coal stack. Any fuel left in it is burned at startup instead.
-- Chests line the walls of a roughly rectangular room (Sophisticated Storage is
-  fine). Keep the one-block lane along the walls clear: the turtle turns at the
-  first block in its way, so a furnace standing in the lane looks like a corner.
-- Park it in an inside corner cell with the chest wall on its **left**, facing
-  along that wall. It walks the ring clockwise and ends each lap back there.
-- Each lap it reads every chest and, when a chest holds at least `MIN_STACKS`
-  (3) full stacks of something tagged as a crop, vegetable, fruit, grain,
-  berry, nut or mushroom, crafts 9 of it into a crate until only `KEEP_STACKS`
-  (1) loose stack is left. Whether an item actually has a 9-of-a-kind recipe
-  is found out by trying once; the result (either way) is remembered, so
-  9 × 4 → 1 style recipes and non-food never get crafted by accident.
-- **Fuel.** When it is low it takes coal, charcoal or coal blocks from any
-  chest that has them, or crafts coal essence into coal, but only enough to
-  reach `FUEL_TARGET` (3000). The essence recipe shape (hollow ring vs full
-  grid) is worked out by trying and remembered. It won't leave home unless the
-  fuel covers a lap or at least reaches a chest the map says has fuel.
-- **Map.** `crater map` prints what it remembers about every chest (top items
-  and whether it has fuel) without moving. `crater reset` forgets the map and
-  the learned recipes; items moving between chests needs no reset since every
-  chest is re-read each lap.
-- **Q** finishes the current lap, parks at home, and stops.
-- Set `CHEST_ROWS = 2` at the top of the script for walls of chests two high;
-  it laps once per row.
+- A **crafting turtle** (crafting table on either side) with an **empty**
+  inventory: `turtle.craft()` refuses to run unless every slot outside the 3×3
+  grid is clear, so the turtle can't carry a coal stack. Any fuel left in it is
+  burned at startup instead.
+- Put it on the floor of the room, anywhere. Where it starts is **home**.
+- **Phase 1, discovering chests.** On first run it walks every floor cell it
+  can reach within `SEARCH_RADIUS` (6) blocks of home, turning a full circle
+  at each cell, and records every inventory beside it (chests, Sophisticated
+  Storage, barrels). A doorway inside that radius gets explored too, so keep
+  the radius smaller than the room if there are more chests next door.
+- **Phase 2, the work loop.** It visits each chest in turn, then rests at home
+  for `ROUND_INTERVAL` (120) seconds and goes again. With two chests it shuttles
+  back and forth. Only items named in `TARGETS` (potato, wheat, corn; matched on
+  the exact name after the colon, so baked potatoes and corn seeds don't count)
+  get crafted, 9 into a crate, leaving `KEEP_LOOSE` (0) behind. Whether an item
+  actually has a 9-of-a-kind recipe is found out by one test craft, and the
+  answer is remembered either way.
+- Crates go back into the chest they came from. If that chest refuses them
+  (full, or a Sophisticated Storage memory slot setup that only takes what it
+  already holds), they go into the next chest that will take them, and the
+  turtle says so if nothing will.
+- **Fuel.** Under `FUEL_LOW` (500) it takes coal, charcoal or coal blocks from
+  a chest that has them, or crafts coal essence into coal, only up to
+  `FUEL_TARGET` (3000). The essence recipe shape (hollow ring vs full grid) is
+  worked out by trying and remembered.
+- **Map.** `crater map` prints the chests it knows, their coordinates relative
+  to home, and their top items. `crater reset` forgets everything so the next
+  run rediscovers; do that after moving the turtle or the chests. A reboot
+  resumes in place, since the turtle saves its position after every move.
+- **Q** finishes the current round, returns home, and stops.
 
 ### Light grid
 
