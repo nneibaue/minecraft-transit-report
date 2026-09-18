@@ -372,6 +372,10 @@ end
 local function digLoop(dig, detect)
     local tries = 0
 
+    -- Dug items land in the selected slot first, then onward. Point
+    -- that at cargo so drops never fill an empty lantern/fuel/junk slot.
+    turtle.select(CARGO_FIRST)
+
     while detect() do
         tries = tries + 1
         if tries > 20 then return false end
@@ -589,6 +593,7 @@ local function maybePlaceLight(x, z)
         return
     end
 
+    turtle.select(CARGO_FIRST)     -- the dug floor block goes to cargo
     turtle.digDown()
     turtle.select(LANTERN_SLOT)
 
@@ -1175,7 +1180,10 @@ local function topUpFromChest()
 
     while pulls < 13 do
         local lanternsOk = turtle.getItemCount(LANTERN_SLOT) >= MIN_LANTERNS
-        local fuelOk = fuelLevel() >= fuelTarget or turtle.getItemCount(FUEL_SLOT) > 0
+        -- Judge fuel by the gauge only. Checking "is slot 2 non-empty"
+        -- once mistook a stack of cobble for coal and stranded a turtle
+        -- at the chest with the fuel it needed one block away.
+        local fuelOk = fuelLevel() >= fuelTarget
         if lanternsOk and fuelOk then break end
 
         local destSlot = CARGO_FIRST + pulls
@@ -1219,7 +1227,30 @@ local function topUpFromChest()
     print("Tip: lock coal and lanterns into the chest's first slots so top-ups are instant.")
 end
 
+-- The reserved slots can still pick up strays (a dig with no room
+-- left in cargo, or a user loading the wrong thing). Evict anything
+-- that doesn't belong before deciding what to top up.
+local function tidyReservedSlots()
+    local expected = {
+        [LANTERN_SLOT] = function(n) return n:find("lantern") ~= nil end,
+        [FUEL_SLOT]    = function(n) return n:find("coal") ~= nil end,  -- coal, charcoal
+        [JUNK_SLOT]    = isJunkName,
+    }
+
+    for slot, belongs in pairs(expected) do
+        local detail = turtle.getItemDetail(slot)
+
+        if detail and not belongs(detail.name) then
+            turtle.select(slot)
+            if turtle.drop() then
+                print("Moved " .. detail.name .. " out of slot " .. slot .. " into the chest.")
+            end
+        end
+    end
+end
+
 local function serviceChest()
+    tidyReservedSlots()
     depositCargo()
     topUpFromChest()
 end
