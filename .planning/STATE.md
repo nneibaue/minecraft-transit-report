@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 Phase: 6 — Dynamic Texture Pipeline
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-09-17 - Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)
+Last activity: 2026-09-17 - Completed quick task 260917-rei: quarry.lua re-anchor at chest, Q to stop, skip side scan in open cells
 
 Progress: [█░░░░░░░░░] 10%
 
@@ -122,6 +122,7 @@ None yet.
 | 260917-o2m | Add turtle/ scripts and multi-turtle radial quarry.lua | 2026-09-17 | 89a684e | [260917-o2m-add-turtle-scripts-and-multi-turtle-radi](./quick/260917-o2m-add-turtle-scripts-and-multi-turtle-radi/) |
 | 260917-pze | Fix quarry.lua lava handling: scan neighbours, stone rim, built blocks, stairwells | 2026-09-17 | 1da8172 | [260917-pze-fix-quarry-lua-lava-handling-scan-neighb](./quick/260917-pze-fix-quarry-lua-lava-handling-scan-neighb/) |
 | 3 | Denser lantern grid in quarry.lua (LIGHT_SPACING 8 -> 5, commit 3b98357) | 2026-09-18 | 3b98357 | — |
+| 260917-rei | quarry.lua: re-anchor at chest, Q to stop, skip side scan in open cells | 2026-09-17 | 1cfaa6d | [260917-rei-quarry-lua-re-anchor-at-chest-q-to-stop-](./quick/260917-rei-quarry-lua-re-anchor-at-chest-q-to-stop-/) |
 | 4 | Fix quarry.lua classify(): ores decided before stone names (deepslate ore variants were dug), commit ceadd9e | 2026-09-18 | ceadd9e | — |
 
 ## Deferred Items
