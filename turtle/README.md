@@ -70,6 +70,7 @@ quarry reset
 
 Turtles can't read block light level directly. Since Minecraft 1.18, hostile
 mobs only spawn at block light 0, and a lantern emits light 15 that falls off
-by 1 per block — so placing a lantern on an 8-block grid keeps every cell in
-the room at light level 7 or higher. Lanterns are sunk one block into the
-floor so the room stays fully passable.
+by 1 per block — so placing a lantern on a 5-block grid keeps every cell in
+the room at light level 10 or higher (`LIGHT_SPACING` at the top of the
+script; 8 would still be safe at light 7, just dimmer). Lanterns are sunk
+one block into the floor so the room stays fully passable.

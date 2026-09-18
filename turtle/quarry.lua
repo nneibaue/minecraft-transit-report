@@ -58,7 +58,7 @@
 -- Config
 -- =========================================================
 
-local LIGHT_SPACING       = 8    -- lantern grid spacing (both axes)
+local LIGHT_SPACING       = 5    -- lantern grid spacing (both axes); 5 keeps light >= 10
 local FUEL_MARGIN         = 60   -- fuel buffer added on top of any BFS trip
 local MIN_LANTERNS        = 8    -- top-up target for lantern slot
 local JUNK_RESERVE        = 64   -- how many junk blocks to keep in slot 3
@@ -501,7 +501,8 @@ end
 -- Turtles can't read block light level. Since Minecraft 1.18,
 -- hostile mobs only spawn at light 0, and a lantern emits 15 that
 -- falls off by 1 per block -- so a lantern every LIGHT_SPACING
--- blocks keeps the whole room at light 7 or brighter. Lanterns are
+-- blocks keeps the whole room at light 15 - LIGHT_SPACING or
+-- brighter (10 at the default spacing of 5). Lanterns are
 -- sunk into the floor (placed down, not stood on the floor) so
 -- the room stays fully passable.
 -- =========================================================
