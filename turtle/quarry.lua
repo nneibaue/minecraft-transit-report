@@ -214,6 +214,8 @@ local sealAheadHazard
 local function face(target)
     local diff = (target - state.heading) % 4
 
+    if diff == 0 then return end
+
     if diff == 1 then
         turtle.turnRight()
     elseif diff == 2 then
@@ -224,6 +226,11 @@ local function face(target)
     end
 
     state.heading = target
+
+    -- Save immediately: if the server restarts between this turn and
+    -- the end-of-cell save, a stale heading would silently corrupt
+    -- every move the turtle makes after it reboots.
+    saveState()
 end
 
 local function headingForDelta(dx, dz)
@@ -254,14 +261,30 @@ local function digLoop(dig, detect)
 end
 
 -- Push into the cell ahead, retrying past mobs or a block that
--- fell back into place after digging.
+-- fell back into place after digging. Re-classifies before every
+-- dig: the space was junk/air when we looked, but gravel may have
+-- dropped in (dig it) or another turtle may have stepped in (wait
+-- -- digging it would break and pocket the other turtle).
 local function pushForward()
     for _ = 1, 20 do
         if turtle.forward() then return true end
 
-        turtle.dig()
-        turtle.attack()
-        sleep(0.2)
+        local ok, data = turtle.inspect()
+        local class = classify(ok, data)
+
+        if class == "turtle" then
+            print("Another turtle is in the way. Waiting " ..
+                  TURTLE_WAIT_SECONDS .. "s...")
+            sleep(TURTLE_WAIT_SECONDS)
+        elseif class == "junk" then
+            turtle.dig()
+            sleep(0.2)
+        elseif class == "air" then
+            turtle.attack()        -- a mob is standing there
+            sleep(0.2)
+        else
+            return false           -- keep / lava / water: caller decides
+        end
     end
 
     return false
@@ -302,6 +325,7 @@ local function stepTo(dx, dz)
 
             state.x = state.x + dx
             state.z = state.z + dz
+            saveState()            -- position must never lag the real turtle
             return true
         end
     end
@@ -378,6 +402,10 @@ end
 -- the room stays fully passable.
 -- =========================================================
 
+-- Forward declaration: patching a failed lantern hole needs
+-- placeJunk(), which is defined in the Hazards section below.
+local placeJunk
+
 local function isLightCell(x, z)
     if x % LIGHT_SPACING ~= 0 then return false end
 
@@ -395,18 +423,28 @@ local function maybePlaceLight(x, z)
         return -- existing light, an ore, or anything else: leave it
     end
 
-    turtle.digDown()
-
+    -- Check the lantern supply BEFORE opening the floor, so an empty
+    -- slot never leaves a pit behind.
     if turtle.getItemCount(LANTERN_SLOT) == 0 then
         state.needLanterns = true
         print("Out of lanterns at (" .. x .. "," .. z .. "); will top up.")
         return
     end
 
+    turtle.digDown()
     turtle.select(LANTERN_SLOT)
-    turtle.placeDown()
-    state.stats.lights = state.stats.lights + 1
-    print("Lantern placed at (" .. x .. "," .. z .. ").")
+
+    if turtle.placeDown() then
+        state.stats.lights = state.stats.lights + 1
+        print("Lantern placed at (" .. x .. "," .. z .. ").")
+        return
+    end
+
+    -- Lantern wouldn't sit (nothing solid under the hole, e.g. lava
+    -- or a cave one block further down). Close the pit back up.
+    if not placeJunk(turtle.placeDown) then
+        print("Open pit at (" .. x .. "," .. z .. ") -- no lantern fit and no junk to patch.")
+    end
 end
 
 -- =========================================================
@@ -442,7 +480,7 @@ end
 
 -- Place a junk block via placeFn: slot 3 first, then any cargo
 -- slot holding something junk-classified by name.
-local function placeJunk(placeFn)
+placeJunk = function(placeFn)
     if turtle.getItemCount(JUNK_SLOT) > 0 then
         turtle.select(JUNK_SLOT)
         if placeFn() then return true end
@@ -490,7 +528,17 @@ sealAheadHazard = function(class)
 
     turtle.select(signSlot)
     turtle.place("LAVA")
-    turtle.down()
+
+    -- Getting back down is not optional: the map assumes the turtle
+    -- lives on one y level. Retry past anything that wandered under.
+    for _ = 1, 20 do
+        if turtle.down() then return end
+        turtle.attackDown()
+        sleep(0.5)
+    end
+
+    error("Stuck one block up at (" .. state.x .. "," .. state.z ..
+          ") after placing a LAVA sign. Move me down and run me again.")
 end
 
 local function sealAbove(class)
@@ -559,10 +607,12 @@ local function fuelLevel()
     return f
 end
 
-local function refuelFromSlot(slot)
+-- Burn fuel from one slot, one item at a time, only until the fuel
+-- level reaches target -- never the whole stack.
+local function refuelFromSlot(slot, target)
     local moved = false
 
-    while turtle.getItemCount(slot) > 0 do
+    while turtle.getItemCount(slot) > 0 and fuelLevel() < target do
         turtle.select(slot)
         if not turtle.refuel(1) then break end
         moved = true
@@ -580,12 +630,12 @@ local function refuelIfNeeded(reserve)
 
         local detail = turtle.getItemDetail(slot)
         if detail and (detail.name:find("coal") or detail.name:find("charcoal")) then
-            refuelFromSlot(slot)
+            refuelFromSlot(slot, reserve)
         end
     end
 
     if fuelLevel() < reserve then
-        refuelFromSlot(FUEL_SLOT)
+        refuelFromSlot(FUEL_SLOT, reserve)
     end
 
     return fuelLevel() >= reserve
@@ -718,7 +768,7 @@ local function topUpFromChest()
             if detail.name:find("lantern") then
                 turtle.transferTo(LANTERN_SLOT, 64)
             elseif detail.name:find("coal") or detail.name:find("charcoal") then
-                refuelFromSlot(destSlot)
+                refuelFromSlot(destSlot, fuelTarget)
                 if turtle.getItemCount(destSlot) > 0 then
                     turtle.transferTo(FUEL_SLOT, 64)
                 end
@@ -825,8 +875,9 @@ local function visitTarget(tx, tz)
 
     for _, step in ipairs(path) do
         if not stepTo(step.dx, step.dz) then
-            -- A previously-clear cell got blocked (mob, lava
-            -- breach). Bail; the next loop pass tries again.
+            -- A previously-clear cell got blocked (lava breach,
+            -- something placed). Give up on this target without
+            -- marking it KEEP; the sweep moves on to the next cell.
             return false
         end
     end
