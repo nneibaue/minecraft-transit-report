@@ -5,8 +5,8 @@ current_phase_name: Dynamic Texture Pipeline
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
 last_updated: "2026-09-09T06:15:29.054Z"
-last_activity: 2026-09-08
-last_activity_desc: Phase 05 complete, transitioned to Phase 6
+last_activity: 2026-09-17
+last_activity_desc: "Completed quick task 260917-o2m: Add turtle/ scripts and multi-turtle radial quarry.lua"
 state_head: 366310a9b67a2bccb241758b8bee17ae501620b5
 progress:
   total_phases: 10
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 Phase: 6 — Dynamic Texture Pipeline
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-09-08 — Phase 05 complete, transitioned to Phase 6
+Last activity: 2026-09-17 - Completed quick task 260917-o2m: Add turtle/ scripts and multi-turtle radial quarry.lua
 
 Progress: [█░░░░░░░░░] 10%
 
@@ -114,6 +114,12 @@ None yet.
 - **One MEDIUM-confidence research finding still needs empirical settling during execution:** `registerTexture` / `NativeImageBackedTexture` close semantics plus F3+T reload survival (Phase 6). The other two (`configureDataGeneration { client = true }` on 1.20.1, Phase 1; `FabricRecipeProvider`/`FabricBlockLootTableProvider` method shape, Phase 3) are now closed and confirmed against real `runDatagen`/`build` runs.
 - **[Phase 04] Vertically-centered chart quad overflows ~0.67 blocks below the block's own footprint** — not checkpoint-tested for floor-adjacent placement (only mid-wall placements were visually confirmed). Worth a quick visual check if/when a floor-level placement matters.
 - [Phase 05] D-07 no-frame-hitch/responsiveness needs a human to watch an active runClient session -- not observable by the executor; does not block phase completion but is an open UAT item
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260917-o2m | Add turtle/ scripts and multi-turtle radial quarry.lua | 2026-09-17 | 89a684e | [260917-o2m-add-turtle-scripts-and-multi-turtle-radi](./quick/260917-o2m-add-turtle-scripts-and-multi-turtle-radi/) |
 
 ## Deferred Items
 
