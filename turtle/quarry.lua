@@ -25,6 +25,17 @@
 -- Usage:
 --   quarry            dig forever (or until stopped / out of fuel)
 --   quarry reset       forget the saved dig and start over
+--   Q (in the terminal) finish the current cell, save, and stop.
+--                     Use this -- not Ctrl+T -- before updating or
+--                     moving the turtle. Ctrl+T can land between a
+--                     move and its save and leave the map one block
+--                     off; the chest search at home repairs that,
+--                     but Q avoids it entirely.
+--
+-- Memory: the map lives in quarry_state.txt on the turtle. It
+-- survives server restarts and picking the turtle up (turtles keep
+-- their files), so `reset` is only for after the chest or turtle
+-- has actually been moved.
 --
 -- Territory -- four wedges tiling an expanding square:
 --
@@ -876,7 +887,91 @@ local function pendingRoundTrip()
     return 2 * (math.abs(state.ring - 1) + math.abs(state.z_next)) + FUEL_MARGIN
 end
 
-local function goHome(reason)
+-- Face each way in turn looking for the chest. Returns the heading
+-- it was seen at, or nil.
+local function chestHeading()
+    for h = 0, 3 do
+        face(h)
+
+        local ok, data = turtle.inspect()
+        if ok and data.name:find("chest") then return h end
+    end
+
+    return nil
+end
+
+-- Dead reckoning can slip by a block: a server restart, or Ctrl+T,
+-- in the middle of a move means the turtle moved but the save never
+-- ran. The chest at (0,0) is the one landmark there is, so when it
+-- isn't where it should be, search the 3x3 around the believed home
+-- cell -- plain moves only, never digging -- and, the moment the
+-- chest is sighted, work the true position back from which side of
+-- it we are on. Returns true if re-anchored.
+local function findChest()
+    local function anchorFrom(h)
+        local dx, dz = deltaForHeading(h)
+        local realX, realZ = 0 - dx, 0 - dz
+
+        print("Re-anchored: I was off by (" .. (realX - state.x) .. "," ..
+              (realZ - state.z) .. ").")
+
+        state.x, state.z = realX, realZ
+        saveState()
+    end
+
+    local h = chestHeading()
+    if h then
+        anchorFrom(h)
+        return true
+    end
+
+    -- Side neighbours first (one move), then the diagonals (two).
+    local offsets = {
+        { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+        { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
+    }
+
+    for _, o in ipairs(offsets) do
+        local steps = {}
+        if o[1] ~= 0 then steps[#steps + 1] = { o[1], 0 } end
+        if o[2] ~= 0 then steps[#steps + 1] = { 0, o[2] } end
+
+        local done = 0
+
+        for _, s in ipairs(steps) do
+            face(headingForDelta(s[1], s[2]))
+            if not turtle.forward() then break end
+
+            state.x, state.z = state.x + s[1], state.z + s[2]
+            done = done + 1
+        end
+
+        if done == #steps then
+            local seen = chestHeading()
+            if seen then
+                anchorFrom(seen)
+                return true
+            end
+        end
+
+        -- Not here. Walk back exactly the way we came.
+        for i = done, 1, -1 do
+            local s = steps[i]
+            face(headingForDelta(-s[1], -s[2]))
+
+            if not turtle.forward() then
+                error("Lost while searching for the chest near home. " ..
+                      "Put me back beside it, facing away, and run me again.")
+            end
+
+            state.x, state.z = state.x - s[1], state.z - s[2]
+        end
+    end
+
+    return false
+end
+
+local function goHome(reason, retried)
     print("Going home: " .. reason .. ".")
 
     local path = bfsSearch(function(x, z) return x == 1 and z == 0 end)
@@ -893,11 +988,24 @@ local function goHome(reason)
     face(2) -- toward the chest
 
     local ok, data = turtle.inspect()
-    if not ok or not data.name:find("chest") then
+    if ok and data.name:find("chest") then return end
+
+    if retried then
         error("Expected the chest at home but found " ..
               (ok and data.name or "nothing") ..
-              ". Stopping -- check the turtle's position.")
+              " even after re-anchoring. Stopping -- check the turtle's position.")
     end
+
+    print("Chest isn't where I expected (" .. (ok and data.name or "nothing") ..
+          " ahead). Searching nearby...")
+
+    if not findChest() then
+        error("Couldn't find the chest within one block of home. " ..
+              "Put me back beside it, facing away, and run me again.")
+    end
+
+    -- Position is corrected; now actually go stand at home.
+    goHome(reason .. ", re-anchored", true)
 end
 
 local function topUpJunkReserve()
@@ -1055,7 +1163,16 @@ local function enterCell(x, z, isStart, dugIn)
     end
 
     handleHead()
-    scanSides(arrivedFrom)
+
+    -- The side scan guards against a wall block that was holding
+    -- back lava. If the turtle stepped into a cell that was already
+    -- open, nothing changed, so there is nothing new to find -- skip
+    -- the three turns. (isStart: first cell / after a reboot, when
+    -- we can't know what happened, so look anyway.)
+    if dugIn or isStart then
+        scanSides(arrivedFrom)
+    end
+
     handleFloor(dugIn)
     maybePlaceLight(x, z)
 
@@ -1142,8 +1259,17 @@ local function advanceTarget()
     state.z_next = (state.dir == 1) and newLo or newHi
 end
 
+-- Set by the key watcher in Main when Q is pressed; checked between
+-- cells so the stop lands on a saved, consistent state.
+local stopRequested = false
+
 local function runSweep()
     while true do
+        if stopRequested then
+            print("Stopped at your request. State saved; run me again to continue.")
+            return
+        end
+
         local reason = nil
 
         if isCargoFull() then
@@ -1196,7 +1322,23 @@ else
     print("Starting a new quarry.")
 end
 
-runSweep()
+-- Q in the terminal asks for a clean stop. The watcher never returns
+-- on its own (that would end waitForAny and kill the sweep mid-move);
+-- it just raises the flag and keeps listening.
+local function keyWatcher()
+    while true do
+        local _, k = os.pullEvent("key")
+
+        if k == keys.q and not stopRequested then
+            stopRequested = true
+            print("Q pressed -- finishing this cell, then stopping.")
+        end
+    end
+end
+
+print("Press Q to stop cleanly at the next cell.")
+
+parallel.waitForAny(runSweep, keyWatcher)
 
 print("Stopped. " .. state.stats.cleared .. " cell(s) cleared, " ..
       state.stats.lights .. " light(s) placed, " ..

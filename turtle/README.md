@@ -22,11 +22,34 @@ Run a script once without saving it as `startup.lua` (no auto-resume on reboot):
 wget run https://raw.githubusercontent.com/nneibaue/minecraft-transit-report/main/turtle/quarry.lua
 ```
 
-Forget saved progress and start a script fresh:
+Forget saved progress and start a script fresh. This makes the turtle re-sweep
+the whole room (slowly, since it re-checks every cell), so only use it after the
+chest or the turtle has actually been moved:
 
 ```bash
 quarry reset
 ```
+
+### Stopping and updating a running turtle
+
+Press **Q** in the turtle's terminal. It finishes the current cell, saves, and
+exits. Then:
+
+```bash
+rm startup.lua
+```
+```bash
+wget https://raw.githubusercontent.com/nneibaue/minecraft-transit-report/main/turtle/quarry.lua startup.lua
+```
+```bash
+reboot
+```
+
+It reloads its map and carries on from where it stopped — no lost progress.
+Avoid `Ctrl+T`: it can kill the program between a move and its save, leaving
+the map one block off. (If that happens anyway, the turtle notices at its next
+home visit — the chest isn't where it expected — searches the surrounding 3×3
+for it, and corrects its position.)
 
 ## Scripts
 
