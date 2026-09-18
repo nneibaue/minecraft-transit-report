@@ -4,10 +4,10 @@ current_phase: 6
 current_phase_name: Dynamic Texture Pipeline
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-09-18T03:39:40.612Z"
+last_updated: "2026-09-18T03:46:50.194Z"
 last_activity: 2026-09-17
 last_activity_desc: "Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)"
-state_head: 001ec3921de3f16a05ae4f2b3e9c4fd5fe326ba7
+state_head: 6266b22d10a9059deeb5ae6d52c8354015d08f56
 progress:
   total_phases: 10
   completed_phases: 1
@@ -128,6 +128,7 @@ None yet.
 | 7 | quarry.lua: unload from any side of the chest, near-home walker digs junk, commit 6e69212 | 2026-09-18 | 6e69212 | — |
 | 260917-s7i | quarry.lua: quadrant territories (pinwheel) and solo full-square layout | 2026-09-18 | 4bef8d6 | [260917-s7i-quarry-lua-quadrant-territories-pinwheel](./quick/260917-s7i-quarry-lua-quadrant-territories-pinwheel/) |
 | 9 | quarry.lua: fuel check reads the gauge only; drops kept out of reserved slots, commit 001ec39 | 2026-09-18 | 001ec39 | — |
+| 10 | quarry.lua: wedge layout default again with adjacent ring hand-offs (fixes skipped corners), commit 6266b22 | 2026-09-18 | 6266b22 | — |
 
 ## Deferred Items
 
