@@ -6,7 +6,7 @@ status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
 last_updated: "2026-09-09T06:15:29.054Z"
 last_activity: 2026-09-17
-last_activity_desc: "Completed quick task 260917-o2m: Add turtle/ scripts and multi-turtle radial quarry.lua"
+last_activity_desc: "Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)"
 state_head: 366310a9b67a2bccb241758b8bee17ae501620b5
 progress:
   total_phases: 10
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 Phase: 6 — Dynamic Texture Pipeline
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-09-17 - Completed quick task 260917-o2m: Add turtle/ scripts and multi-turtle radial quarry.lua
+Last activity: 2026-09-17 - Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)
 
 Progress: [█░░░░░░░░░] 10%
 
@@ -120,6 +120,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260917-o2m | Add turtle/ scripts and multi-turtle radial quarry.lua | 2026-09-17 | 89a684e | [260917-o2m-add-turtle-scripts-and-multi-turtle-radi](./quick/260917-o2m-add-turtle-scripts-and-multi-turtle-radi/) |
+| 260917-pze | Fix quarry.lua lava handling: scan neighbours, stone rim, built blocks, stairwells | 2026-09-17 | 1da8172 | [260917-pze-fix-quarry-lua-lava-handling-scan-neighb](./quick/260917-pze-fix-quarry-lua-lava-handling-scan-neighb/) |
 
 ## Deferred Items
 
