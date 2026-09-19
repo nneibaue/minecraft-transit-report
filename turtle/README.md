@@ -100,10 +100,12 @@ for it, and corrects its position.)
 
 ## `crater.lua` setup
 
-- A **crafting turtle** (crafting table on either side) with an **empty**
-  inventory: `turtle.craft()` refuses to run unless every slot outside the 3×3
-  grid is clear, so the turtle can't carry a coal stack. Any fuel left in it is
-  burned at startup instead.
+- A **crafting turtle** (crafting table on either side). It works with an
+  empty inventory, since `turtle.craft()` refuses to run unless every slot
+  outside the 3×3 grid is clear, so it can't carry a coal stack. Fuel left in
+  it is burned at startup; anything else it's carrying gets put away in the
+  chests as it visits them (into a chest that already holds that item where
+  possible, otherwise the last chest of the round).
 - Put it on the floor of the room, anywhere. Where it starts is **home**.
 - **Phase 1, discovering chests.** On first run it walks every floor cell it
   can reach within `SEARCH_RADIUS` (6) blocks of home, turning a full circle
@@ -122,9 +124,9 @@ for it, and corrects its position.)
   already holds), they go into the next chest that will take them, and the
   turtle says so if nothing will.
 - **Fuel.** Under `FUEL_LOW` (500) it takes coal, charcoal or coal blocks from
-  a chest that has them, or crafts coal essence into coal, only up to
-  `FUEL_TARGET` (3000). The essence recipe shape (hollow ring vs full grid) is
-  worked out by trying and remembered.
+  a chest that has them, or crafts coal essence into coal (and a coal block
+  into 9 coal if the block won't burn as-is), only up to `FUEL_TARGET` (3000).
+  The recipe shape for each is worked out by trying and remembered.
 - **Map.** `crater map` prints the chests it knows, their coordinates relative
   to home, and their top items. A reboot resumes in place, since the turtle
   saves its position around every move. If it was killed mid-move, or the

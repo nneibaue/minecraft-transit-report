@@ -11,10 +11,11 @@
 --
 -- Setup:
 --   * A crafting turtle (crafting table upgrade, either side).
---   * Its inventory must be EMPTY. turtle.craft() refuses to
---     run unless every slot outside the 3x3 grid is clear, so
---     it can't carry a coal stack around. Any fuel you leave
---     in it gets burned at startup instead.
+--   * It works with an EMPTY inventory: turtle.craft() refuses
+--     to run unless every slot outside the 3x3 grid is clear,
+--     so it can't carry a coal stack around. Fuel you leave in
+--     it gets burned at startup; anything else gets put away in
+--     the chests (with its own kind where possible).
 --   * Put it on the floor of the room. Wherever it starts is
 --     "home": it explores every floor cell it can reach within
 --     SEARCH_RADIUS blocks of home, on this level, and notes
@@ -63,12 +64,13 @@ local SEARCH_RADIUS = 8
 -- Seconds to rest at home between rounds
 local ROUND_INTERVAL = 120
 
--- Fuel. FUEL_ITEMS burn as they are; ESSENCE_ITEMS get crafted
--- first (Mystical Agriculture). Fuel is only taken from a chest
--- when the level drops under FUEL_LOW, and only enough to get
--- back up to FUEL_TARGET.
+-- Fuel. FUEL_ITEMS burn as they are. CRAFT_FUEL_ITEMS get crafted
+-- first and the result burned: coal essence (Mystical Agriculture)
+-- into coal, and a coal block into 9 coal if the block itself
+-- won't burn. Fuel is only taken from a chest when the level drops
+-- under FUEL_LOW, and only enough to get back up to FUEL_TARGET.
 local FUEL_ITEMS = { "minecraft:coal", "minecraft:charcoal", "minecraft:coal_block" }
-local ESSENCE_ITEMS = { "mysticalagriculture:coal_essence" }
+local CRAFT_FUEL_ITEMS = { "mysticalagriculture:coal_essence", "minecraft:coal_block" }
 local FUEL_LOW = 500
 local FUEL_TARGET = 3000
 
@@ -86,15 +88,16 @@ local GRID = { 1, 2, 3, 5, 6, 7, 9, 10, 11 }   -- the crafting grid
 local RESULT_SLOT = 4                          -- craft output lands here
 local PARK_SLOTS = { 8, 12, 13, 14, 15, 16 }   -- chest stacks moved out of the way
 
--- Grid shapes to try for essence -> fuel, in order. Mystical
--- Agriculture's essence recipes differ between versions, so the
--- first shape that crafts into something that burns wins and is
+-- Grid shapes to try for craftable fuel, smallest first: one coal
+-- block alone gives 9 coal; Mystical Agriculture's essence recipes
+-- differ between versions (hollow ring or full grid). The first
+-- shape that crafts into something that burns wins and is
 -- remembered.
 local PATTERNS = {
+    { name = "single", slots = { 1 } },
+    { name = "square", slots = { 1, 2, 5, 6 } },
     { name = "ring",   slots = { 1, 2, 3, 5, 7, 9, 10, 11 } },
     { name = "full",   slots = { 1, 2, 3, 5, 6, 7, 9, 10, 11 } },
-    { name = "square", slots = { 1, 2, 5, 6 } },
-    { name = "single", slots = { 1 } },
 }
 
 local function patternSlots(name)
@@ -559,7 +562,7 @@ local function hasFuel(counts)
         if counts[n] then return true end
     end
 
-    for _, n in ipairs(ESSENCE_ITEMS) do
+    for _, n in ipairs(CRAFT_FUEL_ITEMS) do
         if counts[n] and db.fuelRecipes[n] ~= false then return true end
     end
 
@@ -592,6 +595,8 @@ end
 -- Work out how the essence crafts: try each grid shape with one
 -- essence per cell, and keep the first whose output burns.
 local function learnEssence(chest, name)
+    local untested = false
+
     for _, p in ipairs(PATTERNS) do
         local loaded = true
 
@@ -602,12 +607,12 @@ local function learnEssence(chest, name)
             end
         end
 
-        if not loaded then     -- can't test right now; don't remember anything
+        if not loaded then
+            -- Not enough of the item for this shape right now.
+            -- Try the smaller shapes; don't record a verdict.
             returnAll()
-            return nil
-        end
-
-        if unpark() and slotsEmptyExcept(p.slots) then
+            untested = true
+        elseif unpark() and slotsEmptyExcept(p.slots) then
             turtle.select(RESULT_SLOT)
 
             if turtle.craft(1) then
@@ -617,6 +622,7 @@ local function learnEssence(chest, name)
                     turtle.select(result.slot)
                     local before = turtle.getFuelLevel()
                     local value = turtle.refuel(1) and (turtle.getFuelLevel() - before) or 0
+                    if value > 0 then turtle.refuel() end     -- the rest of the test batch too
                     returnAll()
 
                     if value > 0 then
@@ -637,8 +643,10 @@ local function learnEssence(chest, name)
             end
         end
 
-        returnAll()
+        if loaded then returnAll() end
     end
+
+    if untested then return nil end     -- some shapes couldn't be tried; ask again later
 
     print("  " .. name .. " doesn't craft into fuel in any shape I know")
     db.fuelRecipes[name] = false
@@ -699,7 +707,7 @@ local function refuelFrom(chest, counts)
         end
     end
 
-    for _, name in ipairs(ESSENCE_ITEMS) do
+    for _, name in ipairs(CRAFT_FUEL_ITEMS) do
         if counts[name] and turtle.getFuelLevel() < fuelTarget() then
             local r = db.fuelRecipes[name]
             if r == nil then r = learnEssence(chest, name) end
@@ -903,8 +911,34 @@ end
 -- Phase 2: one chest visit
 -- =========================================================
 
+-- Put away what the turtle is carrying: into this chest when the
+-- chest already holds that kind of item, or all of it when
+-- `anything` is set (the last chest of the round).
+local function stash(chest, counts, anything)
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+
+        if d and (anything or counts[d.name]) then
+            if dropSlot(s) then
+                print("  put away " .. d.count .. " x " .. (d.name:gsub("^[^:]+:", "")))
+            end
+        end
+    end
+end
+
+local function carrying()
+    local parts = {}
+
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d then parts[#parts + 1] = d.count .. " x " .. (d.name:gsub("^[^:]+:", "")) end
+    end
+
+    return table.concat(parts, ", ")
+end
+
 -- True when done; false plus a reason when the turtle is lost.
-local function visitChest(c)
+local function visitChest(c, isLast)
     local label = "chest (" .. c.x .. "," .. c.z .. ")"
 
     if not goTo(c.stand.x, c.stand.z) then
@@ -924,11 +958,16 @@ local function visitChest(c)
     c.fuel = hasFuel(counts)
     saveDB()
 
-    -- Leftovers from a chest that refused them go here instead
-    if not inventoryEmpty() then returnAll() end
+    -- Whatever it's carrying (things you left in it, crates a chest
+    -- refused) gets put away before any crafting, since crafting
+    -- needs every slot clear.
+    if not inventoryEmpty() then
+        stash(chest, counts, isLast)
+        counts, details = summarize(chest, true)
+    end
 
     if not inventoryEmpty() then
-        print(label .. ": my inventory isn't clear, so no crafting here")
+        print(label .. ": still carrying " .. carrying() .. "; I'll put it away at the next chest")
         return true
     end
 
@@ -1018,23 +1057,12 @@ if not turtle.craft then
     error("This turtle has no crafting table upgrade.")
 end
 
--- Burn whatever fuel was left in the turtle, then insist on an
--- empty inventory: crafting needs every slot clear.
+-- Burn whatever fuel was left in the turtle. Anything else it's
+-- carrying gets put away in the chests as it goes.
 eatLooseFuel()
 
-while not inventoryEmpty() do
-    local held = {}
-
-    for s = 1, 16 do
-        local d = turtle.getItemDetail(s)
-        if d then held[#held + 1] = d.count .. " x " .. (d.name:gsub("^[^:]+:", "")) end
-    end
-
-    print("Fuel " .. tostring(turtle.getFuelLevel()) .. "/" .. tostring(turtle.getFuelLimit()) ..
-          " -- I've burned all the fuel that fits. Crafting needs all 16 slots clear, so please take out: " ..
-          table.concat(held, ", "))
-    sleep(10)
-    eatLooseFuel()
+if not inventoryEmpty() then
+    print("Carrying " .. carrying() .. "; I'll put it away in the chests.")
 end
 
 local function run()
@@ -1062,8 +1090,8 @@ local function run()
             stats.crates = 0
             local lost = nil
 
-            for _, c in ipairs(db.chests) do
-                local ok, why = visitChest(c)
+            for i, c in ipairs(db.chests) do
+                local ok, why = visitChest(c, i == #db.chests)
 
                 if not ok then
                     lost = why
@@ -1082,7 +1110,7 @@ local function run()
                 face(0)
 
                 if not inventoryEmpty() then
-                    print("I'm holding items no chest will take. Please take them out of me.")
+                    print("No chest will take " .. carrying() .. ". Please take it out of me.")
                 end
 
                 print(string.format("Round done: %d crate(s) made, fuel %s.",
