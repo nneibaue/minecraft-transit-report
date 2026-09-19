@@ -106,14 +106,15 @@ for it, and corrects its position.)
   it is burned at startup; anything else it's carrying gets put away in the
   chests as it visits them (into a chest that already holds that item where
   possible, otherwise the last chest of the round).
-- Put it on the floor of the room, anywhere. Where it starts is **home**.
-- **Phase 1, discovering chests.** On first run it walks every floor cell it
-  can reach within `SEARCH_RADIUS` (6) blocks of home, turning a full circle
-  at each cell, and records every inventory beside it (chests, Sophisticated
-  Storage, barrels). Hoppers, droppers, furnaces and other turtles are
-  skipped (`NOT_A_CHEST` at the top of the script). A doorway inside that
-  radius gets explored too, so keep the radius smaller than the room if there
-  are more chests next door.
+- Lay a path of one kind of block (crystal sandstone, say) past the chests
+  and put the turtle on it. Where it starts is **home**.
+- **Phase 1, discovering chests.** On first run it notes the block under home
+  and walks every cell it can reach that has that same block beneath it,
+  within `SEARCH_RADIUS` (12) blocks, turning a full circle at each cell and
+  recording every inventory beside the path (chests, Sophisticated Storage,
+  barrels). Hoppers, droppers, furnaces and other turtles are skipped
+  (`NOT_A_CHEST` at the top of the script). Set `FOLLOW_FLOOR = false` to let
+  it roam any floor within the radius instead.
 - **Phase 2, the work loop.** It visits each chest in turn, then rests at home
   for `ROUND_INTERVAL` (120) seconds and goes again. With two chests it shuttles
   back and forth. Only items named in `TARGETS` (potato, wheat, corn; matched on

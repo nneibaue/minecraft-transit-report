@@ -18,13 +18,13 @@
 --     takes back afterwards. Loose coal you leave in it becomes
 --     that reserve; anything else (coal blocks included) gets
 --     put away in the chests, with its own kind where possible.
---   * Put it on the floor of the room. Wherever it starts is
---     "home": it explores every floor cell it can reach within
---     SEARCH_RADIUS blocks of home, on this level, and notes
---     every inventory it sees beside it (chests, Sophisticated
---     Storage, barrels...). Doorways inside that radius are
---     explored too, so keep the radius smaller than the room
---     if there's a corridor of chests next door.
+--   * Lay a path of one kind of block (crystal sandstone, say)
+--     past the chests and put the turtle on it. Wherever it
+--     starts is "home": it explores every cell it can reach
+--     that has that same block beneath it, within SEARCH_RADIUS
+--     of home, and notes every inventory it sees beside the
+--     path (chests, Sophisticated Storage, barrels...). Set
+--     FOLLOW_FLOOR = false to let it roam any floor instead.
 --
 -- Phases:
 --   1. Discovering chests -- one-time walk of the room (the
@@ -62,8 +62,14 @@ local TARGETS = { "potato", "wheat", "corn" }
 -- Leave this many loose items of each target in the chest
 local KEEP_LOOSE = 0
 
+-- Stay on the floor it starts on: discovery notes the block under
+-- the home cell and only walks cells with that same block beneath
+-- them. Lay a path of one block type (crystal sandstone, say) to the
+-- chests and put the turtle on it. Set false to roam any floor.
+local FOLLOW_FLOOR = true
+
 -- How far from home (in blocks, each axis) discovery may wander
-local SEARCH_RADIUS = 8
+local SEARCH_RADIUS = 12
 
 -- Blocks that look like inventories to the turtle but aren't
 -- storage. Anything whose type contains one of these is ignored.
@@ -136,7 +142,9 @@ local GRID_SET = toSet(GRID)
 
 -- pos               = where the turtle is: x, z and heading h
 --                     (0 = the way it faced at home; right turn = +1)
--- cells["x,z"]      = "open" | "block" | "chest"
+-- floor             = block name under home, when FOLLOW_FLOOR
+-- cells["x,z"]      = "open" | "block" | "chest" | "offpath" (walkable
+--                     but not on the floor block, so never used)
 -- chests[i]         = { x, z, stand = {x, z}, face = h, items = { name = count }, fuel = bool }
 -- recipes[item]     = { result = name } or false (tested, no recipe)
 -- fuelRecipes[item] = { pattern, result, count, value } or false
@@ -863,9 +871,15 @@ local function lookAround()
     end
 end
 
-local function discover()
-    print("Discovering chests within " .. SEARCH_RADIUS .. " blocks...")
+-- Is the block under the turtle the floor it's meant to stay on?
+local function onFloor()
+    if not db.floor then return true end
 
+    local ok, data = turtle.inspectDown()
+    return ok and data.name == db.floor
+end
+
+local function discover()
     -- Wherever the turtle is right now becomes home
     db.pos = { x = 0, z = 0, h = 0 }
     db.moving = nil
@@ -873,8 +887,31 @@ local function discover()
     db.cells = {}
     db.chests = {}
     db.cells[key(0, 0)] = "open"
+    db.floor = nil
+
+    if FOLLOW_FLOOR then
+        local ok, data = turtle.inspectDown()
+
+        if ok then
+            db.floor = data.name
+            print("Discovering chests along the " .. (data.name:gsub("^[^:]+:", "")) ..
+                  " floor, up to " .. SEARCH_RADIUS .. " blocks out...")
+        else
+            print("Nothing under me to follow; discovering chests within " .. SEARCH_RADIUS .. " blocks...")
+        end
+    else
+        print("Discovering chests within " .. SEARCH_RADIUS .. " blocks...")
+    end
 
     local visited = {}
+
+    local function stepBack(d)
+        face((d + 2) % 4)
+
+        if not forward() then
+            error("Couldn't step back while exploring. Put me at home and run: crater reset")
+        end
+    end
 
     local function dfs()
         visited[key(db.pos.x, db.pos.z)] = true
@@ -888,15 +925,14 @@ local function discover()
                and math.abs(nx) <= SEARCH_RADIUS and math.abs(nz) <= SEARCH_RADIUS then
                 face(d)
 
-                if forward() then
-                    dfs()
-                    face((d + 2) % 4)
-
-                    if not forward() then
-                        error("Couldn't step back while exploring. Put me at home and run: crater reset")
-                    end
-                else
+                if not forward() then
                     db.cells[k] = "block"      -- something's there after all
+                elseif not onFloor() then
+                    db.cells[k] = "offpath"    -- walkable, but not our floor: stay off it
+                    stepBack(d)
+                else
+                    dfs()
+                    stepBack(d)
                 end
             end
         end
@@ -1000,6 +1036,8 @@ local function surroundingsMatch()
         local expected = db.cells[key(nx, nz)]
 
         if expected then
+            if expected == "offpath" then expected = "open" end   -- looks open from here
+
             local observed = "open"
             if chestAt("front") then
                 observed = "chest"
