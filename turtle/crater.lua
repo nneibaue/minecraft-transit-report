@@ -12,10 +12,12 @@
 -- Setup:
 --   * A crafting turtle (crafting table upgrade, either side).
 --   * It works with an EMPTY inventory: turtle.craft() refuses
---     to run unless every slot outside the 3x3 grid is clear,
---     so it can't carry a coal stack around. Fuel you leave in
---     it gets burned at startup; anything else gets put away in
---     the chests (with its own kind where possible).
+--     to run unless every slot outside the 3x3 grid is clear.
+--     The one thing it carries is a small coal reserve in slot
+--     16, which it drops into the chest it's working on and
+--     takes back afterwards. Loose coal you leave in it becomes
+--     that reserve; anything else (coal blocks included) gets
+--     put away in the chests, with its own kind where possible.
 --   * Put it on the floor of the room. Wherever it starts is
 --     "home": it explores every floor cell it can reach within
 --     SEARCH_RADIUS blocks of home, on this level, and notes
@@ -71,13 +73,17 @@ local NOT_A_CHEST = {
 -- Seconds to rest at home between rounds
 local ROUND_INTERVAL = 120
 
--- Fuel. FUEL_ITEMS burn as they are. CRAFT_FUEL_ITEMS get crafted
--- first and the result burned: coal essence (Mystical Agriculture)
--- into coal, and a coal block into 9 coal if the block itself
--- won't burn. Fuel is only taken from a chest when the level drops
--- under FUEL_LOW, and only enough to get back up to FUEL_TARGET.
-local FUEL_ITEMS = { "minecraft:coal", "minecraft:charcoal", "minecraft:coal_block" }
+-- Fuel. The turtle keeps a small reserve of loose coal in its last
+-- slot for emergencies (COAL_RESERVE pieces; charcoal counts too)
+-- and otherwise lives off its fuel level. When that drops under
+-- FUEL_LOW it burns coal from a chest, or crafts coal from coal
+-- essence (Mystical Agriculture) or coal blocks, but only as much
+-- as it takes to get back to FUEL_TARGET. Leftover coal tops up the
+-- reserve and the rest goes back in the chest. Coal blocks are
+-- never burned whole and never carried around.
+local FUEL_ITEMS = { "minecraft:coal", "minecraft:charcoal" }
 local CRAFT_FUEL_ITEMS = { "mysticalagriculture:coal_essence", "minecraft:coal_block" }
+local COAL_RESERVE = 16
 local FUEL_LOW = 500
 local FUEL_TARGET = 3000
 
@@ -93,7 +99,8 @@ local DB_FILE = "crater_db.txt"
 
 local GRID = { 1, 2, 3, 5, 6, 7, 9, 10, 11 }   -- the crafting grid
 local RESULT_SLOT = 4                          -- craft output lands here
-local PARK_SLOTS = { 8, 12, 13, 14, 15, 16 }   -- chest stacks moved out of the way
+local PARK_SLOTS = { 8, 12, 13, 14, 15 }       -- chest stacks moved out of the way
+local RESERVE_SLOT = 16                        -- the coal reserve (dropped into the chest while crafting)
 
 -- Grid shapes to try for craftable fuel, smallest first: one coal
 -- block alone gives 9 coal; Mystical Agriculture's essence recipes
@@ -185,16 +192,46 @@ local function slotsEmptyExcept(keep)
     return true
 end
 
--- Burn any fuel someone dropped into the turtle by hand
-local function eatLooseFuel()
-    if turtle.getFuelLevel() == "unlimited" then return end
+local function isReserveItem(name)
+    for _, n in ipairs(FUEL_ITEMS) do
+        if n == name then return true end
+    end
+    return false
+end
 
-    for s = 1, 16 do
-        if turtle.getItemCount(s) > 0 then
-            turtle.select(s)
-            if turtle.refuel(0) then turtle.refuel() end
+-- Pieces of coal in the reserve slot (0 if something else sits there)
+local function reserveCount()
+    local d = turtle.getItemDetail(RESERVE_SLOT)
+    if d and isReserveItem(d.name) then return d.count end
+    return 0
+end
+
+-- Loose coal anywhere in the turtle moves into the reserve slot, up
+-- to COAL_RESERVE. What doesn't fit stays cargo and gets put away.
+local function sortReserve()
+    for s = 1, 15 do
+        local d = turtle.getItemDetail(s)
+
+        if d and isReserveItem(d.name) then
+            local r = turtle.getItemDetail(RESERVE_SLOT)
+            local have = r and r.count or 0
+
+            if (not r or r.name == d.name) and have < COAL_RESERVE then
+                turtle.select(s)
+                turtle.transferTo(RESERVE_SLOT, COAL_RESERVE - have)
+            end
         end
     end
+end
+
+-- Empty apart from the coal reserve?
+local function cargoEmpty()
+    for s = 1, 16 do
+        if turtle.getItemCount(s) > 0 and not (s == RESERVE_SLOT and reserveCount() > 0) then
+            return false
+        end
+    end
+    return true
 end
 
 -- =========================================================
@@ -248,15 +285,33 @@ local function face(h)
     end
 end
 
+-- Fuel level hit zero: burn from the reserve, a piece at a time,
+-- and failing that whatever fuel someone puts in.
 local function waitForAnyFuel()
     if turtle.getFuelLevel() == "unlimited" then return end
 
-    while turtle.getFuelLevel() < 1 do
-        eatLooseFuel()
+    local warned = false
 
-        if turtle.getFuelLevel() < 1 then
-            print("Out of fuel. Put coal in any of my slots.")
-            sleep(10)
+    while turtle.getFuelLevel() < 1 do
+        if reserveCount() > 0 then
+            turtle.select(RESERVE_SLOT)
+            turtle.refuel(1)
+        else
+            for s = 1, 16 do
+                if turtle.getItemCount(s) > 0 then
+                    turtle.select(s)
+                    if turtle.refuel(0) then turtle.refuel(1) end
+                end
+                if turtle.getFuelLevel() >= 1 then break end
+            end
+
+            if turtle.getFuelLevel() < 1 then
+                if not warned then
+                    print("Out of fuel and out of reserve coal. Put coal in any of my slots.")
+                    warned = true
+                end
+                sleep(10)
+            end
         end
     end
 end
@@ -635,8 +690,7 @@ local function learnEssence(chest, name)
                     turtle.select(result.slot)
                     local before = turtle.getFuelLevel()
                     local value = turtle.refuel(1) and (turtle.getFuelLevel() - before) or 0
-                    if value > 0 then turtle.refuel() end     -- the rest of the test batch too
-                    returnAll()
+                    returnAll()      -- the rest of the test batch goes back; the reserve top-up may take it
 
                     if value > 0 then
                         local r = { pattern = p.name, result = result.name,
@@ -693,13 +747,14 @@ local function refuelEssence(chest, name, r)
             turtle.select(RESULT_SLOT)
             turtle.craft(n)
 
+            -- Burn only what's needed; the rest goes back to the chest
             for s = 1, 16 do
                 local d = turtle.getItemDetail(s)
 
-                if d and d.name == r.result then
+                if d and d.name == r.result and turtle.getFuelLevel() < target then
                     turtle.select(s)
                     local before = turtle.getFuelLevel()
-                    turtle.refuel()
+                    turtle.refuel(math.ceil((target - before) / r.value))
                     burned = burned + (turtle.getFuelLevel() - before)
                 end
             end
@@ -926,25 +981,61 @@ end
 
 -- Put away what the turtle is carrying: into this chest when the
 -- chest already holds that kind of item, or all of it when
--- `anything` is set (the last chest of the round).
+-- `anything` is set (the last chest of the round). The coal
+-- reserve always goes in, since crafting needs the slot clear;
+-- topUpReserve() takes it back afterwards. Returns true if
+-- anything was dropped.
 local function stash(chest, counts, anything)
+    local dropped = false
+
     for s = 1, 16 do
         local d = turtle.getItemDetail(s)
 
-        if d and (anything or counts[d.name]) then
-            if dropSlot(s) then
-                print("  put away " .. d.count .. " x " .. (d.name:gsub("^[^:]+:", "")))
+        if d then
+            local reserve = (s == RESERVE_SLOT and isReserveItem(d.name))
+
+            if reserve or anything or counts[d.name] then
+                if dropSlot(s) then
+                    dropped = true
+                    if not reserve then
+                        print("  put away " .. d.count .. " x " .. (d.name:gsub("^[^:]+:", "")))
+                    end
+                end
             end
         end
     end
+
+    return dropped
 end
 
+-- Refill the reserve slot with loose coal from the chest in front
+local function topUpReserve(chest)
+    local r = turtle.getItemDetail(RESERVE_SLOT)
+    if r and not isReserveItem(r.name) then return end     -- cargo is sitting there
+
+    for _, name in ipairs(FUEL_ITEMS) do
+        local have = r and r.count or 0
+        if have >= COAL_RESERVE then break end
+
+        if (not r or r.name == name) and countOf(chest, name) > 0 then
+            pull(chest, name, COAL_RESERVE - have, RESERVE_SLOT)
+            r = turtle.getItemDetail(RESERVE_SLOT)
+        end
+    end
+
+    unpark()
+end
+
+-- What's aboard, apart from the coal reserve
 local function carrying()
     local parts = {}
 
     for s = 1, 16 do
         local d = turtle.getItemDetail(s)
-        if d then parts[#parts + 1] = d.count .. " x " .. (d.name:gsub("^[^:]+:", "")) end
+
+        if d and not (s == RESERVE_SLOT and isReserveItem(d.name)) then
+            parts[#parts + 1] = d.count .. " x " .. (d.name:gsub("^[^:]+:", ""))
+        end
     end
 
     return table.concat(parts, ", ")
@@ -971,16 +1062,16 @@ local function visitChest(c, isLast)
     c.fuel = hasFuel(counts)
     saveDB()
 
-    -- Whatever it's carrying (things you left in it, crates a chest
-    -- refused) gets put away before any crafting, since crafting
-    -- needs every slot clear.
-    if not inventoryEmpty() then
-        stash(chest, counts, isLast)
+    -- Whatever it's carrying (the coal reserve, things you left in
+    -- it, crates a chest refused) gets put away before any crafting,
+    -- since crafting needs every slot clear.
+    if stash(chest, counts, isLast) then
         counts, details = summarize(chest, true)
     end
 
     if not inventoryEmpty() then
         print(label .. ": still carrying " .. carrying() .. "; I'll put it away at the next chest")
+        topUpReserve(chest)
         return true
     end
 
@@ -1009,6 +1100,8 @@ local function visitChest(c, isLast)
             end
         end
     end
+
+    topUpReserve(chest)
 
     -- Remember what's there now, after crating and refuelling
     c.items = summarize(chest, false)
@@ -1070,11 +1163,11 @@ if not turtle.craft then
     error("This turtle has no crafting table upgrade.")
 end
 
--- Burn whatever fuel was left in the turtle. Anything else it's
+-- Loose coal aboard becomes the reserve; everything else it's
 -- carrying gets put away in the chests as it goes.
-eatLooseFuel()
+sortReserve()
 
-if not inventoryEmpty() then
+if not cargoEmpty() then
     print("Carrying " .. carrying() .. "; I'll put it away in the chests.")
 end
 
@@ -1122,12 +1215,12 @@ local function run()
             else
                 face(0)
 
-                if not inventoryEmpty() then
+                if not cargoEmpty() then
                     print("No chest will take " .. carrying() .. ". Please take it out of me.")
                 end
 
-                print(string.format("Round done: %d crate(s) made, fuel %s.",
-                      stats.crates, tostring(turtle.getFuelLevel())))
+                print(string.format("Round done: %d crate(s) made, fuel %s, %d coal in reserve.",
+                      stats.crates, tostring(turtle.getFuelLevel()), reserveCount()))
 
                 if stopRequested then break end
 

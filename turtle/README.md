@@ -125,10 +125,15 @@ for it, and corrects its position.)
   (full, or a Sophisticated Storage memory slot setup that only takes what it
   already holds), they go into the next chest that will take them, and the
   turtle says so if nothing will.
-- **Fuel.** Under `FUEL_LOW` (500) it takes coal, charcoal or coal blocks from
-  a chest that has them, or crafts coal essence into coal (and a coal block
-  into 9 coal if the block won't burn as-is), only up to `FUEL_TARGET` (3000).
-  The recipe shape for each is worked out by trying and remembered.
+- **Fuel.** It carries a small reserve of loose coal (`COAL_RESERVE`, 16
+  pieces, charcoal counts) in its last slot for emergencies, dropping it into
+  the chest it's working on while it crafts and taking it back after. Under
+  `FUEL_LOW` (500) it burns coal from a chest, or crafts coal from coal essence
+  or coal blocks, only as much as it takes to reach `FUEL_TARGET` (3000);
+  leftover coal tops up the reserve and the rest goes back. Coal blocks are
+  never burned whole or carried around. Loose coal you leave in the turtle
+  becomes the reserve; coal blocks you leave in it get put away like any
+  other cargo.
 - **Map.** `crater map` prints the chests it knows, their coordinates relative
   to home, and their top items. A reboot resumes in place, since the turtle
   saves its position around every move. If it was killed mid-move, or the
