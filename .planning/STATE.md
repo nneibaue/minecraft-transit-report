@@ -4,10 +4,10 @@ current_phase: 6
 current_phase_name: Dynamic Texture Pipeline
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-09-18T04:44:58.498Z"
-last_activity: 2026-09-17
+last_updated: "2026-09-19T12:10:05.713Z"
+last_activity: 2026-09-19
 last_activity_desc: "Completed quick task 260917-pze: Fix quarry.lua lava handling (scan neighbours, stone rim, built blocks, stairwells)"
-state_head: 80e1149ccf4382cdb10a83a3ae35db2befd0a4ab
+state_head: ed4289be56ccadfca17050910bed48f7c3cb2b98
 progress:
   total_phases: 10
   completed_phases: 1
@@ -131,6 +131,7 @@ None yet.
 | 10 | quarry.lua: wedge layout default again with adjacent ring hand-offs (fixes skipped corners), commit 6266b22 | 2026-09-18 | 6266b22 | — |
 | 11 | Add turtle/crater.lua: crafting turtle that laps a chest room, crates bulk food, maps chests, refuels from coal essence (commit 80e1149) | 2026-09-18 | 80e1149 | — |
 | 260919-64m | bridge.lua: Macaw's balustrade bridge builder with biome signs, returns home when out of pieces | 2026-09-19 | 40559e9 | [260919-64m-add-bridge-lua-turtle-builds-a-macaw-s-b](./quick/260919-64m-add-bridge-lua-turtle-builds-a-macaw-s-b/) |
+| 13 | bridge.lua: detector and pickaxe optional so a plain turtle builds a bridge without signs (commit ed4289b) | 2026-09-19 | ed4289b | — |
 
 ## Deferred Items
 
