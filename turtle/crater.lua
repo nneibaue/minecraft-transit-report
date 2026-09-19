@@ -18,6 +18,12 @@
 --     takes back afterwards. Loose coal you leave in it becomes
 --     that reserve; anything else (coal blocks included) gets
 --     put away in the chests, with its own kind where possible.
+--   * Sophisticated Storage chests can't be told to reorder
+--     themselves, so drop a few barrels in the turtle: at each
+--     spot where it works it places one on top of itself as a
+--     buffer, and the storage chest hands stacks into that by
+--     slot. Without a buffer it can only dig past as many stacks
+--     as it has free slots.
 --   * Lay a path of one kind of block (crystal sandstone, say)
 --     past the chests and put the turtle on it. Wherever it
 --     starts is "home": it explores every cell it can reach
@@ -71,6 +77,15 @@ local FOLLOW_FLOOR = true
 
 -- How far from home (in blocks, each axis) discovery may wander
 local SEARCH_RADIUS = 12
+
+-- Buffer chests. A plain chest or barrel on top of the turtle at each
+-- spot where it works lets a storage chest hand over exactly the
+-- stacks asked for, however deep they sit; without one the turtle
+-- has to park everything in front of them, and a big Sophisticated
+-- Storage chest can hold more stacks than the turtle has slots. Drop
+-- a few of these items in the turtle and it places them itself.
+-- Barrels are best: chests placed side by side merge into doubles.
+local BUFFER_ITEMS = { "minecraft:barrel", "minecraft:chest" }
 
 -- Blocks that look like inventories to the turtle but aren't
 -- storage. Anything whose type contains one of these is ignored.
@@ -210,6 +225,14 @@ local function isReserveItem(name)
     return false
 end
 
+-- Spare buffer barrels ride along as supply, not cargo
+local function isSupplyItem(name)
+    for _, n in ipairs(BUFFER_ITEMS) do
+        if n == name then return true end
+    end
+    return false
+end
+
 -- Pieces of coal in the reserve slot (0 if something else sits there)
 local function reserveCount()
     local d = turtle.getItemDetail(RESERVE_SLOT)
@@ -235,10 +258,12 @@ local function sortReserve()
     end
 end
 
--- Empty apart from the coal reserve?
+-- Empty apart from the coal reserve and spare buffer barrels?
 local function cargoEmpty()
     for s = 1, 16 do
-        if turtle.getItemCount(s) > 0 and not (s == RESERVE_SLOT and reserveCount() > 0) then
+        local d = turtle.getItemDetail(s)
+
+        if d and not (s == RESERVE_SLOT and reserveCount() > 0) and not isSupplyItem(d.name) then
             return false
         end
     end
@@ -509,10 +534,56 @@ local function slotFor(name)
     return nil
 end
 
+-- Fast path when there's a buffer inventory above the turtle: the
+-- storage chest pushes the wanted stacks, by slot, into the buffer,
+-- and the turtle sucks them down. Nothing gets parked. Returns how
+-- many arrived, or nil if the buffer can't be used right now.
+local function gatherViaBuffer(chest, buffer, name, want)
+    if next(buffer.list()) then return nil end     -- someone left things in it
+
+    local pushed = 0
+
+    for s, it in pairs(chest.list()) do
+        if pushed >= want then break end
+
+        if it.name == name and not it.nbt then
+            local ok, n = pcall(chest.pushItems, "top", s, want - pushed)
+            if ok and type(n) == "number" then pushed = pushed + n end
+        end
+    end
+
+    local got = 0
+
+    while got < pushed do
+        local slot = slotFor(name)
+        if not slot then break end          -- turtle is full
+
+        turtle.select(slot)
+        local before = turtle.getItemCount(slot)
+        if not turtle.suckUp(turtle.getItemSpace(slot)) then break end
+
+        local d = turtle.getItemDetail(slot)
+        if d and d.name ~= name then       -- not what we asked for; send it back
+            turtle.drop()
+            break
+        end
+
+        got = got + turtle.getItemCount(slot) - before
+    end
+
+    -- Whatever's still in the buffer goes back to the storage chest
+    for s in pairs(buffer.list()) do
+        pcall(buffer.pushItems, "front", s)
+    end
+
+    return got
+end
+
 -- Get up to `want` of `name` out of the chest in front and into the
 -- turtle, into whatever slots are free; arrange() sorts them into
 -- place afterwards. Returns how many are aboard.
 --
+-- With a buffer above, see gatherViaBuffer(). Otherwise:
 -- turtle.suck() only ever takes whatever the chest considers its
 -- first stack, so everything in front of the wanted item is parked
 -- in the turtle for the duration and put back before this returns.
@@ -521,6 +592,13 @@ end
 -- crafting grid included, is what lets it dig past a chest front
 -- full of crates and coal.
 local function gather(chest, name, want)
+    local buffer = chestAt("top")
+
+    if buffer then
+        local got = gatherViaBuffer(chest, buffer, name, want)
+        if got then return aboard(name) end
+    end
+
     local got = 0
     local stalls = 0
 
@@ -583,7 +661,8 @@ local function gather(chest, name, want)
     unpark()
 
     if got < want and stalls >= 4 then
-        print("  couldn't get " .. (name:gsub("^[^:]+:", "")) .. " out of this chest; leaving it")
+        print("  couldn't get " .. (name:gsub("^[^:]+:", "")) .. " out of this chest; leaving it" ..
+              (buffer and "" or " (a buffer chest above me here would fix this)"))
     end
 
     return aboard(name)
@@ -1157,12 +1236,14 @@ local function stash(chest, counts, anything)
         local d = turtle.getItemDetail(s)
 
         if d then
-            local reserve = (s == RESERVE_SLOT and isReserveItem(d.name))
+            -- The reserve and spare barrels always go in (crafting needs
+            -- the slots) and are taken back after the visit
+            local temp = (s == RESERVE_SLOT and isReserveItem(d.name)) or isSupplyItem(d.name)
 
-            if reserve or anything or counts[d.name] then
+            if temp or anything or counts[d.name] then
                 if dropSlot(s) then
                     dropped = true
-                    if not reserve then
+                    if not temp then
                         print("  put away " .. d.count .. " x " .. (d.name:gsub("^[^:]+:", "")))
                     end
                 end
@@ -1191,19 +1272,26 @@ local function topUpReserve(chest)
     end
 end
 
--- What's aboard, apart from the coal reserve
+-- What's aboard, apart from the coal reserve and spare barrels
 local function carrying()
     local parts = {}
 
     for s = 1, 16 do
         local d = turtle.getItemDetail(s)
 
-        if d and not (s == RESERVE_SLOT and isReserveItem(d.name)) then
+        if d and not (s == RESERVE_SLOT and isReserveItem(d.name)) and not isSupplyItem(d.name) then
             parts[#parts + 1] = d.count .. " x " .. (d.name:gsub("^[^:]+:", ""))
         end
     end
 
     return table.concat(parts, ", ")
+end
+
+-- Take the spare barrels back out of the chest after a visit
+local function recoverSupply(chest, supply)
+    for item, n in pairs(supply) do
+        if n > 0 then gather(chest, item, n) end
+    end
 end
 
 -- True when done; false plus a reason when the turtle is lost.
@@ -1227,6 +1315,35 @@ local function visitChest(c, isLast)
     c.fuel = hasFuel(counts)
     saveDB()
 
+    -- A buffer above this spot? Place one if carrying any.
+    if not chestAt("top") then
+        for _, item in ipairs(BUFFER_ITEMS) do
+            local s = slotWith(item)
+
+            if s then
+                turtle.select(s)
+
+                if turtle.placeUp() then
+                    print("  placed a buffer " .. (item:gsub("^[^:]+:", "")) .. " above me")
+                end
+
+                break
+            end
+        end
+
+        if not chestAt("top") and not skipWarned["buffer " .. label] then
+            print("  no buffer above me at " .. label .. "; drop a few barrels in me and I'll place them")
+            skipWarned["buffer " .. label] = true
+        end
+    end
+
+    -- Spare barrels go into the chest for the duration and come back after
+    local supply = {}
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d and isSupplyItem(d.name) then supply[d.name] = (supply[d.name] or 0) + d.count end
+    end
+
     -- Whatever it's carrying (the coal reserve, things you left in
     -- it, crates a chest refused) gets put away before any crafting,
     -- since crafting needs every slot clear.
@@ -1237,6 +1354,7 @@ local function visitChest(c, isLast)
     if not inventoryEmpty() then
         print(label .. ": still carrying " .. carrying() .. "; I'll put it away at the next chest")
         topUpReserve(chest)
+        recoverSupply(chest, supply)
         return true
     end
 
@@ -1277,6 +1395,7 @@ local function visitChest(c, isLast)
     end
 
     topUpReserve(chest)
+    recoverSupply(chest, supply)
 
     -- Remember what's there now, after crating and refuelling
     c.items = summarize(chest, false)
@@ -1367,8 +1486,9 @@ if not turtle.craft then
     error("This turtle has no crafting table upgrade.")
 end
 
--- Loose coal aboard becomes the reserve; everything else it's
--- carrying gets put away in the chests as it goes.
+-- Loose coal aboard becomes the reserve, barrels ride along as
+-- buffer supply; everything else it's carrying gets put away in
+-- the chests as it goes.
 sortReserve()
 
 if not cargoEmpty() then

@@ -122,6 +122,13 @@ for it, and corrects its position.)
   get crafted, 9 into a crate, leaving `KEEP_LOOSE` (0) behind. Whether an item
   actually has a 9-of-a-kind recipe is found out by one test craft, and the
   answer is remembered either way.
+- **Buffers.** Sophisticated Storage chests can't be told to reorder
+  themselves, so the turtle can only dig past as many stacks as it has free
+  slots. Drop a few **barrels** in it (plain chests work too, but merge into
+  doubles when side by side) and at each spot where it works it places one on
+  top of itself. The storage chest then hands stacks into the barrel by slot
+  and the turtle sucks them down, however deep they were. Without a buffer at
+  a spot it says so once and falls back to parking.
 - Crates go back into the chest they came from. If that chest refuses them
   (full, or a Sophisticated Storage memory slot setup that only takes what it
   already holds), they go into the next chest that will take them, and the
