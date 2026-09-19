@@ -37,6 +37,7 @@
 --   crater map        print the chests it knows, without moving
 --   crater lock       keep exactly these chests; never re-map on its own
 --   crater unlock     allow re-mapping again
+--   crater relearn    forget which recipes worked; keep the map
 --   crater reset      forget everything; rediscover on the next run
 --   Q (in the terminal) finish this round, go home, stop.
 --
@@ -157,6 +158,7 @@ local db = {
 
 local stopRequested = false
 local stats = { crates = 0 }
+local skipWarned = {}     -- items already explained as skipped this run
 
 local function saveDB()
     local f = fs.open(DB_FILE, "w")
@@ -676,8 +678,13 @@ local function learnCrate(chest, name)
             if ok and result and result.count == 1 then
                 recipe = { result = result.name }
                 print("  learned: 9 x " .. name .. " -> " .. result.name)
+            elseif not ok then
+                print("  " .. name .. " doesn't crate; skipping it from now on (crater relearn to retry)")
             else
-                print("  " .. name .. " doesn't crate; skipping it from now on")
+                -- Crafted, but not into a single item: don't remember
+                -- anything, something odd was aboard. Try again later.
+                tested = false
+                print("  " .. name .. ": odd result from the test craft, will try again later")
             end
         end
     end
@@ -1242,18 +1249,28 @@ local function visitChest(c, isLast)
     table.sort(names)
 
     for _, name in ipairs(names) do
-        local recipe = db.recipes[name]
+        if isTarget(name) then
+            local recipe = db.recipes[name]
+            local short = (name:gsub("^[^:]+:", ""))
 
-        if recipe ~= false and isTarget(name) and counts[name] >= 9 + KEEP_LOOSE then
-            if recipe == nil then recipe = learnCrate(chest, name) end
+            if recipe == false then
+                if not skipWarned[name] then
+                    print("  " .. short .. ": skipped, no 9-of-a-kind recipe found earlier (crater relearn to retry)")
+                    skipWarned[name] = true
+                end
+            elseif counts[name] < 9 + KEEP_LOOSE then
+                print("  " .. short .. ": only " .. counts[name] .. " here, need " .. (9 + KEEP_LOOSE))
+            else
+                if recipe == nil then recipe = learnCrate(chest, name) end
 
-            if recipe then
-                local made = crate(chest, name, details[name].maxCount)
+                if recipe then
+                    local made = crate(chest, name, details[name].maxCount)
 
-                if made > 0 then
-                    stats.crates = stats.crates + made
-                    print(string.format("%s: %d x %s -> %d x %s",
-                          label, made * 9, name, made, recipe.result))
+                    if made > 0 then
+                        stats.crates = stats.crates + made
+                        print(string.format("%s: %d x %s -> %d x %s",
+                              label, made * 9, name, made, recipe.result))
+                    end
                 end
             end
         end
@@ -1335,6 +1352,14 @@ if args[1] == "unlock" then
     db.locked = nil
     saveDB()
     print("Unlocked: I'll re-map whenever the room stops matching.")
+    return
+end
+
+if args[1] == "relearn" then
+    db.recipes = {}
+    db.fuelRecipes = {}
+    saveDB()
+    print("Forgot the learned recipes (map and chests kept). I'll test each item again as I go.")
     return
 end
 

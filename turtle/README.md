@@ -140,8 +140,11 @@ for it, and corrects its position.)
   saves its position around every move. If it was killed mid-move, or the
   blocks around it don't match its map (it was carried somewhere, the room
   changed), or it can't reach a chest or home, it rediscovers the room from
-  wherever it is, on its own. `crater reset` is only needed to forget learned
-  recipes (say, after adding a mod that gives corn a crate).
+  wherever it is, on its own. `crater relearn` forgets the learned recipes but
+  keeps the map (say, after adding a mod that gives corn a crate, or if it
+  wrongly decided something "doesn't crate"); `crater reset` forgets everything.
+  When it skips a target item it says why: no recipe found earlier, or fewer
+  than 9 in the chest.
 - **Lock.** Once it has found the right chests, `crater lock` freezes that list
   and turns automatic re-mapping off: an unreachable chest is skipped for the
   round, and if it can't recognise where it is after a reboot it asks to be put
