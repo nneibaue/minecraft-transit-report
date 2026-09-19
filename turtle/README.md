@@ -141,6 +141,10 @@ for it, and corrects its position.)
   changed), or it can't reach a chest or home, it rediscovers the room from
   wherever it is, on its own. `crater reset` is only needed to forget learned
   recipes (say, after adding a mod that gives corn a crate).
+- **Lock.** Once it has found the right chests, `crater lock` freezes that list
+  and turns automatic re-mapping off: an unreachable chest is skipped for the
+  round, and if it can't recognise where it is after a reboot it asks to be put
+  back at home instead of exploring. `crater unlock` turns re-mapping back on.
 - **Q** finishes the current round, returns home, and stops.
 
 ### Light grid

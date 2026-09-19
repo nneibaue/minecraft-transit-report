@@ -35,6 +35,8 @@
 -- Usage:
 --   crater            discover chests (first run), then work forever
 --   crater map        print the chests it knows, without moving
+--   crater lock       keep exactly these chests; never re-map on its own
+--   crater unlock     allow re-mapping again
 --   crater reset      forget everything; rediscover on the next run
 --   Q (in the terminal) finish this round, go home, stop.
 --
@@ -954,6 +956,9 @@ end
 -- After a restart: does what's around the turtle agree with the
 -- map at its saved position? Only cells the map knows are compared.
 local function surroundingsMatch()
+    local match = true
+
+    -- Always a full circle, so the turtle ends up facing the way it started
     for _ = 1, 4 do
         local nx, nz = ahead()
         local expected = db.cells[key(nx, nz)]
@@ -966,13 +971,13 @@ local function surroundingsMatch()
                 observed = "block"
             end
 
-            if observed ~= expected then return false end
+            if observed ~= expected then match = false end
         end
 
         turnRight()
     end
 
-    return true
+    return match
 end
 
 -- =========================================================
@@ -1137,7 +1142,8 @@ local function printMap()
               #parts > 0 and table.concat(parts, ", ") or "empty / not visited yet"))
     end
 
-    print("Home is (0,0); I'm at (" .. db.pos.x .. "," .. db.pos.z .. ").")
+    print("Home is (0,0); I'm at (" .. db.pos.x .. "," .. db.pos.z .. ")." ..
+          (db.locked and " Map is locked." or ""))
 end
 
 -- =========================================================
@@ -1159,6 +1165,26 @@ if args[1] == "map" then
     return
 end
 
+if args[1] == "lock" then
+    if not db.discovered or #db.chests == 0 then
+        print("Nothing to lock yet. Let me discover the chests first.")
+        return
+    end
+
+    db.locked = true
+    saveDB()
+    print("Locked: I'll keep using these " .. #db.chests .. " chest(s) and won't re-map on my own.")
+    print("Run `crater unlock` to let me map again.")
+    return
+end
+
+if args[1] == "unlock" then
+    db.locked = nil
+    saveDB()
+    print("Unlocked: I'll re-map whenever the room stops matching.")
+    return
+end
+
 if not turtle.craft then
     error("This turtle has no crafting table upgrade.")
 end
@@ -1171,9 +1197,27 @@ if not cargoEmpty() then
     print("Carrying " .. carrying() .. "; I'll put it away in the chests.")
 end
 
+local function rest(seconds)
+    for _ = 1, seconds do
+        if stopRequested then return end
+        sleep(1)
+    end
+end
+
 local function run()
     if not db.discovered then
         discover()
+    elseif db.locked then
+        -- A locked map is never rebuilt on its own. If the turtle can't
+        -- recognise where it is, it needs a hand.
+        if not surroundingsMatch() then
+            print("The map is locked and I don't recognise where I am.")
+            print("Put me back at home (where I started mapping, facing the same way) and reboot,")
+            print("or run `crater unlock` to let me re-map.")
+            return
+        end
+
+        print("Loaded " .. #db.chests .. " chest(s), map locked; I'm at (" .. db.pos.x .. "," .. db.pos.z .. ").")
     elseif db.moving then
         print("I was stopped mid-move last time, so my position is unsure. Rediscovering from here.")
         discover()
@@ -1187,10 +1231,8 @@ local function run()
     while not stopRequested do
         if #db.chests == 0 then
             print("No chests within " .. SEARCH_RADIUS .. " blocks of me. Move me (or the chests) and I'll look again in a minute.")
-            for _ = 1, 60 do
-                if stopRequested then return end
-                sleep(1)
-            end
+            rest(60)
+            if stopRequested then return end
             discover()
         else
             stats.crates = 0
@@ -1200,8 +1242,12 @@ local function run()
                 local ok, why = visitChest(c, i == #db.chests)
 
                 if not ok then
-                    lost = why
-                    break
+                    if db.locked then
+                        print("Skipping this round: " .. why .. ".")
+                    else
+                        lost = why
+                        break
+                    end
                 end
             end
 
@@ -1209,7 +1255,10 @@ local function run()
                 lost = "no way home"
             end
 
-            if lost then
+            if lost and db.locked then
+                print("Map is locked, so I won't re-map: " .. lost .. ". Trying again in a minute.")
+                rest(60)
+            elseif lost then
                 print("I'm lost (" .. lost .. "). Rediscovering the room from here.")
                 discover()
             else
@@ -1223,11 +1272,7 @@ local function run()
                       stats.crates, tostring(turtle.getFuelLevel()), reserveCount()))
 
                 if stopRequested then break end
-
-                for _ = 1, ROUND_INTERVAL do
-                    if stopRequested then break end
-                    sleep(1)
-                end
+                rest(ROUND_INTERVAL)
             end
         end
     end
@@ -1251,4 +1296,4 @@ print("Press Q to stop at home after the current round.")
 
 parallel.waitForAny(run, keyWatcher)
 
-print("Stopped at home.")
+print("Stopped.")
