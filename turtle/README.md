@@ -172,7 +172,29 @@ for it, and corrects its position.)
   configured (`MARKER_MATCH`) it auto-picks the first stack that isn't a
   bridge piece, sign, or fuel, and prints which item it picked.
 - **Starting.** Place the turtle on top of a `blue_skies:vitreous_moonstone`
-  block, facing the direction to build, and run `bridge`.
+  block, facing the direction to build, and run `bridge`. The bridge deck
+  goes at the moonstone's level, starting one block out, and the turtle
+  flies one block above it. Where it starts is **home**.
+- **Biome signs.** Each time the biome changes (including the one it starts
+  in, signed beside the moonstone) it puts a marker block beside the bridge
+  at deck level with a standing sign on top, text facing the bridge: the
+  biome name and how far out it is, e.g. `Dark Forest` / `128m out`. If it
+  needs a marker or a sign and has none, it comes home to be restocked and
+  signs that biome on the next run.
+- **Coming home.** It turns back when it has no bridge pieces left, when
+  its fuel would not cover the trip back, at `MAX_LENGTH`, or on Q, and
+  parks on the moonstone facing out again, so a refill and another `bridge`
+  is all it takes to continue. On rerun it flies out along the bridge to
+  where it stopped.
+- **Terrain.** Water and lava are bridged over. Solid ground at deck level
+  is left in place (the bridge resumes past it); anything in the turtle's
+  own path one block up is dug through, except bridge pieces, signs and the
+  moonstone.
+- **Reboots.** Progress is saved around every move, so a reboot (even
+  mid-sign) resumes in place. Since a turtle can't feel which way it faces,
+  after a mid-bridge reboot it briefly places one bridge piece above itself
+  to read its facing, then takes it back. If that fails it asks to be put
+  back on the moonstone facing the bridge.
 - `bridge reset` forgets saved progress (run `bridge` again afterward to
   start fresh); `bridge status` prints the saved state without moving.
 - **Config knobs worth knowing:** `WIDTH` (extra lanes, built to the right

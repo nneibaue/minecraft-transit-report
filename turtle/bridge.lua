@@ -79,11 +79,25 @@ local function isSignItem(name)
     return name ~= nil and name:find("sign", 1, true) ~= nil
 end
 
+-- Blocks a bridge piece can be placed straight into, besides air and
+-- liquids: the low plants and snow layers Minecraft treats as replaceable.
+-- Anything else at deck level is terrain and is left alone (or dug, with
+-- REPLACE_TERRAIN).
+local SOFT_BLOCKS = {
+    ["minecraft:water"] = true, ["minecraft:lava"] = true,
+    ["minecraft:grass"] = true, ["minecraft:tall_grass"] = true,
+    ["minecraft:fern"] = true, ["minecraft:large_fern"] = true,
+    ["minecraft:seagrass"] = true, ["minecraft:tall_seagrass"] = true,
+    ["minecraft:kelp"] = true, ["minecraft:kelp_plant"] = true,
+    ["minecraft:snow"] = true, ["minecraft:dead_bush"] = true,
+    ["minecraft:vine"] = true,
+}
+
 -- A cell counts as "open" (buildable / placeable into) if there's no
--- block there at all, or it's water/lava. Anything else is solid terrain.
+-- block there at all, or only something soft. Anything else is solid.
 local function isOpenBlock(ok, data)
     if not ok then return true end
-    return data.name == "minecraft:water" or data.name == "minecraft:lava"
+    return SOFT_BLOCKS[data.name] == true
 end
 
 -- =========================================================
@@ -98,6 +112,7 @@ local state = {
     lastBiome = nil,    -- string or nil
     homeBlock = nil,    -- block name seen under the turtle at first run
     fOut = nil,         -- world compass facing of "out" (see Resume & probe)
+    raised = false,     -- true while one block up, placing a sign
     placed = 0,         -- per-run counter
     signs = 0,          -- per-run counter
 }
@@ -165,14 +180,15 @@ local function faceRel(target)
 end
 
 -- Is this block one we must never dig as part of generic obstacle
--- clearing: a bridge piece, a sign, the recorded home block, or the
--- resolved marker block?
+-- clearing: a bridge piece, a sign, or the recorded home block? Marker
+-- blocks aren't listed on purpose -- they sit at deck level, never in
+-- the turtle's path, and protecting them by name would also protect any
+-- natural cobblestone in the way.
 local function isProtected(name)
     if not name then return false end
     if isBridgeItem(name) then return true end
     if isSignItem(name) then return true end
     if state.homeBlock and name == state.homeBlock then return true end
-    if MARKER_NAME and name == MARKER_NAME then return true end
     return false
 end
 
@@ -213,20 +229,37 @@ local function rawStep()
     return false
 end
 
--- Rare: clear a mob out of the way above/below the marker column. Never
--- digs a block here -- only REPLACE_TERRAIN and the probe's digUp do that.
+-- The one-block hop the sign placement needs. Tracks state.raised so a
+-- reboot mid-hop knows to come back down. Digs an unprotected block
+-- above (a leaf, say) but never anything below.
 local function stepUp()
+    saveState()
     for _ = 1, 20 do
-        if turtle.up() then return true end
-        turtle.attackUp()
+        if turtle.up() then
+            state.raised = true
+            saveState()
+            return true
+        end
+
+        local ok, data = turtle.inspectUp()
+        if ok and not isProtected(data.name) and not data.name:find("bedrock", 1, true) then
+            turtle.digUp()
+        else
+            turtle.attackUp()
+        end
         sleep(0.15)
     end
     return false
 end
 
 local function stepDown()
+    saveState()
     for _ = 1, 20 do
-        if turtle.down() then return true end
+        if turtle.down() then
+            state.raised = false
+            saveState()
+            return true
+        end
         turtle.attackDown()
         sleep(0.15)
     end
@@ -383,14 +416,15 @@ local function wrapSignText(name, dist)
 end
 
 -- Runs once per column, comparing the read biome to state.lastBiome (nil
--- counts as different, so the very first column always checks). Turtle
--- starts and ends this call at deck+1 over the edge lane, facing "out" --
--- the sequence is symmetric and returns there by construction in every
--- branch (success, missing marker, missing sign, or blocked), without
--- touching state.dist/state.lane.
+-- counts as different, so the very first column always checks). The
+-- turtle starts and ends this call at deck+1 over the edge lane, facing
+-- "out". The detour uses forward()/stepUp(), so lane and height are
+-- saved at every step and a reboot in the middle of it still recovers.
 --
 -- Returns "ok", or a reason string ("Out of marker blocks." / "Out of
--- signs.") if inventory was missing for what this biome needed.
+-- signs.") when the turtle should head home to be restocked. Anything
+-- that merely failed this column leaves lastBiome alone, so the biome
+-- is tried again one column further on.
 local function checkBiomeMarker(dist)
     local biome = readBiome()
 
@@ -403,80 +437,115 @@ local function checkBiomeMarker(dist)
         return "ok"
     end
 
-    local towardMarker, backFromMarker
-    if MARKER_SIDE == "right" then
-        towardMarker, backFromMarker = turnR, turnL
-    else
-        towardMarker, backFromMarker = turnL, turnR
-    end
+    local towardMarker = (MARKER_SIDE == "right") and turnR or turnL
 
     -- 1: face the marker side.
     towardMarker()
 
+    -- A sign already standing beside this column means the biome was
+    -- marked on an earlier run (after `bridge reset`, say). Adopt it.
+    local aheadOk, aheadData = turtle.inspect()
+    if aheadOk and isSignItem(aheadData.name) then
+        faceRel("out")
+        state.lastBiome = biome
+        saveState()
+        return "ok"
+    end
+
     -- 2: one obstacle-cleared step out to the marker column.
-    if not rawStep() then
-        backFromMarker()
+    if not forward() then
+        faceRel("out")
         print("Couldn't reach the marker side; will try again next column.")
         return "ok"
     end
 
-    -- 3: marker block on the ground below.
-    local groundOk, groundData = turtle.inspectDown()
+    local reason = nil
+    local newSign = false   -- placed a sign this call
+    local signed = false    -- a sign stands on the marker, new or old
+    local rose = false
 
-    if isOpenBlock(groundOk, groundData) then
+    -- 3: marker block at deck level. Solid ground already there serves.
+    local groundOk, groundData = turtle.inspectDown()
+    local haveMarker = not isOpenBlock(groundOk, groundData)
+
+    if not haveMarker then
         local slot = findSlot("marker")
 
         if not slot then
-            -- Abort short: nothing was placed and we never rose for the
-            -- sign, so just reverse steps 2 and 1 back to the edge lane.
-            rawStep()
-            backFromMarker()
-            return "Out of marker blocks."
-        end
-
-        turtle.select(slot)
-        turtle.placeDown()
-    end
-    -- else: a solid block is already there; use it as-is, no placement.
-
-    -- 4: rise to sign height.
-    stepUp()
-
-    -- 5: sign on top of the marker.
-    local newSign = false
-    local reason = nil
-    local signOk = turtle.inspectDown()
-
-    if not signOk then
-        local slot = findSlot("sign")
-
-        if not slot then
-            reason = "Out of signs."
+            reason = "Out of marker blocks."
         else
             turtle.select(slot)
-            turtle.placeDown(wrapSignText(prettifyBiome(biome), dist))
-            newSign = true
+            haveMarker = turtle.placeDown()
+            if not haveMarker then
+                print("Couldn't place the marker block here; will try again next column.")
+            end
         end
     end
-    -- else: a sign is already there from a previous run; skip placing.
 
-    -- 6-9: always return to the edge lane at deck+1, facing "out" -- a
-    -- marker or sign already placed/found is left in place either way.
+    -- 4-5: rise one, then stand the sign on the marker. The cell the
+    -- sign goes in is the one the turtle just left, so it's clear. The
+    -- turtle faces away from the bridge, so the text faces the bridge.
+    if haveMarker then
+        rose = stepUp()
+
+        if not rose then
+            print("Blocked above the marker spot; will try again next column.")
+        else
+            local cellOk, cellData = turtle.inspectDown()
+
+            if cellOk and isSignItem(cellData.name) then
+                signed = true   -- already signed on an earlier run
+            else
+                local slot = findSlot("sign")
+
+                if not slot then
+                    reason = "Out of signs."
+                else
+                    turtle.select(slot)
+                    if turtle.placeDown(wrapSignText(prettifyBiome(biome), dist)) then
+                        newSign = true
+                        signed = true
+                    else
+                        print("Couldn't place the sign here; will try again next column.")
+                    end
+                end
+            end
+        end
+    end
+
+    -- 6-9: back to the edge lane at deck+1, facing "out". Turn around
+    -- (heading now points at the bridge), step back onto the lane, drop
+    -- the one block if we rose, then face out again. Getting back is not
+    -- optional: the column bookkeeping assumes the turtle is on the lane.
     turnR()
     turnR()
-    rawStep()
-    stepDown()
-    backFromMarker()
+
+    local returned = false
+    for _ = 1, 5 do
+        if forward() then returned = true break end
+        sleep(1)
+    end
+    if not returned then
+        error("Stuck beside the bridge at " .. state.dist .. "m. Move me back over the bridge and run me again.")
+    end
+
+    if rose and not stepDown() then
+        error("Stuck one block up at " .. state.dist .. "m. Move me down and run me again.")
+    end
+
+    faceRel("out")
 
     if reason then
         return reason
     end
 
-    state.lastBiome = biome
-    if newSign then
-        state.signs = state.signs + 1
+    if signed then
+        state.lastBiome = biome
+        if newSign then
+            state.signs = state.signs + 1
+        end
+        saveState()
     end
-    saveState()
 
     return "ok"
 end
@@ -547,8 +616,14 @@ local function buildColumn(dist)
 
     for lane = 1, WIDTH - 1 do
         turnR()
-        forward()
+        local moved = forward()
         turnL()
+
+        if not moved then
+            print("Couldn't reach lane " .. lane .. " at " .. dist .. "m; leaving the rest of this column.")
+            break
+        end
+
         placeColumnPiece()
 
         if lane == WIDTH - 1 and MARKER_SIDE == "right" then
@@ -557,12 +632,16 @@ local function buildColumn(dist)
         end
     end
 
-    -- Return to lane 0.
-    turnL()
-    while state.lane > 0 do
-        forward()
+    -- Return to lane 0 (a no-op with WIDTH == 1: no wasted turns).
+    if state.lane > 0 then
+        turnL()
+        while state.lane > 0 do
+            if not forward() then
+                error("Stuck in lane " .. state.lane .. " at " .. dist .. "m. Move me back to the main line and run me again.")
+            end
+        end
+        turnR()
     end
-    turnR()
 
     return abortReason
 end
@@ -575,7 +654,7 @@ local function freshState()
     state = {
         dist = 0, lane = 0, heading = "out", built = 0,
         lastBiome = nil, homeBlock = nil, fOut = nil,
-        placed = 0, signs = 0,
+        raised = false, placed = 0, signs = 0,
     }
 
     local ok, data = turtle.inspectDown()
@@ -636,6 +715,18 @@ local function recoverHeading()
     turtle.select(findSlot("bridge"))
     local placed = turtle.placeUp()
 
+    -- Something (a leaf, a mob) may be in the probe spot: clear it once.
+    if not placed then
+        local ok, above = turtle.inspectUp()
+        if ok and not isProtected(above.name) and not above.name:find("bedrock", 1, true) then
+            turtle.digUp()
+        else
+            turtle.attackUp()
+        end
+        turtle.select(findSlot("bridge"))
+        placed = turtle.placeUp()
+    end
+
     local inspectOk, inspectData = false, nil
     if placed then
         inspectOk, inspectData = turtle.inspectUp()
@@ -656,15 +747,24 @@ local function recoverHeading()
     state.heading = HEADING_BY_DIFF[diff]
     saveState()
 
-    faceRel("out")
-
-    if state.lane > 0 then
-        turnL()
-        while state.lane > 0 do
-            forward()
+    -- A reboot in the middle of a sign detour leaves the turtle a lane to
+    -- the side and maybe one block up. Slide back over the main line
+    -- first (at whatever height), then drop down: the cell below the
+    -- lane is clear, the cell below the marker column holds the sign.
+    if state.lane ~= 0 then
+        faceRel(state.lane > 0 and "left" or "right")
+        while state.lane ~= 0 do
+            if not forward() then
+                error("Stuck beside the bridge at " .. state.dist .. "m. Move me back over the bridge and run `bridge reset`.")
+            end
         end
-        turnR()
     end
+
+    if state.raised and not stepDown() then
+        error("Stuck one block up at " .. state.dist .. "m. Move me down and run me again.")
+    end
+
+    faceRel("out")
 
     return true
 end
@@ -809,6 +909,7 @@ local function printStatus()
     print("lastBiome: " .. tostring(state.lastBiome))
     print("homeBlock: " .. tostring(state.homeBlock))
     print("fOut: " .. tostring(state.fOut))
+    print("raised: " .. tostring(state.raised))
     print("placed: " .. state.placed)
     print("signs: " .. state.signs)
 end
