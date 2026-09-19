@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 Phase: 6 — Dynamic Texture Pipeline
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-09-17 - Completed quick task 260917-s7i: quarry.lua quadrant territories (pinwheel) and solo full-square layout
+Last activity: 2026-09-19 - Completed quick task 260919-64m: bridge.lua turtle bridge builder with biome signs
 
 Progress: [█░░░░░░░░░] 10%
 
@@ -130,6 +130,7 @@ None yet.
 | 9 | quarry.lua: fuel check reads the gauge only; drops kept out of reserved slots, commit 001ec39 | 2026-09-18 | 001ec39 | — |
 | 10 | quarry.lua: wedge layout default again with adjacent ring hand-offs (fixes skipped corners), commit 6266b22 | 2026-09-18 | 6266b22 | — |
 | 11 | Add turtle/crater.lua: crafting turtle that laps a chest room, crates bulk food, maps chests, refuels from coal essence (commit 80e1149) | 2026-09-18 | 80e1149 | — |
+| 260919-64m | bridge.lua: Macaw's balustrade bridge builder with biome signs, returns home when out of pieces | 2026-09-19 | 40559e9 | [260919-64m-add-bridge-lua-turtle-builds-a-macaw-s-b](./quick/260919-64m-add-bridge-lua-turtle-builds-a-macaw-s-b/) |
 
 ## Deferred Items
 
