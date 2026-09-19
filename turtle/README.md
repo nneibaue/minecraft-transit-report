@@ -59,6 +59,7 @@ for it, and corrects its position.)
 | `tunnel.lua` | Resumable 2x2 tunnel miner with lava diversion and netherrack junction markers. |
 | `sorter.lua` | Hallway chest sorter that learns chest contents as it goes. Untested. |
 | `crater.lua` | Crafting turtle that discovers the chests in a room, then shuttles between them crating potatoes, wheat and corn (9 → 1 crate). Maps what each chest holds and refuels itself from coal or coal essence. |
+| `bridge.lua` | Builds a Macaw's balustrade bridge outward from a start block, labels each new biome with a marker block and a sign, and returns home when it runs out of pieces. |
 | `mail-display.lua` | Monitor "You've got mail" gift display. |
 
 ## `quarry.lua` setup
@@ -157,6 +158,28 @@ for it, and corrects its position.)
   round, and if it can't recognise where it is after a reboot it asks to be put
   back at home instead of exploring. `crater unlock` turns re-mapping back on.
 - **Q** finishes the current round, returns home, and stops.
+
+## `bridge.lua` setup
+
+- Turtle upgrades: an **Advanced Peripherals Environment Detector** on one
+  side, a **pickaxe** on the other (clears obstacles ahead and is used to
+  recover the turtle's facing after a reboot, since a turtle can't sense
+  its own facing directly).
+- Inventory (any slots, matched by name, re-scanned as needed): **bridge
+  pieces** (name containing "bridge" — e.g. a Macaw's Bridges balustrade
+  cobblestone bridge), **signs**, **fuel** (coal/charcoal/etc — anything
+  `turtle.refuel` accepts), and optionally a **marker block**. Without one
+  configured (`MARKER_MATCH`) it auto-picks the first stack that isn't a
+  bridge piece, sign, or fuel, and prints which item it picked.
+- **Starting.** Place the turtle on top of a `blue_skies:vitreous_moonstone`
+  block, facing the direction to build, and run `bridge`.
+- `bridge reset` forgets saved progress (run `bridge` again afterward to
+  start fresh); `bridge status` prints the saved state without moving.
+- **Config knobs worth knowing:** `WIDTH` (extra lanes, built to the right
+  of lane 0), `MARKER_SIDE` (which side gets the biome markers),
+  `REPLACE_TERRAIN` (dig existing ground under the deck instead of
+  skipping it), `MAX_LENGTH` (0 = unlimited).
+- **Q** finishes the current column, then heads home and stops.
 
 ### Light grid
 
