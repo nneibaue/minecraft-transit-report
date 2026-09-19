@@ -134,8 +134,6 @@ local function toSet(list)
     return set
 end
 
-local GRID_SET = toSet(GRID)
-
 -- =========================================================
 -- State
 -- =========================================================
@@ -409,14 +407,13 @@ end
 
 -- Move whatever stack the chest considers "first" into a spare
 -- turtle slot so the next suck() can reach the stack behind it.
--- Any empty slot will do except the ones the current job needs
--- (`protect`); parked slots are remembered so unpark() can put
--- exactly those back.
+-- Any empty slot will do, the crafting grid included; parked slots
+-- are remembered so unpark() can put exactly those back.
 local parked = {}
 
-local function park(protect)
+local function park()
     for s = 1, 16 do
-        if not protect[s] and not parked[s] and turtle.getItemCount(s) == 0 then
+        if not parked[s] and turtle.getItemCount(s) == 0 then
             turtle.select(s)
 
             if turtle.suck(64) then
@@ -472,17 +469,56 @@ local function returnAll()
     return ok
 end
 
--- Pull up to `want` of `name` from the chest in front into turtle
--- slot `slot` (empty, or already holding `name`). Returns how many
--- arrived. `protect` is the set of turtle slots this job is filling,
--- which parking must keep clear.
+-- How many of `name` the turtle holds (parked stacks don't count)
+local function aboard(name)
+    local n = 0
+
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d and d.name == name and not parked[s] then n = n + d.count end
+    end
+
+    return n
+end
+
+-- First slot holding `name`
+local function slotWith(name)
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d and d.name == name then return s end
+    end
+    return nil
+end
+
+-- A slot that can take more of `name`: one already holding it with
+-- room to spare, else any empty slot.
+local function slotFor(name)
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d and d.name == name and not parked[s] and turtle.getItemSpace(s) > 0 then
+            return s
+        end
+    end
+
+    for s = 1, 16 do
+        if turtle.getItemCount(s) == 0 then return s end
+    end
+
+    return nil
+end
+
+-- Get up to `want` of `name` out of the chest in front and into the
+-- turtle, into whatever slots are free; arrange() sorts them into
+-- place afterwards. Returns how many are aboard.
 --
 -- turtle.suck() only ever takes whatever the chest considers its
--- first stack, so the chest is shuffled until that stack is the
--- one wanted: the item is pushed into slot 1 when slot 1 is free,
--- otherwise whatever sits there is parked in the turtle and put
--- back by unpark()/returnAll() later.
-local function pull(chest, name, want, slot, protect)
+-- first stack, so everything in front of the wanted item is parked
+-- in the turtle for the duration and put back before this returns.
+-- Asking the chest to move the item to the front is tried first,
+-- but its reply is never trusted. Using every free slot for parking,
+-- crafting grid included, is what lets it dig past a chest front
+-- full of crates and coal.
+local function gather(chest, name, want)
     local got = 0
     local stalls = 0
 
@@ -506,9 +542,12 @@ local function pull(chest, name, want, slot, protect)
         local progressed = false
 
         if first == src then
+            local slot = slotFor(name)
+            if not slot then break end          -- turtle is full
+
             turtle.select(slot)
             local before = turtle.getItemCount(slot)
-            turtle.suck(want - got)
+            turtle.suck(math.min(want - got, turtle.getItemSpace(slot)))
 
             local d = turtle.getItemDetail(slot)
             if d and d.name ~= name then       -- chest changed under us
@@ -522,15 +561,14 @@ local function pull(chest, name, want, slot, protect)
                 progressed = true
             end
         else
-            if first > 1 then    -- slot 1 is free: bring the item forward
+            if first > 1 then    -- slot 1 is free: ask for the item up front
                 pcall(chest.pushItems, "front", src, want - got, 1)
 
-                -- Don't trust the reply; some chests say yes and do nothing
                 local now = chest.list()[1]
                 if now and now.name == name then progressed = true end
             end
 
-            if not progressed and park(protect) then progressed = true end
+            if not progressed and park() then progressed = true end
         end
 
         if progressed then
@@ -540,11 +578,51 @@ local function pull(chest, name, want, slot, protect)
         end
     end
 
+    unpark()
+
     if got < want and stalls >= 4 then
         print("  couldn't get " .. (name:gsub("^[^:]+:", "")) .. " out of this chest; leaving it")
     end
 
-    return got
+    return aboard(name)
+end
+
+-- Spread `name` over `slots` so each holds `per`, shuffling between
+-- the turtle's own slots.
+local function arrange(name, slots, per)
+    local set = toSet(slots)
+
+    for _, t in ipairs(slots) do
+        local need = per - turtle.getItemCount(t)
+
+        for s = 1, 16 do
+            if need <= 0 then break end
+
+            if s ~= t then
+                local d = turtle.getItemDetail(s)
+
+                if d and d.name == name then
+                    local spare = set[s] and (d.count - per) or d.count
+
+                    if spare > 0 then
+                        turtle.select(s)
+                        turtle.transferTo(t, math.min(spare, need))
+                        need = per - turtle.getItemCount(t)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Put `name` items that aren't in `keep` back into the chest
+local function dropExtra(name, keep)
+    local set = toSet(keep)
+
+    for s = 1, 16 do
+        local d = turtle.getItemDetail(s)
+        if d and d.name == name and not set[s] then dropSlot(s) end
+    end
 end
 
 -- Whatever is in the turtle that isn't the ingredient: the craft
@@ -583,28 +661,24 @@ end
 -- Try 9 of the item once and see what comes out. The answer is
 -- remembered either way, so each item is only ever tested once.
 local function learnCrate(chest, name)
-    local loaded = true
-
-    for _, s in ipairs(GRID) do
-        if pull(chest, name, 1, s, GRID_SET) < 1 then
-            loaded = false
-            break
-        end
-    end
-
     local tested, recipe = false, false
 
-    if loaded and unpark() and slotsEmptyExcept(GRID) then
-        tested = true
-        turtle.select(RESULT_SLOT)
-        local ok = turtle.craft(1)
-        local result = findResult(name)
+    if gather(chest, name, 9) >= 9 then
+        arrange(name, GRID, 1)
+        dropExtra(name, GRID)
 
-        if ok and result and result.count == 1 then
-            recipe = { result = result.name }
-            print("  learned: 9 x " .. name .. " -> " .. result.name)
-        else
-            print("  " .. name .. " doesn't crate; skipping it from now on")
+        if slotsEmptyExcept(GRID) then
+            tested = true
+            turtle.select(RESULT_SLOT)
+            local ok = turtle.craft(1)
+            local result = findResult(name)
+
+            if ok and result and result.count == 1 then
+                recipe = { result = result.name }
+                print("  learned: 9 x " .. name .. " -> " .. result.name)
+            else
+                print("  " .. name .. " doesn't crate; skipping it from now on")
+            end
         end
     end
 
@@ -633,17 +707,21 @@ local function crate(chest, name, maxCount)
 
         local n = math.min(batches, maxCount, 64)
 
-        for _, s in ipairs(GRID) do
-            if pull(chest, name, n, s, GRID_SET) < n then break end
-        end
-
+        -- Take what fits aboard, then lay it out over the grid
+        local got = gather(chest, name, n * 9)
+        local per = math.min(n, math.floor(got / 9))
         local crafted = 0
 
-        if unpark() and slotsEmptyExcept(GRID) then
-            turtle.select(RESULT_SLOT)
-            turtle.craft(n)            -- crafts as many as the grid allows
-            local result = findResult(name)
-            crafted = result and result.count or 0
+        if per >= 1 then
+            arrange(name, GRID, per)
+            dropExtra(name, GRID)
+
+            if slotsEmptyExcept(GRID) then
+                turtle.select(RESULT_SLOT)
+                turtle.craft(per)
+                local result = findResult(name)
+                crafted = result and result.count or 0
+            end
         end
 
         returnAll()
@@ -684,20 +762,24 @@ end
 -- enough to reach the target.
 local function refuelPlain(chest, name)
     local target = fuelTarget()
-    local protect = { [RESULT_SLOT] = true }
 
-    if pull(chest, name, 1, RESULT_SLOT, protect) >= 1 then
-        turtle.select(RESULT_SLOT)
+    if gather(chest, name, 1) >= 1 then
+        turtle.select(slotWith(name))
         local before = turtle.getFuelLevel()
         local value = turtle.refuel(1) and (turtle.getFuelLevel() - before) or 0
 
-        while value > 0 and turtle.getFuelLevel() < target do
-            local need = math.ceil((target - turtle.getFuelLevel()) / value)
+        if value > 0 and turtle.getFuelLevel() < target then
+            gather(chest, name, math.ceil((target - turtle.getFuelLevel()) / value))
 
-            if pull(chest, name, math.min(need, 64), RESULT_SLOT, protect) < 1 then break end
+            -- Burn only what's needed; the rest goes back
+            for s = 1, 16 do
+                local d = turtle.getItemDetail(s)
 
-            turtle.select(RESULT_SLOT)
-            turtle.refuel()
+                if d and d.name == name and turtle.getFuelLevel() < target then
+                    turtle.select(s)
+                    turtle.refuel(math.ceil((target - turtle.getFuelLevel()) / value))
+                end
+            end
         end
     end
 
@@ -710,22 +792,19 @@ local function learnEssence(chest, name)
     local untested = false
 
     for _, p in ipairs(PATTERNS) do
-        local loaded = true
-        local protect = toSet(p.slots)
+        local loaded = gather(chest, name, #p.slots) >= #p.slots
 
-        for _, s in ipairs(p.slots) do
-            if pull(chest, name, 1, s, protect) < 1 then
-                loaded = false
-                break
-            end
+        if loaded then
+            arrange(name, p.slots, 1)
+            dropExtra(name, p.slots)
         end
 
         if not loaded then
             -- Not enough of the item for this shape right now.
-            -- Try the smaller shapes; don't record a verdict.
+            -- Try the other shapes; don't record a verdict.
             returnAll()
             untested = true
-        elseif unpark() and slotsEmptyExcept(p.slots) then
+        elseif slotsEmptyExcept(p.slots) then
             turtle.select(RESULT_SLOT)
 
             if turtle.craft(1) then
@@ -769,7 +848,6 @@ end
 local function refuelEssence(chest, name, r)
     local target = fuelTarget()
     local slots = patternSlots(r.pattern)
-    local protect = toSet(slots)
 
     while turtle.getFuelLevel() < target do
         local perCraft = r.count * r.value
@@ -781,34 +859,35 @@ local function refuelEssence(chest, name, r)
         n = math.min(n, math.floor(countOf(chest, name) / #slots))
         if n < 1 then break end
 
-        local short = false
-
-        for _, s in ipairs(slots) do
-            if pull(chest, name, n, s, protect) < n then short = true end
-        end
-
+        local got = gather(chest, name, n * #slots)
+        local per = math.min(n, math.floor(got / #slots))
         local burned = 0
 
-        if unpark() and slotsEmptyExcept(slots) then
-            turtle.select(RESULT_SLOT)
-            turtle.craft(n)
+        if per >= 1 then
+            arrange(name, slots, per)
+            dropExtra(name, slots)
 
-            -- Burn only what's needed; the rest goes back to the chest
-            for s = 1, 16 do
-                local d = turtle.getItemDetail(s)
+            if slotsEmptyExcept(slots) then
+                turtle.select(RESULT_SLOT)
+                turtle.craft(per)
 
-                if d and d.name == r.result and turtle.getFuelLevel() < target then
-                    turtle.select(s)
-                    local before = turtle.getFuelLevel()
-                    turtle.refuel(math.ceil((target - before) / r.value))
-                    burned = burned + (turtle.getFuelLevel() - before)
+                -- Burn only what's needed; the rest goes back to the chest
+                for s = 1, 16 do
+                    local d = turtle.getItemDetail(s)
+
+                    if d and d.name == r.result and turtle.getFuelLevel() < target then
+                        turtle.select(s)
+                        local before = turtle.getFuelLevel()
+                        turtle.refuel(math.ceil((target - before) / r.value))
+                        burned = burned + (turtle.getFuelLevel() - before)
+                    end
                 end
             end
         end
 
         returnAll()
 
-        if burned == 0 or short then break end
+        if burned == 0 or per < n then break end
     end
 end
 
@@ -1097,12 +1176,12 @@ local function topUpReserve(chest)
         if have >= COAL_RESERVE then break end
 
         if (not r or r.name == name) and countOf(chest, name) > 0 then
-            pull(chest, name, COAL_RESERVE - have, RESERVE_SLOT, { [RESERVE_SLOT] = true })
+            gather(chest, name, COAL_RESERVE - have)
+            arrange(name, { RESERVE_SLOT }, COAL_RESERVE)
+            dropExtra(name, { RESERVE_SLOT })
             r = turtle.getItemDetail(RESERVE_SLOT)
         end
     end
-
-    unpark()
 end
 
 -- What's aboard, apart from the coal reserve
