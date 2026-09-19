@@ -110,8 +110,10 @@ for it, and corrects its position.)
 - **Phase 1, discovering chests.** On first run it walks every floor cell it
   can reach within `SEARCH_RADIUS` (6) blocks of home, turning a full circle
   at each cell, and records every inventory beside it (chests, Sophisticated
-  Storage, barrels). A doorway inside that radius gets explored too, so keep
-  the radius smaller than the room if there are more chests next door.
+  Storage, barrels). Hoppers, droppers, furnaces and other turtles are
+  skipped (`NOT_A_CHEST` at the top of the script). A doorway inside that
+  radius gets explored too, so keep the radius smaller than the room if there
+  are more chests next door.
 - **Phase 2, the work loop.** It visits each chest in turn, then rests at home
   for `ROUND_INTERVAL` (120) seconds and goes again. With two chests it shuttles
   back and forth. Only items named in `TARGETS` (potato, wheat, corn; matched on

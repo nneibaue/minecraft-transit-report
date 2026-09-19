@@ -61,6 +61,13 @@ local KEEP_LOOSE = 0
 -- How far from home (in blocks, each axis) discovery may wander
 local SEARCH_RADIUS = 8
 
+-- Blocks that look like inventories to the turtle but aren't
+-- storage. Anything whose type contains one of these is ignored.
+local NOT_A_CHEST = {
+    "hopper", "dropper", "dispenser", "furnace", "smoker", "brewing",
+    "composter", "jukebox", "lectern", "campfire", "turtle", "computer",
+}
+
 -- Seconds to rest at home between rounds
 local ROUND_INTERVAL = 120
 
@@ -291,9 +298,15 @@ end
 
 local function chestAt(side)
     local p = peripheral.wrap(side)
+    if not (p and p.list) then return nil end
 
-    if p and p.list then return p end
-    return nil
+    -- Hoppers, furnaces and the like are inventories too; skip them
+    local kind = tostring(peripheral.getType(side) or "")
+    for _, bad in ipairs(NOT_A_CHEST) do
+        if kind:find(bad, 1, true) then return nil end
+    end
+
+    return p
 end
 
 -- name -> count of everything in the chest. Stacks with NBT are
