@@ -11,9 +11,11 @@
 --   itself stranded out on the bridge.
 --
 -- Setup:
---   * Turtle upgrades: an Advanced Peripherals Environment
---     Detector on one side, a pickaxe on the other (clears
---     obstacles ahead and is used by the resume probe below).
+--   * Turtle upgrades, both optional: an Advanced Peripherals
+--     Environment Detector (without it the bridge is built with
+--     no biome signs) and a pickaxe (without it obstacles ahead
+--     can't be dug, and the reboot probe piece can't be taken
+--     back). A plain turtle over water works fine.
 --   * Inventory (any slots, matched by name, re-scanned as
 --     needed): bridge pieces (name contains "bridge" -- e.g. a
 --     Macaw's Bridges balustrade cobblestone bridge), signs
@@ -426,6 +428,8 @@ end
 -- that merely failed this column leaves lastBiome alone, so the biome
 -- is tried again one column further on.
 local function checkBiomeMarker(dist)
+    if not detector then return "ok" end   -- plain turtle: bridge only
+
     local biome = readBiome()
 
     if biome == nil then
@@ -730,7 +734,12 @@ local function recoverHeading()
     local inspectOk, inspectData = false, nil
     if placed then
         inspectOk, inspectData = turtle.inspectUp()
-        turtle.digUp()   -- remove the probe piece either way
+        -- Take the probe piece back. A turtle with no pickaxe can't, so
+        -- say where it was left rather than stopping over one block.
+        if not turtle.digUp() then
+            print("Couldn't take the probe piece back (no pickaxe?). It's floating one block above me at " ..
+                  state.dist .. "m out.")
+        end
     end
 
     local probedFacing = inspectOk and inspectData.state and inspectData.state.facing
@@ -933,12 +942,11 @@ end
 
 detector = peripheral.find("environmentDetector") or peripheral.find("environment_detector")
 
-if not detector then
-    print("No Environment Detector found. Equip an Advanced Peripherals Environment Detector on one side and try again.")
-    return
+if detector then
+    resolveMarker()
+else
+    print("No Environment Detector equipped -- building the bridge without biome signs.")
 end
-
-resolveMarker()
 
 if not startupResume() then
     return

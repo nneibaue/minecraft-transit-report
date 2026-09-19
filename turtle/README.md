@@ -161,10 +161,12 @@ for it, and corrects its position.)
 
 ## `bridge.lua` setup
 
-- Turtle upgrades: an **Advanced Peripherals Environment Detector** on one
-  side, a **pickaxe** on the other (clears obstacles ahead and is used to
-  recover the turtle's facing after a reboot, since a turtle can't sense
-  its own facing directly).
+- Turtle upgrades, both optional. A plain turtle builds the bridge on its
+  own. An **Advanced Peripherals Environment Detector** adds the biome
+  signs (without one it says so once and skips them). A **pickaxe** lets it
+  dig obstacles in its path and take back the piece it places to recover
+  its facing after a reboot (without one that piece is left floating above
+  the bridge and it tells you where).
 - Inventory (any slots, matched by name, re-scanned as needed): **bridge
   pieces** (name containing "bridge" — e.g. a Macaw's Bridges balustrade
   cobblestone bridge), **signs**, **fuel** (coal/charcoal/etc — anything
