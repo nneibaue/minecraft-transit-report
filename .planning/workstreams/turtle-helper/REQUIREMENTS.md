@@ -91,35 +91,35 @@ Which phases cover which requirements. Filled in during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRIDGE-01 | TBD | Pending |
-| BRIDGE-02 | TBD | Pending |
-| BRIDGE-03 | TBD | Pending |
-| BRIDGE-04 | TBD | Pending |
-| HARN-01 | TBD | Pending |
-| HARN-02 | TBD | Pending |
-| HARN-03 | TBD | Pending |
-| HARN-04 | TBD | Pending |
-| SRV-01 | TBD | Pending |
-| SRV-02 | TBD | Pending |
-| SRV-03 | TBD | Pending |
-| SRV-04 | TBD | Pending |
-| LOOP-01 | TBD | Pending |
-| LOOP-02 | TBD | Pending |
-| LOOP-03 | TBD | Pending |
-| LOOP-04 | TBD | Pending |
-| LOOP-05 | TBD | Pending |
-| RESIL-01 | TBD | Pending |
-| RESIL-02 | TBD | Pending |
-| RESIL-03 | TBD | Pending |
-| RESIL-04 | TBD | Pending |
-| RESIL-05 | TBD | Pending |
-| DOC-01 | TBD | Pending |
-| DOC-02 | TBD | Pending |
+| BRIDGE-01 | Phase 1 | Pending |
+| BRIDGE-02 | Phase 1 | Pending |
+| BRIDGE-03 | Phase 1 | Pending |
+| BRIDGE-04 | Phase 1 | Pending |
+| HARN-01 | Phase 2 | Pending |
+| HARN-02 | Phase 2 | Pending |
+| HARN-03 | Phase 2 | Pending |
+| HARN-04 | Phase 2 | Pending |
+| SRV-01 | Phase 3 | Pending |
+| SRV-02 | Phase 3 | Pending |
+| SRV-03 | Phase 3 | Pending |
+| SRV-04 | Phase 3 | Pending |
+| LOOP-01 | Phase 4 | Pending |
+| LOOP-02 | Phase 4 | Pending |
+| LOOP-03 | Phase 4 | Pending |
+| LOOP-04 | Phase 4 | Pending |
+| LOOP-05 | Phase 4 | Pending |
+| RESIL-01 | Phase 5 | Pending |
+| RESIL-02 | Phase 5 | Pending |
+| RESIL-03 | Phase 2 | Pending |
+| RESIL-04 | Phase 2 | Pending |
+| RESIL-05 | Phase 2 | Pending |
+| DOC-01 | Phase 5 | Pending |
+| DOC-02 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 ⚠️ (filled by roadmap)
+- Mapped to phases: 24
+- Unmapped: 0 ✓
 
 ## Verification Notes
 
