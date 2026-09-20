@@ -31,18 +31,32 @@ class Settings(BaseSettings):
 
     host: str = Field(default="127.0.0.1", description="WebSocket server bind address.")
     port: int = Field(default=8765, description="WebSocket server listen port.")
-    model: str = Field(default="claude-sonnet-5", description="Claude model ID used for chat requests.")
-    command_prefix: str = Field(default="$robot", description="Chat prefix that triggers the agent.")
+    model: str = Field(
+        default="claude-sonnet-5", description="Claude model ID used for chat requests."
+    )
+    command_prefix: str = Field(
+        default="$robot", description="Chat prefix that triggers the agent."
+    )
     robot_name: str = Field(default="Robot", description="Name shown in Chat Box messages.")
-    cmd_timeout: int = Field(default=120, description="Seconds to wait for a device command to finish.")
-    ping_interval: int = Field(default=20, description="WebSocket keepalive ping interval in seconds (0 disables).")
-    ping_timeout: int = Field(default=20, description="WebSocket ping timeout in seconds (0 disables).")
-    bridge_token: str = Field(description="Shared secret devices must present in their hello handshake.")
+    cmd_timeout: int = Field(
+        default=120, description="Seconds to wait for a device command to finish."
+    )
+    ping_interval: int = Field(
+        default=20, description="WebSocket keepalive ping interval in seconds (0 disables)."
+    )
+    ping_timeout: int = Field(
+        default=20, description="WebSocket ping timeout in seconds (0 disables)."
+    )
+    bridge_token: str = Field(
+        description="Shared secret devices must present in their hello handshake."
+    )
     allowed_players: CommaSeparatedPlayers = Field(
         min_length=1,
-        description="Comma-separated player names allowed to give the bridge orders; required, at least one.",
+        description="Comma-separated player names allowed to give orders; required, at least one.",
     )
-    anthropic_api_key: str = Field(description="Anthropic API key used to authenticate Claude API calls.")
+    anthropic_api_key: str = Field(
+        description="Anthropic API key used to authenticate Claude API calls."
+    )
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parent.parent / ".env",

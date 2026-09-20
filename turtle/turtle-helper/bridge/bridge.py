@@ -45,10 +45,12 @@ client: anthropic.AsyncAnthropic
 
 # ----------------------------------------------------------------- device registry
 devices: dict[str, dict[str, object]] = {}  # id -> {"ws", "role", "caps"}
-pending: dict[str, asyncio.Future[dict[str, object]]] = {}  # cid -> future resolved by result message
+pending: dict[str, asyncio.Future[dict[str, object]]] = {}  # cid -> future resolved by result
 
 
-async def send_cmd(device_id: str, tool: str, args: dict[str, object] | None = None) -> dict[str, object]:
+async def send_cmd(
+    device_id: str, tool: str, args: dict[str, object] | None = None
+) -> dict[str, object]:
     """Send a command to one device and wait for its result."""
     dev = devices.get(device_id)
     if not dev:
@@ -60,7 +62,7 @@ async def send_cmd(device_id: str, tool: str, args: dict[str, object] | None = N
     await websocket.send(json.dumps({"type": "cmd", "cid": cid, "tool": tool, "args": args or {}}))
     try:
         return await asyncio.wait_for(fut, settings.cmd_timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {"ok": False, "error": f"{device_id} did not answer within {settings.cmd_timeout}s"}
     finally:
         pending.pop(cid, None)
@@ -98,8 +100,17 @@ async def handler(websocket: ServerConnection) -> None:
         return
 
     dev_id = hello["id"]
-    devices[dev_id] = {"ws": websocket, "role": hello.get("role", "computer"), "caps": hello.get("caps", [])}
-    log.info("device connected: %s (%s) caps=%s", dev_id, devices[dev_id]["role"], devices[dev_id]["caps"])
+    devices[dev_id] = {
+        "ws": websocket,
+        "role": hello.get("role", "computer"),
+        "caps": hello.get("caps", []),
+    }
+    log.info(
+        "device connected: %s (%s) caps=%s",
+        dev_id,
+        devices[dev_id]["role"],
+        devices[dev_id]["caps"],
+    )
 
     try:
         async for raw in websocket:
