@@ -28,12 +28,12 @@ A player types `$robot ...` in game chat and gets a correct answer or action bac
 - ✓ Protocol defined: `hello` / `event` / `cmd` / `result` JSON messages, one websocket per device
 - ✓ `bridge.py` starter written: websocket server, device registry, Claude tool-use loop, per-player history, `list_devices` and `say` local tools — compiles, never run against a device
 - ✓ `client.lua` and `chat.lua` starters written: reconnect loops, hello handshake, tool dispatch, Chat Box send queue — never run in game
+- ✓ Bridge starts on this PC from a pinned, uv-managed Python environment, on the current `websockets` asyncio server API, with a current Claude model ID and env-based secrets via a typed `Settings` model (BRIDGE-01..04) — Phase 1
 
 ### Active
 
 Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 
-- [ ] Bridge starts on this PC from a pinned Python environment, on the current `websockets` asyncio server API, with a current Claude model ID and env-based secrets (BRIDGE-01..04)
 - [ ] A terminal-driven fake device harness plays a chat device or a worker device, completes the hello handshake, drives the devices question, answers commands, and can drop and reconnect on demand (HARN-01..04)
 - [ ] The local dedicated ATM9 server allows CC:Tweaked access to `127.0.0.1`; Lua goes onto devices by on-disk file placement; tokens live only in per-device `secret.txt`; `startup.lua` relaunches on reboot (SRV-01..04)
 - [ ] Real `chat.lua` and `client.lua` connect, `$robot what devices are connected?` is answered in chat, failures get a plain-language reply, and first-run Lua fixes land in the repo (LOOP-01..05)
@@ -85,9 +85,10 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 | v1.0 scope is the round trip only; sorting is not a deliverable | Author is not sure sorting is the right first chore; proving plumbing first keeps the first-chore decision open | — Pending |
 | Fake device harness in scope alongside real in-game testing | The bridge's whole surface is a JSON protocol, so a terminal stand-in gives a fast loop; the in-game run stays required because the Lua has never executed | — Pending |
 | Local dedicated server on the same PC; no tunnel | Same box means `ws://127.0.0.1` plus one CC:Tweaked allow rule; tunnels return only when the bridge leaves this PC | — Pending |
-| Migrate the bridge to the current `websockets` asyncio server API now, rather than pin below 14.0 | Research split on this (stack said migrate, synthesizer said pin). It is a three-line change the harness verifies with no game involved, and a new project should not start on a deprecated API line. Author chose migrate on 2026-09-19 | — Pending |
+| Migrate the bridge to the current `websockets` asyncio server API now, rather than pin below 14.0 | Research split on this (stack said migrate, synthesizer said pin). It is a three-line change the harness verifies with no game involved, and a new project should not start on a deprecated API line. Author chose migrate on 2026-09-19 | ✓ Good — 2026-09-20, Phase 1 shipped on `websockets.asyncio.server.serve` |
 | v1.0 terminal testing is the fake device harness only; fake brain and pytest suite deferred to v1.1 | Author's scoping choice. The bridge only calls the model on a `$robot` event, so handshake, registry and reconnect checks with the harness already cost nothing; only the devices-question path spends one model call | — Pending |
 | Relax the Python dependency footprint; drop `requirements.txt` for a uv-managed `pyproject.toml`/`uv.lock` | Amends BRIDGE-01 (D-09): the lockfile replaces `requirements.txt` for reproducible installs. `pydantic-settings` (Phase 1) and `pydantic-ai` (Phase 2) are worth the added dependency for typed config and the Phase 2 agent-loop rewrite | ✓ Good — 2026-09-20 |
+| Config is fail-fast and typed: missing vars or an empty `ALLOWED_PLAYERS` are validation errors (exit 1), never silent defaults | Closes the "empty allow-list means everyone" hole; pydantic-settings 2.15 needed `NoDecode` + `min_length=1` for comma-separated lists. Phase 1 code review flagged that `BRIDGE_TOKEN` still lacks the same `min_length=1` guard (REVIEW.md CR-01) | ✓ Good — 2026-09-20; token guard open |
 
 ## Evolution
 
@@ -107,4 +108,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-19 after milestone v1.0 start*
+*Last updated: 2026-09-20 after Phase 1*
