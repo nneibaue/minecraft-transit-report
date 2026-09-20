@@ -150,6 +150,19 @@ async def main() -> None:
 
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
+    try:
+        await client.models.retrieve(settings.model)
+    except anthropic.AuthenticationError:
+        log.error("invalid or revoked ANTHROPIC_API_KEY")
+        raise SystemExit(1) from None
+    except anthropic.NotFoundError:
+        log.error("unknown model: %s", settings.model)
+        raise SystemExit(1) from None
+    except anthropic.APIConnectionError as exc:
+        log.warning("could not verify model (connection issue): %s; bridge will still listen", exc)
+    else:
+        log.info("verified model: %s", settings.model)
+
     env_file = Path(__file__).resolve().parent.parent / ".env"
     env_file_desc = str(env_file) if env_file.exists() else "none"
     log.info(
