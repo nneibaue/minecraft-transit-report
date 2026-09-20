@@ -31,20 +31,19 @@ A player types `$robot ...` in game chat and gets a correct answer or action bac
 
 ### Active
 
-- [ ] Bridge starts on this PC from a documented, pinned Python environment and listens on port 8765
-- [ ] Bridge uses a current Claude model (no placeholder ID), configurable by env var
-- [ ] A terminal-driven fake device connects to the bridge as a chat device and as a worker device and completes the hello handshake
-- [ ] From the fake harness, a `$robot what devices are connected?` chat event produces a `say` command back to the chat device with a correct device list
-- [ ] Protocol-level tests run without an Anthropic API key or any API spend
-- [ ] The local dedicated ATM9 server allows CC:Tweaked HTTP/websocket access to `127.0.0.1`, and the change is documented with the exact file and rule
-- [ ] Real `chat.lua` on an Advanced Computer with a Chat Box and real `client.lua` on a turtle or computer both connect to the local bridge
-- [ ] `$robot what devices are connected?` typed in game chat gets a correct answer spoken in chat
-- [ ] Restarting the bridge while devices are connected leads to both devices reconnecting on their own, and the next request works
-- [ ] Getting the Lua files onto in-game devices on the local server is documented with a fast path that does not need a push to GitHub
+Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
+
+- [ ] Bridge starts on this PC from a pinned Python environment, on the current `websockets` asyncio server API, with a current Claude model ID and env-based secrets (BRIDGE-01..04)
+- [ ] A terminal-driven fake device harness plays a chat device or a worker device, completes the hello handshake, drives the devices question, answers commands, and can drop and reconnect on demand (HARN-01..04)
+- [ ] The local dedicated ATM9 server allows CC:Tweaked access to `127.0.0.1`; Lua goes onto devices by on-disk file placement; tokens live only in per-device `secret.txt`; `startup.lua` relaunches on reboot (SRV-01..04)
+- [ ] Real `chat.lua` and `client.lua` connect, `$robot what devices are connected?` is answered in chat, failures get a plain-language reply, and first-run Lua fixes land in the repo (LOOP-01..05)
+- [ ] Proven: bridge restart reconnect, devices-before-bridge startup, clean error on device drop mid-command, wrong token rejected, disallowed player ignored (RESIL-01..05)
+- [ ] README and CLAUDE.md describe the local path end to end and no longer say the Lua has never run (DOC-01..02)
 
 ### Out of Scope
 
 - Sorting chores as a milestone deliverable — the `sort_chest` / rule tools stay in the code but are unverified; the author is not sure sorting is the right first chore, so choosing and proving the first real chore is a later milestone
+- Fake brain (scripted `tool_use`) and a pytest protocol suite — deferred to v1.1 by the author's scoping choice; the bridge only calls the model on a `$robot` event, so handshake and registry checks with the harness already cost nothing
 - New chores (`goto`, `refuel` policy, `fetch_item`, `restock`, `mine_vein`, scheduled chores, multi-turtle dispatch) — listed in the starter's "next up"; none are needed to prove the round trip
 - Production hosting (VPS / Render / Fly) and tunnels (cloudflared / Tailscale) — local dedicated server and local bridge on the same PC need neither; comes back when the bridge moves off this PC
 - `run_lua` / `ALLOW_EVAL` — stays off; not needed for the round trip and is the most dangerous knob in the project
@@ -86,6 +85,8 @@ A player types `$robot ...` in game chat and gets a correct answer or action bac
 | v1.0 scope is the round trip only; sorting is not a deliverable | Author is not sure sorting is the right first chore; proving plumbing first keeps the first-chore decision open | — Pending |
 | Fake device harness in scope alongside real in-game testing | The bridge's whole surface is a JSON protocol, so a terminal stand-in gives a fast loop; the in-game run stays required because the Lua has never executed | — Pending |
 | Local dedicated server on the same PC; no tunnel | Same box means `ws://127.0.0.1` plus one CC:Tweaked allow rule; tunnels return only when the bridge leaves this PC | — Pending |
+| Migrate the bridge to the current `websockets` asyncio server API now, rather than pin below 14.0 | Research split on this (stack said migrate, synthesizer said pin). It is a three-line change the harness verifies with no game involved, and a new project should not start on a deprecated API line. Author chose migrate on 2026-09-19 | — Pending |
+| v1.0 terminal testing is the fake device harness only; fake brain and pytest suite deferred to v1.1 | Author's scoping choice. The bridge only calls the model on a `$robot` event, so handshake, registry and reconnect checks with the harness already cost nothing; only the devices-question path spends one model call | — Pending |
 
 ## Evolution
 
