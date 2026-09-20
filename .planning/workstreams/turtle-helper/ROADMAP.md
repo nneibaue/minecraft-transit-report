@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The bridge's server code calls `websockets.asyncio.server.serve` with a single-argument handler, and no call to the legacy `websockets.serve` remains anywhere in the file.
   3. Running `bridge.py` with `BRIDGE_TOKEN` unset exits immediately with a one-line error message instead of a stack trace; with it set, the startup log shows the resolved `MODEL` as `claude-sonnet-5` (or an env override), never the old placeholder ID.
   4. `BRIDGE_TOKEN`, `ALLOWED_PLAYERS`, and `ANTHROPIC_API_KEY` are read only from environment variables via a documented, git-ignored local recipe (e.g. a git-ignored `.env` plus a committed example) — no secret value is hardcoded anywhere in `bridge.py`.
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — uv environment + typed Settings + settings.py/agent.py/bridge.py split, listening on the new websockets API (Wave 1)
+- [ ] 01-02-PLAN.md — README.md and PROJECT.md updated for the uv recipe and the relaxed Python footprint (Wave 1)
 
 ### Phase 2: Fake Device Harness & Protocol Resilience
 **Goal**: A terminal-driven fake device can play either device role against the running bridge, proving the full wire protocol and every failure case that doesn't require Minecraft — before any Lua touches a real device.
@@ -84,7 +87,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Bridge Environment | 0/TBD | Not started | - |
+| 1. Bridge Environment | 0/2 | Planned | - |
 | 2. Fake Device Harness & Protocol Resilience | 0/TBD | Not started | - |
 | 3. Local Server Setup | 0/TBD | Not started | - |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
