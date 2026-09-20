@@ -1,11 +1,14 @@
 -- platform: build a flat platform with a turtle
 -- Usage: platform <z> <x>
---   z = size north/south (the direction the turtle is facing)
---   x = size east/west   (to the turtle's right)
+--   z = how far the platform extends FORWARD (the way the turtle is facing)
+--   x = how far it extends to the RIGHT
 --
--- Setup: put the turtle ONE BLOCK ABOVE the platform level, at the
--- south-west corner, facing NORTH. It lays blocks underneath itself
--- using slot 1 first, then 2, 3, ... and returns to the start when done.
+-- Setup: stand the turtle on the edge of the existing ground, facing the
+-- direction you want the platform to go. The block the turtle starts on is
+-- NOT part of the platform: the platform begins at the block directly in
+-- front of it, and that column is the first one, with the rest extending to
+-- the right. It lays blocks underneath itself using slot 1 first, then 2,
+-- 3, ... and comes back to its starting block when done.
 
 if not turtle then
   print("This program must be run on a turtle.")
@@ -21,7 +24,8 @@ if not sizeZ or not sizeX or sizeZ < 1 or sizeX < 1 then
 end
 sizeZ, sizeX = math.floor(sizeZ), math.floor(sizeX)
 
--- Position relative to the start. heading: 0 = north, 1 = east, 2 = south, 3 = west
+-- Position relative to the starting block: posZ = blocks forward, posX = blocks right.
+-- heading: 0 = forward (start direction), 1 = right, 2 = back, 3 = left
 local posZ, posX, heading = 0, 0, 0
 
 local function turnRight()
@@ -101,10 +105,11 @@ local function placeBlock()
   end
 end
 
--- Fuel check: serpentine over the area plus the trip back to the corner.
+-- Fuel check: step off the start block, serpentine over the area, then the
+-- worst-case trip back to the start block.
 local function fuelNeeded()
-  local build = (sizeZ - 1) * sizeX + (sizeX - 1)
-  local home = sizeZ + sizeX
+  local build = 1 + (sizeZ - 1) * sizeX + (sizeX - 1)
+  local home = sizeZ + (sizeX - 1)
   return build + home
 end
 
@@ -121,9 +126,12 @@ if have < sizeZ * sizeX then
   print("I'll pause and wait for more when I run out.")
 end
 
-print("Building " .. sizeZ .. " (z) by " .. sizeX .. " (x) platform...")
+print("Building " .. sizeZ .. " forward by " .. sizeX .. " right...")
 
--- Serpentine: up one column, step right, back down the next column.
+-- Step off the starting block; the platform begins at the block ahead.
+forward()
+
+-- Serpentine: out along one column, step right, back along the next column.
 for col = 1, sizeX do
   for row = 1, sizeZ do
     placeBlock()
@@ -138,7 +146,7 @@ for col = 1, sizeX do
   end
 end
 
--- Return to the starting corner, facing north.
+-- Return to the starting block, facing the original direction.
 if posX > 0 then
   face(3)
   while posX > 0 do forward() end

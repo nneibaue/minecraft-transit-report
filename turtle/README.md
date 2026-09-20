@@ -61,7 +61,7 @@ for it, and corrects its position.)
 | `crater.lua` | Crafting turtle that discovers the chests in a room, then shuttles between them crating potatoes, wheat and corn (9 → 1 crate). Maps what each chest holds and refuels itself from coal or coal essence. |
 | `bridge.lua` | Builds a Macaw's balustrade bridge outward from a start block, labels each new biome with a marker block and a sign, and returns home when it runs out of pieces. |
 | `mail-display.lua` | Monitor "You've got mail" gift display. |
-| `platform.lua` | Flat `z` by `x` platform builder. Hovers one block above the platform and lays blocks under itself in a serpentine, using slot 1 first, then 2, 3, ... Waits for more blocks when it runs out and returns to the start corner. `platform 4 4`. |
+| `platform.lua` | Flat platform builder. The platform starts at the block in front of the turtle and extends `z` forward and `x` to the right; the block the turtle starts on is not counted. Hovers above the platform laying blocks under itself in a serpentine, using slot 1 first, then 2, 3, ... Waits for more blocks when it runs out and returns to its starting block. `platform 4 4`. |
 
 ## `quarry.lua` setup
 
