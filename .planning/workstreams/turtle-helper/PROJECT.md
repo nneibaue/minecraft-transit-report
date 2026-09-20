@@ -72,7 +72,7 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 - **Secrets**: no API key in Lua, in the repo, or in the world save; `secret.txt` on devices holds only the bridge token
 - **Resilience**: devices reconnect on their own after a bridge restart, and one bad request must never take the bridge down (the starter already catches per-request exceptions; keep it that way)
 - **Chat etiquette**: one `say()` per task; Chat Box has a ~1 s send cooldown that the queue in `chat.lua` must respect
-- **Dependencies**: `pip install` of two packages is the whole Python footprint; no framework, no database, one file until it hurts
+- **Dependencies**: uv-managed project (`pyproject.toml` + committed `uv.lock`) with `websockets`, `anthropic`, and `pydantic-settings` as direct dependencies (`pydantic` itself arrives transitively via `anthropic`); `pydantic-ai` is added in Phase 2. Still no web framework, no database. The Python side is the three-module `bridge/settings.py` / `bridge/agent.py` / `bridge/bridge.py` split decided in Phase 1 (D-13), not the original one-file starter
 - **Abstraction**: small project — no plugin systems, no premature device abstraction; adding a chore stays "one Lua function plus one schema entry"
 
 ## Key Decisions
@@ -87,6 +87,7 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 | Local dedicated server on the same PC; no tunnel | Same box means `ws://127.0.0.1` plus one CC:Tweaked allow rule; tunnels return only when the bridge leaves this PC | — Pending |
 | Migrate the bridge to the current `websockets` asyncio server API now, rather than pin below 14.0 | Research split on this (stack said migrate, synthesizer said pin). It is a three-line change the harness verifies with no game involved, and a new project should not start on a deprecated API line. Author chose migrate on 2026-09-19 | — Pending |
 | v1.0 terminal testing is the fake device harness only; fake brain and pytest suite deferred to v1.1 | Author's scoping choice. The bridge only calls the model on a `$robot` event, so handshake, registry and reconnect checks with the harness already cost nothing; only the devices-question path spends one model call | — Pending |
+| Relax the Python dependency footprint; drop `requirements.txt` for a uv-managed `pyproject.toml`/`uv.lock` | Amends BRIDGE-01 (D-09): the lockfile replaces `requirements.txt` for reproducible installs. `pydantic-settings` (Phase 1) and `pydantic-ai` (Phase 2) are worth the added dependency for typed config and the Phase 2 agent-loop rewrite | ✓ Good — 2026-09-20 |
 
 ## Evolution
 
