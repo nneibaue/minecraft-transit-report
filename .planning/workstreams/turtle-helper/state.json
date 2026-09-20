@@ -6,7 +6,7 @@
     {
       "number": "1",
       "name": "Bridge Environment",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "2",
@@ -31,8 +31,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 01 of 5 · 0% · executing"
+    "label": "Advance to the next step (verify)",
+    "reason": "Phase 01 of 5 · 0% · ready to verify"
   },
-  "updated_at": "2026-09-20T11:03:52.519Z"
+  "updated_at": "2026-09-20T11:10:04.129Z"
 }

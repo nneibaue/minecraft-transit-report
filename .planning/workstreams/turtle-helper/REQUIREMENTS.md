@@ -9,10 +9,10 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 
 ### Bridge Environment (BRIDGE)
 
-- [ ] **BRIDGE-01**: Developer can start `bridge.py` on this PC from a pinned Python environment (`requirements.txt` with exact versions, venv recipe for PowerShell and Git Bash) and it listens on port 8765
+- [x] **BRIDGE-01**: Developer can start `bridge.py` on this PC from a pinned Python environment (`requirements.txt` with exact versions, venv recipe for PowerShell and Git Bash) and it listens on port 8765
 - [x] **BRIDGE-02**: Bridge runs on the current `websockets` asyncio server API (`websockets.asyncio.server.serve`, single-argument handler) on the pinned current version, with no deprecated legacy `websockets.serve` call remaining
 - [x] **BRIDGE-03**: Bridge defaults to a current Claude model ID (`claude-sonnet-5`), overridable by the `MODEL` env var; no placeholder model ID remains in the code
-- [ ] **BRIDGE-04**: Bridge reads `BRIDGE_TOKEN`, `ALLOWED_PLAYERS` and `ANTHROPIC_API_KEY` from the environment via a documented, git-ignored local env recipe, and a missing `BRIDGE_TOKEN` fails fast with a one-line message instead of a stack trace
+- [x] **BRIDGE-04**: Bridge reads `BRIDGE_TOKEN`, `ALLOWED_PLAYERS` and `ANTHROPIC_API_KEY` from the environment via a documented, git-ignored local env recipe, and a missing `BRIDGE_TOKEN` fails fast with a one-line message instead of a stack trace
 
 ### Fake Device Harness (HARN)
 
@@ -91,10 +91,10 @@ Which phases cover which requirements. Filled in during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRIDGE-01 | Phase 1 | Pending |
+| BRIDGE-01 | Phase 1 | Complete |
 | BRIDGE-02 | Phase 1 | Complete |
 | BRIDGE-03 | Phase 1 | Complete |
-| BRIDGE-04 | Phase 1 | Pending |
+| BRIDGE-04 | Phase 1 | Complete |
 | HARN-01 | Phase 2 | Pending |
 | HARN-02 | Phase 2 | Pending |
 | HARN-03 | Phase 2 | Pending |
