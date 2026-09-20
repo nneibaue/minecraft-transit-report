@@ -847,7 +847,9 @@ async def handler(websocket: ServerConnection) -> None:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+_Resolved here means each question has a recorded disposition, not that every answer is known: (1) D-06 ping behaviour is deferred to a Phase 4 LOOP-01 test with `PING_INTERVAL=0` as the escape hatch; (2) port-conflict messaging is deferred (Claude's discretion nice-to-have); (3) `.env` resolution from another importer is tested in Phase 2 HARN-01._
 
 1. **CC:Tweaked WebSocket Ping/Pong (D-06)**
    - What we know: CC:Tweaked uses Java Netty for WebSocket; RFC 6455 ping/pong are part of the protocol.
