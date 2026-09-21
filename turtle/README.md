@@ -62,6 +62,7 @@ for it, and corrects its position.)
 | `bridge.lua` | Builds a Macaw's balustrade bridge outward from a start block, labels each new biome with a marker block and a sign, and returns home when it runs out of pieces. |
 | `mail-display.lua` | Monitor "You've got mail" gift display. |
 | `platform.lua` | Flat platform builder and carver. The platform starts at the block in front of the turtle and extends `z` forward and `x` to the right; the block the turtle starts on is not counted. At each cell it clears a 2-high walkway, digs out the existing floor and lays its own block, so it carves through hills as well as bridging air. Builds with what was in its inventory at start (slot 1 first, then 2, 3, ...), never with dug-up blocks; waits for a refill when it runs out and returns to its starting block. Needs a mining turtle. `platform 4 4`. |
+| `crafter.lua` | Wish-list crafter. A stationary crafting turtle that reads wishes from the drawer on top of it, works backwards through its recipe book to what the input chest holds (iron block → ingots → nuggets, log → planks → sticks → torches → lanterns), delivers finished wishes to the output chest, and mirrors its log to a monitor. Untested. |
 
 ## `quarry.lua` setup
 
@@ -159,6 +160,65 @@ for it, and corrects its position.)
   round, and if it can't recognise where it is after a reboot it asks to be put
   back at home instead of exploring. `crater unlock` turns re-mapping back on.
 - **Q** finishes the current round, returns home, and stops.
+
+## `crafter.lua` setup
+
+A wish-list crafter: put what you want in the drawer, dump materials in the
+input chest, and finished items turn up in the output chest.
+
+- **Build**, seen from the front: input chest, crafting turtle, output chest in
+  a row; a Functional Storage drawer (an oak drawer with 1, 2 or 4 slots) on
+  top of the turtle; a monitor under it (2×1 is plenty, a standard monitor is
+  fine). The turtle stands **sideways, facing the input chest**, with the
+  output chest behind it. That's forced: a turtle can only take items from the
+  block in front of, above or below it, and above and below are taken. It
+  never moves, so it needs no fuel. Advanced or not makes no difference here;
+  an advanced turtle only colours its own little screen, and a standard
+  monitor stays grey either way.
+- **Install** as `startup.lua` with the `wget` recipe above.
+- **Keep it empty.** `turtle.craft()` refuses to run with anything outside the
+  3×3 grid, so the turtle carries nothing between crafts: whatever it pulls
+  out of the chest goes straight back. Anything left in it at startup is put
+  in the input chest.
+- **Input chest** (in front): a plain chest or barrel is best, since it can be
+  asked to move a stack to its first slot for the turtle to take.
+  Sophisticated Storage works, but the turtle has to park the stacks in front
+  of the one it wants, which is slower. Intermediates come back here between
+  steps, so it needs a couple of free slots.
+- **Output chest** (behind, `OUTPUT_SIDE`): finished wishes are pushed here
+  from the input chest.
+- **Wish list.** Every kind of item in the drawer is a wish, in slot order: the
+  first slot is worked on first, the second only when the first can't progress.
+  Keep at least one of each item in the drawer, since a locked-but-empty drawer
+  slot reads as empty. If the block on top can't be read as an inventory, the
+  output chest doubles as the wish list: drop one of what you want in it.
+- **Recipes.** CC:Tweaked has no recipe lookup, so the turtle carries its own
+  small book: lantern, soul lantern, torch, soul torch, stick, crafting table,
+  chest, barrel, furnace, ladder, iron bars, chain, glass pane, bucket, plus
+  name-based families: `X_stairs` / `X_slab` / `X_wall` from `X` (granite
+  stairs from granite, oak stairs from oak planks, stone brick stairs from
+  stone bricks), `X_planks` from any `X` log, wood or stem, `X_nugget` from
+  `X_ingot`, `X_ingot` from `X_block` (or nine nuggets), `X_block` from nine
+  `X_ingot`. `crafter recipes` prints the list. Adding one is a line in
+  `RECIPES`.
+- **Working backwards.** For each wish it looks for the ingredients in the
+  input chest; whatever is missing it tries to make first, recursively, down
+  to what the chest actually holds. It aims for `BATCH` (16) of a wish per
+  craft so intermediates are made in useful amounts rather than one at a time.
+- **Priority.** A wish that an *earlier* wish needs as an ingredient stays in
+  the input chest for it: with lantern above torch on the list, torches are
+  kept for lanterns. Put torch first to have them delivered instead.
+- **Guessed recipes.** A family guess that isn't a real recipe (the game
+  refuses the craft) is remembered in `crafter_bad.txt` on the turtle and not
+  retried; `crafter forget` clears it.
+- **Monitor.** Top line: the wish list. Below it, the log: what was made and
+  where it went, what each stuck wish is waiting for (`lantern: waiting for
+  iron nugget < iron ingot < iron block`), and full chests.
+- **Untested** in-game as of this commit. The one assumption worth checking
+  first: that the drawer shows up as an inventory on the turtle's top side
+  (`peripheral.getType("top")` in `lua` should name the drawer). The startup
+  line in the log names what it sees on each side.
+- **Q** finishes the current craft, puts everything back, and stops.
 
 ## `bridge.lua` setup
 
