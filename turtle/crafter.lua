@@ -1240,9 +1240,12 @@ local function readWishes(out)
         logOnce("wishsrc", "Wish list: the " .. short(peripheral.getType(WISH_SIDE) or "inventory") .. " on top of me.")
     end
 
+    -- Items with NBT data (a Sophisticated Storage chest, an enchanted
+    -- tool) count as wishes too: nothing with data can be crafted, but
+    -- "no recipe for that" beats pretending the drawer is empty.
     local slots = {}
     for slot, it in pairs(inv.list()) do
-        if not it.nbt then slots[#slots + 1] = { slot = slot, name = it.name } end
+        slots[#slots + 1] = { slot = slot, name = it.name }
     end
     table.sort(slots, function(a, b) return a.slot < b.slot end)
 

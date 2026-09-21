@@ -190,8 +190,11 @@ input chest, and finished items turn up in the output chest.
 - **Wish list.** Every kind of item in the drawer is a wish, in slot order: the
   first slot is worked on first, the second only when the first can't progress.
   Keep at least one of each item in the drawer, since a locked-but-empty drawer
-  slot reads as empty. If the block on top can't be read as an inventory, the
-  output chest doubles as the wish list: drop one of what you want in it.
+  slot reads as empty. Wish for plain items: a Sophisticated Storage chest, say,
+  is not a `minecraft:chest`, and it carries data the turtle can't craft, so it
+  gets "I don't know a recipe for that". If the block on top can't be read as
+  an inventory, the output chest doubles as the wish list: drop one of what
+  you want in it.
 - **Recipes.** CC:Tweaked has no recipe lookup, so the turtle carries its own
   small book: lantern, soul lantern, torch, soul torch, stick, crafting table,
   chest, barrel, furnace, ladder, iron bars, chain, glass pane, bucket, plus
