@@ -199,8 +199,9 @@ input chest, and finished items turn up in the output chest.
   stairs from granite, oak stairs from oak planks, stone brick stairs from
   stone bricks), `X_planks` from any `X` log, wood or stem, `X_nugget` from
   `X_ingot`, `X_ingot` from `X_block` (or nine nuggets), `X_block` from nine
-  `X_ingot`. `crafter recipes` prints the list. Adding one is a line in
-  `RECIPES`.
+  `X_ingot`, and nine `X` from `X_block` (coal from coal blocks, redstone,
+  diamonds; lapis, wheat, melon and bone meal are special-cased). `crafter
+  recipes` prints the list. Adding one is a line in `RECIPES`.
 - **Working backwards.** For each wish it looks for the ingredients in the
   input chest; whatever is missing it tries to make first, recursively, down
   to what the chest actually holds. It aims for `BATCH` (16) of a wish per

@@ -68,7 +68,8 @@
 -- torches, sticks, chests, barrels, and name-based families --
 -- X_stairs / X_slab / X_wall from X, X_planks from X logs,
 -- X_nugget from X_ingot, X_ingot from X_block, X_block from nine
--- X_ingot. A family guess that turns out not to be a real recipe
+-- X_ingot, and nine X from X_block (coal from coal blocks). A
+-- family guess that turns out not to be a real recipe
 -- (turtle.craft() refuses it) is remembered in crafter_bad.txt
 -- and not tried again.
 -- =========================================================
@@ -433,6 +434,14 @@ local FAMILIES = {
     { suffix = "_wall", count = 6, rows = { "XXX", "XXX" } },
 }
 
+-- Storage blocks whose name isn't just the item's name plus _block
+local UNPACK = {
+    ["minecraft:lapis_lazuli"] = "minecraft:lapis_block",
+    ["minecraft:wheat"] = "minecraft:hay_block",
+    ["minecraft:melon_slice"] = "minecraft:melon",
+    ["minecraft:bone_meal"] = "minecraft:bone_block",
+}
+
 local function baseSpec(ns, base)
     return anyOf(short(ns .. ":" .. base), {
         ns .. ":" .. base,
@@ -493,6 +502,12 @@ local function recipesFor(name)
             if stuff then
                 local units = anyOf((stuff:gsub("_", " ")) .. " ingots", { ns .. ":" .. stuff .. "_ingot", ns .. ":" .. stuff })
                 out[#out + 1] = shaped(name, 1, { "XXX", "XXX", "XXX" }, { X = units })
+            else
+                -- Anything might come packed nine to a block: coal from
+                -- coal blocks, redstone from redstone blocks, diamonds
+                -- from diamond blocks. Tried last, after the real recipes.
+                local packed = UNPACK[name] or (name .. "_block")
+                out[#out + 1] = shaped(name, 9, { "X" }, { X = exact(packed) })
             end
         end
     end
@@ -1288,7 +1303,8 @@ if args[1] == "recipes" then
 
     print("Recipes: " .. table.concat(names, ", "))
     print("Families: X stairs / X slab / X wall from X; X planks from X logs;")
-    print("  X nugget from X ingot; X ingot from X block or 9 X nugget; X block from 9 X ingot")
+    print("  X nugget from X ingot; X ingot from X block or 9 X nugget; X block from 9 X ingot;")
+    print("  9 X from X block (coal from coal blocks, redstone, diamonds...)")
 
     loadBad()
     local n = 0
