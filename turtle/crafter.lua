@@ -46,7 +46,7 @@
 --     asked to move a stack to its first slot for the turtle to
 --     take; a Sophisticated Storage chest works too, but the
 --     turtle has to park the stacks in front of the one it wants
---     (see gather()). Intermediates come back here between
+--     (see gatherAll()). Intermediates come back here between
 --     steps, so it needs a couple of free slots.
 --   * Output chest: behind the turtle (OUTPUT_SIDE). Finished
 --     wishes end up here. Intermediates (planks, sticks, nuggets,
