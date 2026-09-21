@@ -772,38 +772,49 @@ local function slotFor(name)
     return nil
 end
 
--- Get up to `want` of `name` out of the chest in front and into the
--- turtle, into whatever slots are free. Returns how many are aboard.
+-- Get every ingredient of a craft out of the chest in front in one
+-- pass. `wants` is name -> count. Whatever stack the chest offers
+-- first is taken if it's still wanted, otherwise a plain chest is
+-- asked to bring a wanted stack forward, and failing that the stack
+-- in the way is parked in the turtle until the pass is over. One
+-- pass for all ingredients means each stack in the way is parked
+-- once per craft, not once per ingredient. Returns true if
+-- everything arrived.
 --
--- Every pass must visibly change something (items arrived, the
+-- Every round must visibly change something (items arrived, a
 -- wanted stack moved to slot 1, or a stack got parked); a few
--- passes without progress and it gives up rather than spin.
-local function gather(inv, name, want)
-    local got, stalls = 0, 0
+-- rounds without progress and it gives up rather than spin.
+local function gatherAll(inv, wants)
+    local got = {}
+    for name in pairs(wants) do got[name] = 0 end
 
-    while got < want and stalls < 4 do
+    local function stillWanted(it)
+        return it and not it.nbt and wants[it.name] ~= nil and got[it.name] < wants[it.name]
+    end
+
+    local stalls = 0
+
+    while stalls < 4 do
         local list = inv.list()
         local first, src
 
         for s, it in pairs(list) do
             if not first or s < first then first = s end
-
-            if it.name == name and not it.nbt and (not src or s < src) then
-                src = s
-            end
+            if stillWanted(it) and (not src or s < src) then src = s end
         end
 
-        if not src then break end
+        if not src then break end          -- nothing wanted is left in the chest
 
         local progressed = false
 
         if first == src then
+            local name = list[src].name
             local slot = slotFor(name)
             if not slot then break end          -- turtle is full
 
             turtle.select(slot)
             local before = turtle.getItemCount(slot)
-            turtle.suck(math.min(want - got, turtle.getItemSpace(slot)))
+            turtle.suck(math.min(wants[name] - got[name], turtle.getItemSpace(slot)))
 
             local d = turtle.getItemDetail(slot)
             if d and d.name ~= name then       -- chest changed under us
@@ -813,12 +824,13 @@ local function gather(inv, name, want)
 
             local n = turtle.getItemCount(slot) - before
             if n > 0 then
-                got = got + n
+                got[name] = got[name] + n
                 progressed = true
             end
         else
-            if first > 1 then    -- slot 1 is free: ask for the item up front
-                pcall(inv.pushItems, "front", src, want - got, 1)
+            if first > 1 then    -- slot 1 is free: ask for the wanted stack up front
+                local name = list[src].name
+                pcall(inv.pushItems, "front", src, wants[name] - got[name], 1)
 
                 local now = inv.list()[1]
                 if now and now.name == name then progressed = true end
@@ -836,17 +848,46 @@ local function gather(inv, name, want)
 
     unpark()
 
-    if got < want and stalls >= 4 then
-        log("  couldn't dig " .. short(name) .. " out of the chest; a plain chest or barrel in front of me would fix this")
+    local ok = true
+    for name, n in pairs(wants) do
+        if aboard(name) < n then ok = false end
     end
 
-    return aboard(name)
+    if not ok and stalls >= 4 then
+        log("  couldn't dig everything out of the chest; a plain chest or barrel in front of me would fix this")
+    end
+
+    return ok
 end
 
--- Spread `name` over `slots` so each holds `per`, shuffling between
--- the turtle's own slots.
-local function arrange(name, slots, per)
-    local set = toSet(slots)
+-- Spread `name` over `slots` so each holds exactly `per`, shuffling
+-- between the turtle's own slots. Anything else sitting in one of
+-- those slots (another ingredient that got sucked in there) is
+-- moved out first, to a slot outside the whole crafting grid
+-- (`grid` = every cell this recipe uses). False if a cell can't be
+-- filled.
+local function arrange(name, slots, per, grid)
+    local set, gridSet = toSet(slots), toSet(grid)
+
+    for _, t in ipairs(slots) do
+        local d = turtle.getItemDetail(t)
+
+        if d and d.name ~= name then
+            local free
+
+            for s = 1, 16 do
+                if not gridSet[s] and turtle.getItemCount(s) == 0 then
+                    free = s
+                    break
+                end
+            end
+
+            if not free then return false end
+
+            turtle.select(t)
+            turtle.transferTo(free)
+        end
+    end
 
     for _, t in ipairs(slots) do
         local need = per - turtle.getItemCount(t)
@@ -868,7 +909,22 @@ local function arrange(name, slots, per)
                 end
             end
         end
+
+        if need > 0 then return false end
     end
+
+    -- A cell holding more than its share would leave leftovers
+    -- aboard after the craft; back into the chest with them
+    for _, t in ipairs(slots) do
+        local extra = turtle.getItemCount(t) - per
+
+        if extra > 0 then
+            turtle.select(t)
+            turtle.drop(extra)
+        end
+    end
+
+    return true
 end
 
 -- Put `name` items that aren't in `keep` back into the chest
@@ -917,27 +973,32 @@ local function describePicks(picks)
 end
 
 local function craft(inv, recipe, picks, steps)
-    local ingredients = {}
-    for _, p in ipairs(picks) do ingredients[p.name] = true end
-
+    local ingredients, wants = {}, {}
     for _, p in ipairs(picks) do
-        local want = #p.cells * steps
+        ingredients[p.name] = true
+        wants[p.name] = (wants[p.name] or 0) + #p.cells * steps
+    end
 
-        if gather(inv, p.name, want) < want then
-            returnAll()
-            log("  couldn't get " .. want .. " x " .. short(p.name) .. " out of the chest")
-            return nil, 0, "stuck"
-        end
+    if not gatherAll(inv, wants) then
+        returnAll()
+        log("  couldn't get everything for " .. short(recipe.result) .. " out of the chest")
+        return nil, 0, "stuck"
     end
 
     local keep = {}
     for _, p in ipairs(picks) do
+        for _, c in ipairs(p.cells) do keep[#keep + 1] = GRID[c] end
+    end
+
+    for _, p in ipairs(picks) do
         local slots = {}
-        for _, c in ipairs(p.cells) do
-            slots[#slots + 1] = GRID[c]
-            keep[#keep + 1] = GRID[c]
+        for _, c in ipairs(p.cells) do slots[#slots + 1] = GRID[c] end
+
+        if not arrange(p.name, slots, steps, keep) then
+            returnAll()
+            log("  couldn't lay out " .. short(recipe.result) .. " in my grid; I'll try again later")
+            return nil, 0, "stuck"
         end
-        arrange(p.name, slots, steps)
     end
 
     for _, p in ipairs(picks) do dropExtra(p.name, keep) end
@@ -1031,6 +1092,23 @@ local function sweep(inv)
     end
 
     return moved, stuck
+end
+
+-- True when every recipe for `name` that the chest could supply
+-- right now has been written off as not working
+local function writtenOff(name, chest)
+    local any = false
+
+    for i, r in ipairs(recipesFor(name)) do
+        local picks = plan(r, chest)
+
+        if picks then
+            if not bad[badKey(r, i, picks)] then return false end
+            any = true
+        end
+    end
+
+    return any
 end
 
 -- Words for what's missing to make `name`: the first recipe's
@@ -1259,8 +1337,14 @@ local function round()
         elseif step(inv, w, BATCH, {}, 0, w) then
             return true
         else
-            local why = missing(w, readChest(inv), {}, 0)
-            logOnce("why:" .. w, short(w) .. ": waiting for " .. (why ~= "" and why or "the chest to change"))
+            local chest = readChest(inv)
+            local why = missing(w, chest, {}, 0)
+
+            if why == "" and writtenOff(w, chest) then
+                logOnce("why:" .. w, short(w) .. ": its recipe with these ingredients failed before; `crafter forget` to retry it")
+            else
+                logOnce("why:" .. w, short(w) .. ": waiting for " .. (why ~= "" and why or "the chest to change"))
+            end
         end
     end
 
@@ -1270,6 +1354,11 @@ end
 local function run()
     log("Crafter up. Input: " .. describe("front") .. " | output: " .. describe(OUTPUT_SIDE) ..
         " | monitor: " .. (mon and "yes" or "no"))
+
+    if describe("front"):find("sophisticatedstorage", 1, true) then
+        log("Tip: a plain chest or barrel in front of me is much faster. Sophisticated Storage " ..
+            "can't bring a stack forward, so I park every stack in front of what I want.")
+    end
 
     while not stopRequested do
         if not round() then rest(IDLE_SECONDS) end
