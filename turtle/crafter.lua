@@ -65,7 +65,8 @@
 --
 -- Recipes: there's no recipe lookup in CC:Tweaked, so the turtle
 -- has its own small book (RECIPES / FAMILIES below): lanterns,
--- torches, sticks, chests, barrels, and name-based families --
+-- torches, sticks, chests, barrels, levers, Sophisticated Storage
+-- chests and barrels, and name-based families --
 -- X_stairs / X_slab / X_wall from X, X_planks from X logs,
 -- X_nugget from X_ingot, X_ingot from X_block, X_block from nine
 -- X_ingot, and nine X from X_block (coal from coal blocks). A
@@ -321,8 +322,9 @@ local PLANKS = {
     end,
 }
 
-local WOODS = toSet({ "oak", "spruce", "birch", "jungle", "acacia", "dark_oak",
-                      "mangrove", "cherry", "bamboo", "crimson", "warped" })
+local WOOD_LIST = { "oak", "spruce", "birch", "jungle", "acacia", "dark_oak",
+                    "mangrove", "cherry", "bamboo", "crimson", "warped" }
+local WOODS = toSet(WOOD_LIST)
 
 local WOOD_SLAB = {
     desc = "wood slab",
@@ -421,7 +423,28 @@ local RECIPES = {
     ["minecraft:bucket"] = {
         shaped("minecraft:bucket", 1, { "I.I", ".I." }, { I = IRON_INGOT }),
     },
+    ["minecraft:lever"] = {
+        shaped("minecraft:lever", 1, { "S", "C" }, { S = STICK, C = exact("minecraft:cobblestone") }),
+    },
 }
+
+-- Sophisticated Storage chests and barrels: eight planks (planks and
+-- slabs for the barrel) of ONE wood around a lever; the wood decides
+-- the chest's look. One recipe per wood, so whichever planks the
+-- chest holds get used.
+RECIPES["sophisticatedstorage:chest"] = {}
+RECIPES["sophisticatedstorage:barrel"] = {}
+
+for _, w in ipairs(WOOD_LIST) do
+    local P = exact("minecraft:" .. w .. "_planks")
+    local S = exact("minecraft:" .. w .. "_slab")
+    local L = exact("minecraft:lever")
+
+    table.insert(RECIPES["sophisticatedstorage:chest"],
+        shaped("sophisticatedstorage:chest", 1, { "PPP", "PLP", "PPP" }, { P = P, L = L }))
+    table.insert(RECIPES["sophisticatedstorage:barrel"],
+        shaped("sophisticatedstorage:barrel", 1, { "PSP", "PLP", "PSP" }, { P = P, S = S, L = L }))
+end
 
 -- Name-based families: <base>_stairs from <base>, and so on. The
 -- base block's name is guessed from the target's: granite_stairs
@@ -434,9 +457,23 @@ local FAMILIES = {
     { suffix = "_wall", count = 6, rows = { "XXX", "XXX" } },
 }
 
--- Storage blocks whose name isn't just the item's name plus _block
+-- Items that come packed nine to a block and unpack again. Ingots
+-- are covered by the X_ingot <- X_block family; these are the rest.
+-- Not a blanket rule: quartz, amethyst, snow and the like don't
+-- unpack, and guessing a block for every item sent the search
+-- chasing blocks that don't exist.
 local UNPACK = {
+    ["minecraft:coal"] = "minecraft:coal_block",
+    ["minecraft:redstone"] = "minecraft:redstone_block",
+    ["minecraft:diamond"] = "minecraft:diamond_block",
+    ["minecraft:emerald"] = "minecraft:emerald_block",
     ["minecraft:lapis_lazuli"] = "minecraft:lapis_block",
+    ["minecraft:raw_iron"] = "minecraft:raw_iron_block",
+    ["minecraft:raw_copper"] = "minecraft:raw_copper_block",
+    ["minecraft:raw_gold"] = "minecraft:raw_gold_block",
+    ["minecraft:slime_ball"] = "minecraft:slime_block",
+    ["minecraft:dried_kelp"] = "minecraft:dried_kelp_block",
+    ["minecraft:nether_wart"] = "minecraft:nether_wart_block",
     ["minecraft:wheat"] = "minecraft:hay_block",
     ["minecraft:melon_slice"] = "minecraft:melon",
     ["minecraft:bone_meal"] = "minecraft:bone_block",
@@ -502,12 +539,8 @@ local function recipesFor(name)
             if stuff then
                 local units = anyOf((stuff:gsub("_", " ")) .. " ingots", { ns .. ":" .. stuff .. "_ingot", ns .. ":" .. stuff })
                 out[#out + 1] = shaped(name, 1, { "XXX", "XXX", "XXX" }, { X = units })
-            else
-                -- Anything might come packed nine to a block: coal from
-                -- coal blocks, redstone from redstone blocks, diamonds
-                -- from diamond blocks. Tried last, after the real recipes.
-                local packed = UNPACK[name] or (name .. "_block")
-                out[#out + 1] = shaped(name, 9, { "X" }, { X = exact(packed) })
+            elseif UNPACK[name] then
+                out[#out + 1] = shaped(name, 9, { "X" }, { X = exact(UNPACK[name]) })
             end
         end
     end
@@ -1082,7 +1115,9 @@ local function sweep(inv)
     for slot, it in pairs(inv.list()) do
         local idx = wishIndex[it.name]
 
-        if idx and not it.nbt and not higherThatNeeds(it.name, idx) then
+        -- Items with data (a Sophisticated Storage chest) move too:
+        -- pushItems goes by slot, so data is no obstacle here
+        if idx and not higherThatNeeds(it.name, idx) then
             local ok, n = pcall(inv.pushItems, OUTPUT_SIDE, slot)
             n = (ok and type(n) == "number") and n or 0
 
@@ -1092,6 +1127,38 @@ local function sweep(inv)
     end
 
     return moved, stuck
+end
+
+-- The recipes for one item, most nearly satisfiable first: the ones
+-- whose ingredients the chest has most of. With one recipe per wood
+-- for a Sophisticated Storage chest, that's the wood you actually
+-- have. Each entry keeps the recipe's index, which the bad-recipe
+-- memory is keyed on.
+local function rankRecipes(recipes, chest)
+    local ranked = {}
+
+    for i, r in ipairs(recipes) do
+        local score = 0
+
+        for _, g in ipairs(layout(r)) do
+            local _, have = bestIn(g.spec, chest)
+
+            if have >= #g.cells then
+                score = score + 2
+            elseif have > 0 then
+                score = score + 1
+            end
+        end
+
+        ranked[#ranked + 1] = { index = i, recipe = r, score = score }
+    end
+
+    table.sort(ranked, function(a, b)
+        if a.score ~= b.score then return a.score > b.score end
+        return a.index < b.index
+    end)
+
+    return ranked
 end
 
 -- True when every recipe for `name` that the chest could supply
@@ -1121,7 +1188,7 @@ local function missing(name, chest, seen, depth)
 
     local parts = {}
 
-    for _, g in ipairs(layout(recipes[1])) do
+    for _, g in ipairs(layout(rankRecipes(recipes, chest)[1].recipe)) do
         local _, have = bestIn(g.spec, chest)
 
         if have < #g.cells then
@@ -1154,10 +1221,11 @@ local function step(inv, name, need, path, depth, wish)
     if depth > 8 or stopRequested then return false end
 
     local chest = readChest(inv)
-    local recipes = recipesFor(name)
+    local ranked = rankRecipes(recipesFor(name), chest)
 
     -- Craftable right now?
-    for i, r in ipairs(recipes) do
+    for _, e in ipairs(ranked) do
+        local i, r = e.index, e.recipe
         local picks, steps = plan(r, chest)
 
         if picks and steps >= 1 and not bad[badKey(r, i, picks)] then
@@ -1199,7 +1267,8 @@ local function step(inv, name, need, path, depth, wish)
     -- Make a missing ingredient
     path[name] = true
 
-    for _, r in ipairs(recipes) do
+    for _, e in ipairs(ranked) do
+        local r = e.recipe
         local wantSteps = math.min(math.ceil(need / r.count), MAX_STEPS)
 
         for _, g in ipairs(layout(r)) do
@@ -1390,7 +1459,9 @@ local args = { ... }
 
 if args[1] == "recipes" then
     local names = {}
-    for name in pairs(RECIPES) do names[#names + 1] = short(name) end
+    for name in pairs(RECIPES) do
+        names[#names + 1] = (name:gsub("^minecraft:", ""):gsub("_", " "))
+    end
     table.sort(names)
 
     print("Recipes: " .. table.concat(names, ", "))

@@ -190,21 +190,23 @@ input chest, and finished items turn up in the output chest.
 - **Wish list.** Every kind of item in the drawer is a wish, in slot order: the
   first slot is worked on first, the second only when the first can't progress.
   Keep at least one of each item in the drawer, since a locked-but-empty drawer
-  slot reads as empty. Wish for plain items: a Sophisticated Storage chest, say,
-  is not a `minecraft:chest`, and it carries data the turtle can't craft, so it
-  gets "I don't know a recipe for that". If the block on top can't be read as
-  an inventory, the output chest doubles as the wish list: drop one of what
-  you want in it.
+  slot reads as empty. A wish is matched by item name only, so a Sophisticated
+  Storage chest of any wood counts as "Sophisticated Storage chest" and gets
+  made from whichever planks the input chest holds. If the block on top can't
+  be read as an inventory, the output chest doubles as the wish list: drop one
+  of what you want in it.
 - **Recipes.** CC:Tweaked has no recipe lookup, so the turtle carries its own
   small book: lantern, soul lantern, torch, soul torch, stick, crafting table,
-  chest, barrel, furnace, ladder, iron bars, chain, glass pane, bucket, plus
-  name-based families: `X_stairs` / `X_slab` / `X_wall` from `X` (granite
-  stairs from granite, oak stairs from oak planks, stone brick stairs from
-  stone bricks), `X_planks` from any `X` log, wood or stem, `X_nugget` from
-  `X_ingot`, `X_ingot` from `X_block` (or nine nuggets), `X_block` from nine
-  `X_ingot`, and nine `X` from `X_block` (coal from coal blocks, redstone,
-  diamonds; lapis, wheat, melon and bone meal are special-cased). `crafter
-  recipes` prints the list. Adding one is a line in `RECIPES`.
+  chest, barrel, furnace, ladder, iron bars, chain, glass pane, bucket, lever,
+  and Sophisticated Storage chest and barrel (one wood's planks around a
+  lever), plus name-based families: `X_stairs` / `X_slab` / `X_wall` from `X`
+  (granite stairs from granite, oak stairs from oak planks, stone brick stairs
+  from stone bricks), `X_planks` from any `X` log, wood or stem, `X_nugget`
+  from `X_ingot`, `X_ingot` from `X_block` (or nine nuggets), `X_block` from
+  nine `X_ingot`, and unpacking the vanilla nine-to-a-block items (coal,
+  redstone, diamond, emerald, lapis, raw ores, slime, kelp, nether wart,
+  wheat, melon, bone meal). `crafter recipes` prints the list. Adding one is
+  a line in `RECIPES`.
 - **Working backwards.** For each wish it looks for the ingredients in the
   input chest; whatever is missing it tries to make first, recursively, down
   to what the chest actually holds. It aims for `BATCH` (16) of a wish per
