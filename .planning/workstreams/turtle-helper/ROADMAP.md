@@ -52,7 +52,26 @@ Plans:
   4. Dropping the harness's connection on demand — including while a command is in flight — produces a clean bridge-side error with no hang past the command timeout and no leaked pending future, and reconnecting the harness re-completes the hello handshake without restarting the bridge.
   5. Two security proofs run from the harness alone: connecting with a deliberately wrong token gets a close code plus a bridge log line and never appears in the device registry; a scripted `$robot` chat event from a player not in `ALLOWED_PLAYERS` produces a bridge log line noting it was ignored, no chat reply, and no model call.
 
-**Plans**: TBD
+**Scope widening (D-05/D-06/D-07/D-08, author's decision during phase discussion):** The phase also
+carries the Phase-1-deferred Pydantic AI agent rewrite: `bridge/agent.py` moves onto typed
+`pydantic-ai-slim[anthropic]` tools with per-run, cap-filtered toolsets, replacing the hand-rolled
+JSON tool-schema loop. Composition moves to Python at the same time — `turtle/client.lua` shrinks to
+one-to-one CC:Tweaked primitives, `sort_chest` becomes a Python function composed over `send_cmd`, and
+sorting rules persist in a git-ignored `rules.json` beside `.env` on the bridge instead of on the
+device. This amends the "high-level tools live in Lua" principle in `PROJECT.md` (see its Key
+Decisions table).
+
+**Plans**: 7 plans
+
+Plans:
+
+- [ ] 02-01-PLAN.md — Lua primitive rewrite: strip composition, add push_one_slot (D-07) (Wave 1)
+- [ ] 02-02-PLAN.md — Bridge resilience: send_cmd/pending cleanup, reconnect replacement, malformed frames, CR-01 (Wave 1)
+- [ ] 02-03-PLAN.md — Fake device harness core + six scenarios (Wave 2)
+- [ ] 02-04-PLAN.md — Paid devices-question run, pre-swap (1st of 2 paid calls) (Wave 3)
+- [ ] 02-05-PLAN.md — Agent core: typed pydantic-ai tools, per-run toolset, Agent construction (Wave 4)
+- [ ] 02-06-PLAN.md — Agent composition: sort_chest, rules.json, cleanup (Wave 5)
+- [ ] 02-07-PLAN.md — Harness docs, CLAUDE.md amendments, paid devices-question run post-swap (2nd of 2 paid calls) (Wave 6)
 
 ### Phase 3: Local Server Setup
 
@@ -105,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
-| 2. Fake Device Harness & Protocol Resilience | 0/TBD | Not started | - |
+| 2. Fake Device Harness & Protocol Resilience | 0/7 | Not started | - |
 | 3. Local Server Setup | 0/TBD | Not started | - |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |

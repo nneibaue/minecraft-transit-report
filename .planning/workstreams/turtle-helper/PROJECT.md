@@ -73,7 +73,11 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 - **Resilience**: devices reconnect on their own after a bridge restart, and one bad request must never take the bridge down (the starter already catches per-request exceptions; keep it that way)
 - **Chat etiquette**: one `say()` per task; Chat Box has a ~1 s send cooldown that the queue in `chat.lua` must respect
 - **Dependencies**: uv-managed project (`pyproject.toml` + committed `uv.lock`) with `websockets`, `anthropic`, and `pydantic-settings` as direct dependencies (`pydantic` itself arrives transitively via `anthropic`); `pydantic-ai` is added in Phase 2. Still no web framework, no database. The Python side is the three-module `bridge/settings.py` / `bridge/agent.py` / `bridge/bridge.py` split decided in Phase 1 (D-13), not the original one-file starter
-- **Abstraction**: small project — no plugin systems, no premature device abstraction; adding a chore stays "one Lua function plus one schema entry"
+- **Abstraction**: small project — no plugin systems, no premature device abstraction; adding a chore
+  is now (Phase 2 D-06/D-07 amendment) "one typed Python tool function, plus a `tools.xxx` Lua entry
+  only if it needs a new device-side primitive" — composition (loops, policy) stays in Python, never
+  in Lua; the pre-Phase-2 wording ("one Lua function plus one schema entry") described the hand-rolled
+  JSON-schema loop that Phase 2 replaces
 
 ## Key Decisions
 
@@ -89,6 +93,8 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 | v1.0 terminal testing is the fake device harness only; fake brain and pytest suite deferred to v1.1 | Author's scoping choice. The bridge only calls the model on a `$robot` event, so handshake, registry and reconnect checks with the harness already cost nothing; only the devices-question path spends one model call | — Pending |
 | Relax the Python dependency footprint; drop `requirements.txt` for a uv-managed `pyproject.toml`/`uv.lock` | Amends BRIDGE-01 (D-09): the lockfile replaces `requirements.txt` for reproducible installs. `pydantic-settings` (Phase 1) and `pydantic-ai` (Phase 2) are worth the added dependency for typed config and the Phase 2 agent-loop rewrite | ✓ Good — 2026-09-20 |
 | Config is fail-fast and typed: missing vars or an empty `ALLOWED_PLAYERS` are validation errors (exit 1), never silent defaults | Closes the "empty allow-list means everyone" hole; pydantic-settings 2.15 needed `NoDecode` + `min_length=1` for comma-separated lists. Phase 1 code review flagged that `BRIDGE_TOKEN` still lacks the same `min_length=1` guard (REVIEW.md CR-01) | ✓ Good — 2026-09-20; token guard open |
+| Composition moves from Lua to Python; `client.lua` shrinks to one-to-one CC:Tweaked primitives (Phase 2 D-07) | Lua is harder to maintain and test than Python (only runs in-game); the real driver is testability — Python composition runs against the harness, Lua never did. Amends the "high-level tools live in Lua" principle from the starter. Author reaffirmed after the workflow raised the scope caution | — Pending — 2026-09-22 |
+| Sorting rules persist on the bridge as a git-ignored `rules.json` beside `.env`, not on the device (Phase 2 D-08) | One global rule set is enough for one worker; the device now stores only `secret.txt` and its Lua, keeping devices dumber and the bridge the single source of truth for rule state | — Pending — 2026-09-22 |
 
 ## Evolution
 
