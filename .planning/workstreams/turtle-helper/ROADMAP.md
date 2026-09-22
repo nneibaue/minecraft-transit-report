@@ -64,13 +64,29 @@ Decisions table).
 **Plans**: 7 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 02-01-PLAN.md — Lua primitive rewrite: strip composition, add push_one_slot (D-07) (Wave 1)
 - [ ] 02-02-PLAN.md — Bridge resilience: send_cmd/pending cleanup, reconnect replacement, malformed frames, CR-01 (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-03-PLAN.md — Fake device harness core + six scenarios (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-04-PLAN.md — Paid devices-question run, pre-swap (1st of 2 paid calls) (Wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 02-05-PLAN.md — Agent core: typed pydantic-ai tools, per-run toolset, Agent construction (Wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 02-06-PLAN.md — Agent composition: sort_chest, rules.json, cleanup (Wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 02-07-PLAN.md — Harness docs, CLAUDE.md amendments, paid devices-question run post-swap (2nd of 2 paid calls) (Wave 6)
 
 ### Phase 3: Local Server Setup
