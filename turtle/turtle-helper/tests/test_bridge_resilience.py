@@ -110,11 +110,16 @@ def capture_logs() -> Iterator[list[logging.LogRecord]]:
     records: list[logging.LogRecord] = []
     handler = logging.Handler()
     handler.emit = records.append  # type: ignore[method-assign]
+    previous = (b.log.level, b.log.propagate)
+    b.log.setLevel(logging.DEBUG)
+    b.log.propagate = False  # keep bridge log lines off the TAP stream
     b.log.addHandler(handler)
     try:
         yield records
     finally:
         b.log.removeHandler(handler)
+        b.log.setLevel(previous[0])
+        b.log.propagate = previous[1]
 
 
 def messages(records: list[logging.LogRecord], level: int) -> list[str]:
@@ -182,8 +187,9 @@ async def test_same_id_reconnect_replaces_stale_socket() -> None:
             await asyncio.wait_for(old_task, 1)
             # The stale handler's cleanup must not deregister its replacement (WR-01).
             assert b.devices.get("dev-1", {}).get("ws") is new, b.devices
-            infos = [m for m in messages(records, logging.INFO) if "dev-1" in m and "replac" in m]
-            assert len(infos) == 1, messages(records, logging.INFO)
+            infos = messages(records, logging.INFO)
+            replaced = [m for m in infos if "dev-1" in m and "replacing stale" in m]
+            assert len(replaced) == 1, infos
         finally:
             old.release()
             new.release()

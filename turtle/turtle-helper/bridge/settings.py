@@ -48,7 +48,8 @@ class Settings(BaseSettings):
         default=20, description="WebSocket ping timeout in seconds (0 disables)."
     )
     bridge_token: str = Field(
-        description="Shared secret devices must present in their hello handshake."
+        min_length=1,
+        description="Shared secret devices present in their hello handshake; required, non-empty.",
     )
     allowed_players: CommaSeparatedPlayers = Field(
         min_length=1,

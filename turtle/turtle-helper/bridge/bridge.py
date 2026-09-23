@@ -88,23 +88,46 @@ def default_worker() -> str | None:
 # ----------------------------------------------------------------- websocket handling
 async def handler(websocket: ServerConnection) -> None:
     """Handle one device connection: hello handshake, then the event/result loop."""
+    # Rejection log lines name the reason, the remote address and (once known) the device id the
+    # hello claimed. The submitted token value is never interpolated into any log line (D-16).
+    remote = websocket.remote_address
     try:
         raw = await asyncio.wait_for(websocket.recv(), 10)
         hello = json.loads(raw)
-    except Exception:
+    except Exception as exc:
+        log.warning("rejected %s: no valid hello within 10s (%s)", remote, type(exc).__name__)
         await websocket.close(4000, "expected hello")
         return
-    if hello.get("type") != "hello" or hello.get("token") != settings.bridge_token:
-        log.warning("rejected connection from %s", websocket.remote_address)
+    if not isinstance(hello, dict) or hello.get("type") != "hello":
+        got = hello.get("type") if isinstance(hello, dict) else type(hello).__name__
+        log.warning("rejected %s: expected hello, got type=%r", remote, got)
+        await websocket.close(4000, "expected hello")
+        return
+    if not hello.get("id"):
+        log.warning("rejected %s: hello missing id", remote)
+        await websocket.close(4000, "hello missing id")
+        return
+    dev_id = str(hello["id"])
+    if hello.get("token") != settings.bridge_token:
+        log.warning("rejected device %s from %s: bad token", dev_id, remote)
         await websocket.close(4001, "bad token")
         return
 
-    dev_id = hello["id"]
+    # D-11: a hello whose id is already registered replaces the stale entry. Register the new
+    # socket first so the old handler's cleanup below sees it has been replaced, then close the
+    # old socket best-effort (it may already be dead).
+    stale = devices.get(dev_id)
     devices[dev_id] = {
         "ws": websocket,
         "role": hello.get("role", "computer"),
         "caps": hello.get("caps", []),
     }
+    if stale is not None and stale["ws"] is not websocket:
+        log.info("device %s reconnected from %s: replacing stale connection", dev_id, remote)
+        try:
+            await cast("ServerConnection", stale["ws"]).close(4000, "replaced")
+        except Exception:
+            pass
     log.info(
         "device connected: %s (%s) caps=%s",
         dev_id,
@@ -125,8 +148,13 @@ async def handler(websocket: ServerConnection) -> None:
     except ConnectionClosed:
         pass
     finally:
-        devices.pop(dev_id, None)
-        log.info("device disconnected: %s", dev_id)
+        # Only deregister if this socket is still the registered one; a connection that was
+        # replaced by a same-id reconnect must never remove its replacement (D-11, WR-01).
+        if devices.get(dev_id, {}).get("ws") is websocket:
+            devices.pop(dev_id, None)
+            log.info("device disconnected: %s", dev_id)
+        else:
+            log.info("stale connection for %s closed; replacement stays registered", dev_id)
 
 
 async def on_event(dev_id: str, ev: dict[str, object]) -> None:
