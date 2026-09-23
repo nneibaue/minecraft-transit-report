@@ -46,6 +46,7 @@ client: anthropic.AsyncAnthropic
 # ----------------------------------------------------------------- device registry
 devices: dict[str, dict[str, object]] = {}  # id -> {"ws", "role", "caps"}
 pending: dict[str, asyncio.Future[dict[str, object]]] = {}  # cid -> future resolved by result
+pending_by_device: dict[str, set[str]] = {}  # device id -> cids in flight to it (D-10 cleanup)
 
 
 async def send_cmd(
@@ -58,14 +59,26 @@ async def send_cmd(
     cid = uuid.uuid4().hex[:8]
     fut: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
     pending[cid] = fut
+    pending_by_device.setdefault(device_id, set()).add(cid)
     websocket = cast("ServerConnection", dev["ws"])
-    await websocket.send(json.dumps({"type": "cmd", "cid": cid, "tool": tool, "args": args or {}}))
     try:
+        await websocket.send(
+            json.dumps({"type": "cmd", "cid": cid, "tool": tool, "args": args or {}})
+        )
         return await asyncio.wait_for(fut, settings.cmd_timeout)
+    except ConnectionClosed:
+        # The socket died while sending; a drop during the wait is resolved by handler()'s
+        # cleanup instead, which fails this device's futures the moment it disconnects (D-10).
+        return {"ok": False, "error": f"{device_id} disconnected during command"}
     except TimeoutError:
         return {"ok": False, "error": f"{device_id} did not answer within {settings.cmd_timeout}s"}
     finally:
         pending.pop(cid, None)
+        cids = pending_by_device.get(device_id)
+        if cids is not None:
+            cids.discard(cid)
+            if not cids:
+                pending_by_device.pop(device_id, None)
 
 
 async def say(text: str, to: str | None = None) -> None:
