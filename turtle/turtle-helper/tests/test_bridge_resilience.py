@@ -205,6 +205,56 @@ def test_empty_bridge_token_rejected_by_settings() -> None:
         raise AssertionError("Settings(bridge_token='') validated instead of raising")
 
 
+# ----------------------------------------------------------------- Task 2: send_cmd bookkeeping
+def register(dev_id: str, ws: FakeWs) -> None:
+    b.devices[dev_id] = {"ws": ws, "role": "computer", "caps": []}
+
+
+async def test_send_cmd_returns_error_when_send_raises_connection_closed() -> None:
+    reset()
+    ws = FakeWs()
+    ws.closed = (1006, "")  # a dead socket: send() raises ConnectionClosed
+    register("dev-1", ws)
+    result = await asyncio.wait_for(b.send_cmd("dev-1", "status", {}), 1)
+    assert result.get("ok") is False, result
+    assert "disconnected during command" in str(result.get("error")), result
+    assert not b.pending, b.pending
+    assert not b.pending_by_device.get("dev-1"), b.pending_by_device
+
+
+async def test_send_cmd_tracks_pending_cid_per_device_until_resolved() -> None:
+    reset()
+    ws = FakeWs()
+    register("dev-1", ws)
+    seen: dict[str, object] = {}
+
+    async def device_answers() -> None:
+        await until(lambda: bool(ws.sent), "cmd sent")
+        cid = json.loads(ws.sent[0])["cid"]
+        seen["indexed"] = cid in b.pending_by_device.get("dev-1", set())
+        b.pending[cid].set_result({"type": "result", "cid": cid, "ok": True, "data": 7})
+
+    answer = asyncio.create_task(device_answers())
+    try:
+        result = await asyncio.wait_for(b.send_cmd("dev-1", "status", {}), 1)
+    finally:
+        await asyncio.gather(answer, return_exceptions=True)
+    assert result.get("ok") is True and result.get("data") == 7, result
+    assert seen.get("indexed") is True, "in-flight cid was not indexed under dev-1"
+    assert not b.pending, b.pending
+    assert not b.pending_by_device.get("dev-1"), b.pending_by_device
+
+
+async def test_send_cmd_timeout_clears_pending_and_device_index() -> None:
+    reset()
+    b.settings = make_settings(cmd_timeout=0)
+    register("dev-1", FakeWs())
+    result = await asyncio.wait_for(b.send_cmd("dev-1", "status", {}), 1)
+    assert result.get("ok") is False and "did not answer" in str(result.get("error")), result
+    assert not b.pending, b.pending
+    assert not b.pending_by_device.get("dev-1"), b.pending_by_device
+
+
 # ----------------------------------------------------------------- runner (TAP output)
 TESTS: list[Callable[[], Any]] = [
     test_non_hello_type_closes_4000_expected_hello,
@@ -212,6 +262,9 @@ TESTS: list[Callable[[], Any]] = [
     test_bad_token_closes_4001_and_never_logs_token,
     test_same_id_reconnect_replaces_stale_socket,
     test_empty_bridge_token_rejected_by_settings,
+    test_send_cmd_returns_error_when_send_raises_connection_closed,
+    test_send_cmd_tracks_pending_cid_per_device_until_resolved,
+    test_send_cmd_timeout_clears_pending_and_device_index,
 ]
 
 
