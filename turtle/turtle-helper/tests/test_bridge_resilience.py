@@ -255,6 +255,80 @@ async def test_send_cmd_timeout_clears_pending_and_device_index() -> None:
     assert not b.pending_by_device.get("dev-1"), b.pending_by_device
 
 
+# ----------------------------------------------------------------- Task 3: loop + disconnect
+async def test_malformed_frames_are_logged_and_loop_continues() -> None:
+    reset()
+    fut: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
+    b.pending["abc"] = fut
+    b.pending_by_device["dev-1"] = {"abc"}
+    garbage = "{" * 500
+    frames = [
+        garbage,  # invalid JSON
+        json.dumps("just a string"),  # valid JSON that is not an object
+        json.dumps({"type": "result", "cid": "nope", "ok": True}),  # unknown cid
+        json.dumps({"type": "bogus"}),  # unknown type
+        json.dumps({"type": "result", "cid": "abc", "ok": True, "data": 1}),  # still alive
+    ]
+    ws = FakeWs(hello(id="dev-1"), frames=frames)
+    with capture_logs() as records:
+        task = asyncio.create_task(b.handler(ws))  # type: ignore[arg-type]
+        try:
+            await asyncio.wait_for(fut, 1)  # only reachable if the loop survived the garbage
+        finally:
+            ws.release()
+            await asyncio.wait_for(task, 1)  # handler returns normally, no exception
+    assert fut.result().get("data") == 1, fut.result()
+    warnings = messages(records, logging.WARNING)
+    assert len(warnings) == 4, warnings
+    assert all("dev-1" in w for w in warnings), warnings
+    assert garbage not in warnings[0] and len(warnings[0]) < 300, len(warnings[0])
+    assert "nope" in warnings[2] and "bogus" in warnings[3], warnings
+
+
+async def test_disconnect_resolves_only_that_devices_pending_futures() -> None:
+    reset()
+    loop = asyncio.get_running_loop()
+    mine: asyncio.Future[dict[str, object]] = loop.create_future()
+    other: asyncio.Future[dict[str, object]] = loop.create_future()
+    b.pending["c1"] = mine
+    b.pending["c2"] = other
+    b.pending_by_device["dev-1"] = {"c1"}
+    b.pending_by_device["dev-2"] = {"c2"}
+    register("dev-2", FakeWs())
+    ws = FakeWs(hello(id="dev-1"))
+    task = asyncio.create_task(b.handler(ws))  # type: ignore[arg-type]
+    await until(lambda: b.devices.get("dev-1", {}).get("ws") is ws, "dev-1 registered")
+    ws.release()  # the peer goes away
+    await asyncio.wait_for(task, 1)
+    assert mine.done() and mine.result() == {"ok": False, "error": "dev-1 disconnected"}, mine
+    assert "c1" not in b.pending and "dev-1" not in b.pending_by_device, b.pending
+    assert not other.done() and b.pending.get("c2") is other, b.pending
+    assert b.pending_by_device.get("dev-2") == {"c2"}, b.pending_by_device
+    assert "dev-2" in b.devices and "dev-1" not in b.devices, b.devices
+
+
+async def test_replaced_connection_fails_its_in_flight_commands() -> None:
+    reset()
+    old = FakeWs(hello(id="dev-1"))
+    new = FakeWs(hello(id="dev-1"))
+    old_task = asyncio.create_task(b.handler(old))  # type: ignore[arg-type]
+    await until(lambda: b.devices.get("dev-1", {}).get("ws") is old, "old registered")
+    fut: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
+    b.pending["c1"] = fut
+    b.pending_by_device["dev-1"] = {"c1"}
+    new_task = asyncio.create_task(b.handler(new))  # type: ignore[arg-type]
+    try:
+        await asyncio.wait_for(fut, 1)
+        assert fut.result() == {"ok": False, "error": "dev-1 disconnected"}, fut.result()
+        assert "c1" not in b.pending and "dev-1" not in b.pending_by_device, b.pending
+        await asyncio.wait_for(old_task, 1)
+        assert b.devices.get("dev-1", {}).get("ws") is new, b.devices
+    finally:
+        old.release()
+        new.release()
+        await asyncio.gather(old_task, new_task, return_exceptions=True)
+
+
 # ----------------------------------------------------------------- runner (TAP output)
 TESTS: list[Callable[[], Any]] = [
     test_non_hello_type_closes_4000_expected_hello,
@@ -265,6 +339,9 @@ TESTS: list[Callable[[], Any]] = [
     test_send_cmd_returns_error_when_send_raises_connection_closed,
     test_send_cmd_tracks_pending_cid_per_device_until_resolved,
     test_send_cmd_timeout_clears_pending_and_device_index,
+    test_malformed_frames_are_logged_and_loop_continues,
+    test_disconnect_resolves_only_that_devices_pending_futures,
+    test_replaced_connection_fails_its_in_flight_commands,
 ]
 
 

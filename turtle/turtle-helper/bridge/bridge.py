@@ -81,6 +81,17 @@ async def send_cmd(
                 pending_by_device.pop(device_id, None)
 
 
+def fail_pending(device_id: str, error: str) -> None:
+    """Resolve every command still in flight to one device with an error (D-10).
+
+    Only that device's cids are touched; other devices' pending futures are left alone.
+    """
+    for cid in pending_by_device.pop(device_id, set()):
+        fut = pending.pop(cid, None)
+        if fut is not None and not fut.done():
+            fut.set_result({"ok": False, "error": error})
+
+
 async def say(text: str, to: str | None = None) -> None:
     """Speak in game chat via the connected chat device, if any."""
     base = next((d for d, v in devices.items() if v["role"] == "chat"), None)
@@ -137,6 +148,7 @@ async def handler(websocket: ServerConnection) -> None:
     }
     if stale is not None and stale["ws"] is not websocket:
         log.info("device %s reconnected from %s: replacing stale connection", dev_id, remote)
+        fail_pending(dev_id, f"{dev_id} disconnected")  # commands sent to the old socket
         try:
             await cast("ServerConnection", stale["ws"]).close(4000, "replaced")
         except Exception:
@@ -150,21 +162,41 @@ async def handler(websocket: ServerConnection) -> None:
 
     try:
         async for raw in websocket:
-            msg = json.loads(raw)
-            t = msg.get("type")
-            if t == "result":
-                fut = pending.get(msg.get("cid"))
-                if fut and not fut.done():
-                    fut.set_result(msg)
-            elif t == "event":
-                asyncio.create_task(on_event(dev_id, msg))
+            # D-12: one malformed frame is logged and ignored; the loop only ends when the
+            # socket does, never because of a bad message (WR-02).
+            try:
+                msg = json.loads(raw)
+                if not isinstance(msg, dict):
+                    log.warning("ignoring non-object frame from %s: %s", dev_id, str(raw)[:200])
+                    continue
+                t = msg.get("type")
+                if t == "result":
+                    cid = msg.get("cid")
+                    fut = pending.get(cid) if isinstance(cid, str) else None
+                    if fut is None:
+                        log.warning("ignoring result with unknown cid from %s: %r", dev_id, cid)
+                        continue
+                    if not fut.done():
+                        fut.set_result(msg)
+                elif t == "event":
+                    asyncio.create_task(on_event(dev_id, msg))
+                else:
+                    log.warning("ignoring frame with unknown type from %s: %r", dev_id, t)
+            except json.JSONDecodeError:
+                log.warning("ignoring malformed JSON from %s: %s", dev_id, str(raw)[:200])
+                continue
+            except Exception:
+                log.exception("error handling a frame from %s; connection stays open", dev_id)
+                continue
     except ConnectionClosed:
         pass
     finally:
         # Only deregister if this socket is still the registered one; a connection that was
         # replaced by a same-id reconnect must never remove its replacement (D-11, WR-01).
+        # The replacement path already failed the old socket's in-flight commands.
         if devices.get(dev_id, {}).get("ws") is websocket:
             devices.pop(dev_id, None)
+            fail_pending(dev_id, f"{dev_id} disconnected")  # this device's cids only (D-10)
             log.info("device disconnected: %s", dev_id)
         else:
             log.info("stale connection for %s closed; replacement stays registered", dev_id)
