@@ -15,12 +15,15 @@ dev = [
     "mypy==1.14.0",
 ]
 
+[project.scripts]
+harness = "harness.harness:main"
+
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["bridge"]
+packages = ["bridge", "harness"]
 
 [tool.ruff]
 line-length = 100
