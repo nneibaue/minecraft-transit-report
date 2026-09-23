@@ -262,11 +262,17 @@ class FakeDevice:
 
         Worker role returns the data shape client.lua's tools table produces for each
         primitive and client.lua's own ``unknown tool <name>`` error for anything else; chat
-        role returns chat.lua's ``say`` result and its ``base only supports say`` error.
+        role returns chat.lua's ``say`` result and its ``base only supports say`` error. The
+        bridge-local ``list_devices`` is answered by either role with this device's entry.
         """
         tool = str(cmd_msg.get("tool"))
         raw_args = cmd_msg.get("args")
         args: dict[str, object] = raw_args if isinstance(raw_args, dict) else {}
+        if tool == "list_devices":
+            # Keyed on the tool name, not the role: today's bridge answers list_devices from its
+            # own registry and never sends it, but a later agent loop could forward it to
+            # whichever connection default_worker() picks, so either role answers it.
+            return {self.device_id: {"role": self.wire_role, "caps": list(self.caps)}}
         if self.role == "chat":
             return self._chat_reply(tool)
         return self._worker_reply(tool, args)

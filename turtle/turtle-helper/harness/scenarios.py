@@ -18,12 +18,17 @@ from harness.harness import (
     Scenario,
     ScenarioArgs,
     ScenarioError,
+    SpendRefusedError,
     unknown_tool,
 )
 
 HELLO_WINDOW = 5.0  # seconds without a close after hello = the bridge accepted it
 SHORT_WINDOW = 3.0  # follow-up "still open" windows after a probe
 RECONNECT_WAIT = 2.0  # pause between a local drop and the same-id reconnect
+SILENCE_WINDOW = 5.0  # how long "nothing arrived" must last to count as ignored
+MODEL_WINDOW = 30.0  # generous bound for a real model round trip (devices-question)
+WORKER_HOLD = 60.0  # how long the worker side of devices-question stays registered
+TEST_UUID = "00000000-0000-4000-8000-000000000001"  # fixed uuid for scripted chat events
 
 
 def _cmd(tool: str, **args: object) -> Frame:
@@ -149,8 +154,121 @@ async def drop_and_reconnect(dev: FakeDevice, args: ScenarioArgs) -> None:
         await second.close()
 
 
+async def wrong_token(dev: FakeDevice, args: ScenarioArgs) -> None:
+    """RESIL-04 (and CR-01): a hello carrying the --token override is closed with code 4001.
+
+    Run it twice -- ``--token wrong-value-0001`` and ``--token ""`` (the empty-token case
+    D-13 calls out) -- both must see the same 4001 close, proving the bridge's non-empty,
+    exact-match token check rejects them uniformly. The bridge's own log line for it is
+    ``rejected device harness-chat from <addr>: bad token`` (D-16); the token value appears in
+    neither that line nor this harness's wire log.
+    """
+    _require(
+        args.token != args.settings.bridge_token,
+        'wrong-token needs a --token value that differs from BRIDGE_TOKEN (use --token "" '
+        "for the empty case)",
+    )
+    await dev.connect()
+    code = await dev.expect_close(HELLO_WINDOW)
+    _require(code == 4001, f"bridge closed with {code}, expected 4001 (bad token)")
+    kind = "empty" if args.token == "" else "wrong"
+    print(f"wrong-token: {kind} token rejected with close code 4001", flush=True)
+
+
+async def disallowed_player(dev: FakeDevice, args: ScenarioArgs) -> None:
+    """RESIL-05: a prefixed chat event from a player not in ALLOWED_PLAYERS triggers nothing.
+
+    on_event drops the event on the allow-list before the agent is ever called, so no --spend
+    is needed and no model call can happen. The harness cannot read the bridge's terminal, so
+    it passes by absence: no cmd (and no close) within SILENCE_WINDOW after the event. A full
+    RESIL-05 proof also greps the bridge's own output for ``ignoring <user> (not allowed)``
+    (D-16, unchanged this phase).
+    """
+    _require(dev.role == "chat", "disallowed-player needs --role chat")
+    settings = args.settings
+    user = "harness-nobody"
+    while user in settings.allowed_players:  # never collide with a real allowed name
+        user += "-x"
+    await dev.connect()
+    await dev.expect_no_close(RECONNECT_WAIT)
+    await dev.send_event(
+        "chat",
+        user=user,
+        text=f"{settings.command_prefix} what devices are connected?",
+        uuid=TEST_UUID,
+        hidden=True,
+    )
+    try:
+        frame = await dev.expect(
+            lambda f: f.get("type") in ("cmd", "close"), SILENCE_WINDOW, "cmd or close frame"
+        )
+    except TimeoutError:
+        print(
+            f"disallowed-player: nothing arrived for {SILENCE_WINDOW:g}s after the event from "
+            f"{user!r}; the bridge log should show 'ignoring {user} (not allowed)'",
+            flush=True,
+        )
+        return
+    raise ScenarioError(f"bridge reacted to a disallowed player's event: {frame}")
+
+
+async def devices_question(dev: FakeDevice, args: ScenarioArgs) -> None:
+    """HARN-02: the one paid scenario -- '$robot what devices are connected?' answered in chat.
+
+    Two terminals (D-02), worker first::
+
+        uv run harness --role worker --scenario devices-question
+        uv run harness --role chat --scenario devices-question --spend
+
+    The worker side sends no chat event and needs no --spend: it registers with client.lua's
+    caps and stays for WORKER_HOLD seconds, auto-answering any cmd, so it is listed (and can
+    answer ``status``) while the model runs. The chat side refuses to send anything unless
+    --spend is on the command line (D-15), then emits the scripted event from the first
+    allowed player and passes when a ``say`` cmd arrives within MODEL_WINDOW; a
+    ``list_devices`` cmd is accepted first in case a later agent loop forwards it. The paid
+    runs themselves are Plan 02-04 (pre-swap) and Plan 02-07 (post-swap).
+    """
+    if dev.role == "worker":
+        await dev.connect()
+        await dev.expect_no_close(RECONNECT_WAIT)
+        print(f"devices-question: worker registered; holding for {WORKER_HOLD:g}s", flush=True)
+        await dev.expect_no_close(WORKER_HOLD - RECONNECT_WAIT)
+        return
+    if not args.spend:
+        raise SpendRefusedError(
+            "devices-question sends a prefixed chat event from an allowed player, which costs "
+            "one real model call; re-run with --spend to do that deliberately (nothing was sent)"
+        )
+    settings = args.settings
+    await dev.connect()
+    await dev.expect_no_close(RECONNECT_WAIT)
+    await dev.send_event(
+        "chat",
+        user=settings.allowed_players[0],
+        text=f"{settings.command_prefix} what devices are connected?",
+        uuid=TEST_UUID,
+        hidden=True,
+    )
+
+    def is_tool(frame: Frame, *names: str) -> bool:
+        return frame.get("type") == "cmd" and frame.get("tool") in names
+
+    first = await dev.expect(
+        lambda f: is_tool(f, "list_devices", "say"), MODEL_WINDOW, "list_devices or say cmd"
+    )
+    said = first
+    if not is_tool(first, "say"):
+        said = await dev.expect(lambda f: is_tool(f, "say"), MODEL_WINDOW, "say cmd")
+    say_args = said.get("args")
+    text = say_args.get("text") if isinstance(say_args, dict) else None
+    print(f"devices-question: robot said {text!r}", flush=True)
+
+
 SCENARIOS: dict[str, Scenario] = {
     "hello-handshake": hello_handshake,
     "status-command": status_command,
     "drop-and-reconnect": drop_and_reconnect,
+    "wrong-token": wrong_token,
+    "disallowed-player": disallowed_player,
+    "devices-question": devices_question,
 }
