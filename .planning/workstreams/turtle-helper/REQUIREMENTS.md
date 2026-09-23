@@ -16,10 +16,10 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 
 ### Fake Device Harness (HARN)
 
-- [ ] **HARN-01**: Developer can run a Python harness that connects to the local bridge as either a chat device or a worker device (role chosen on the command line), completes the hello handshake with the shared token, and prints every wire message in both directions
+- [x] **HARN-01**: Developer can run a Python harness that connects to the local bridge as either a chat device or a worker device (role chosen on the command line), completes the hello handshake with the shared token, and prints every wire message in both directions
 - [ ] **HARN-02**: Harness playing the chat device can emit a scripted `$robot what devices are connected?` chat event and then receives the bridge's `say` command and answers it with a `result` (this path makes one real model call)
-- [ ] **HARN-03**: Harness playing a worker device answers incoming commands (at least `status`) with canned results so the bridge's device-forwarding path is exercised without the game
-- [ ] **HARN-04**: Harness can drop its connection on demand (including while a command is in flight) and reconnect, so the failure proofs in RESIL can be driven from a terminal
+- [x] **HARN-03**: Harness playing a worker device answers incoming commands (at least `status`) with canned results so the bridge's device-forwarding path is exercised without the game
+- [x] **HARN-04**: Harness can drop its connection on demand (including while a command is in flight) and reconnect, so the failure proofs in RESIL can be driven from a terminal
 
 ### Local Server Setup (SRV)
 
@@ -40,9 +40,9 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 
 - [ ] **RESIL-01**: Restarting the bridge while both devices are connected leads to both reconnecting on their own within their retry interval, and the next `$robot` request works without touching the devices
 - [ ] **RESIL-02**: Devices started before the bridge keep retrying and connect on their own once the bridge comes up; no device reboot needed
-- [ ] **RESIL-03**: A device that disconnects or reboots while a command is in flight produces a clean error reply to the player, the bridge does not hang past its command timeout, and no pending future is left behind
-- [ ] **RESIL-04**: A device presenting a wrong token is rejected with a close code and a bridge log line, and is not added to the registry
-- [ ] **RESIL-05**: A `$robot` message from a player not in `ALLOWED_PLAYERS` is ignored: logged, not answered, no model call made
+- [x] **RESIL-03**: A device that disconnects or reboots while a command is in flight produces a clean error reply to the player, the bridge does not hang past its command timeout, and no pending future is left behind
+- [x] **RESIL-04**: A device presenting a wrong token is rejected with a close code and a bridge log line, and is not added to the registry
+- [x] **RESIL-05**: A `$robot` message from a player not in `ALLOWED_PLAYERS` is ignored: logged, not answered, no model call made
 
 ### Documentation (DOC)
 
@@ -95,10 +95,10 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | BRIDGE-02 | Phase 1 | Complete |
 | BRIDGE-03 | Phase 1 | Complete |
 | BRIDGE-04 | Phase 1 | Complete |
-| HARN-01 | Phase 2 | Pending |
+| HARN-01 | Phase 2 | Complete |
 | HARN-02 | Phase 2 | Pending |
-| HARN-03 | Phase 2 | Pending |
-| HARN-04 | Phase 2 | Pending |
+| HARN-03 | Phase 2 | Complete |
+| HARN-04 | Phase 2 | Complete |
 | SRV-01 | Phase 3 | Pending |
 | SRV-02 | Phase 3 | Pending |
 | SRV-03 | Phase 3 | Pending |
@@ -110,9 +110,9 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | LOOP-05 | Phase 4 | Pending |
 | RESIL-01 | Phase 5 | Pending |
 | RESIL-02 | Phase 5 | Pending |
-| RESIL-03 | Phase 2 | Pending |
-| RESIL-04 | Phase 2 | Pending |
-| RESIL-05 | Phase 2 | Pending |
+| RESIL-03 | Phase 2 | Complete |
+| RESIL-04 | Phase 2 | Complete |
+| RESIL-05 | Phase 2 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
 
