@@ -24,9 +24,10 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 ### Local Server Setup (SRV)
 
 - [x] **SRV-01**: The dedicated ATM9 server's `world/serverconfig/computercraft-server.toml` carries an `[[http.rules]]` allow rule for host `127.0.0.1` placed before the default private-range deny; the exact file, rule, ordering, restart requirement, and an in-game one-line smoke check are documented
-- [ ] **SRV-02**: Developer can place `chat.lua` and `client.lua` directly into the server's per-computer folders on disk (`<world>/computercraft/computer/<id>/`) with the folder-to-device mapping and the reload step documented; no GitHub push or pastebin involved
+- [ ] **SRV-02**: Developer can place `chat.lua` and `client.lua` directly into the server's per-computer folders on disk (`<world>/computercraft/computer/<id>/`) with `uv run deploy`, with the folder-to-device mapping and the reload step documented; this is the developer's no-push path (the admin-facing install is SRV-05)
 - [ ] **SRV-03**: Each device reads the bridge token from `secret.txt` in its own folder; the token appears nowhere in the Lua, the repo, or the world save other than those per-device files
 - [ ] **SRV-04**: Each device has a `startup.lua` that launches `chat` or `client`, so devices come back on their own after a server restart or device reboot
+- [ ] **SRV-05**: A non-technical server admin can set up a new device with a single in-game command (`wget run` of `install.lua` from GitHub `main`), typing only the bridge token once; after that, pushing Lua changes to `main` and rebooting the device is the whole update path (`startup.lua` re-downloads the Lua on boot and falls back to the local copies when GitHub is unreachable)
 
 ### In-Game Round Trip (LOOP)
 
@@ -103,6 +104,7 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | SRV-02 | Phase 3 | Pending |
 | SRV-03 | Phase 3 | Pending |
 | SRV-04 | Phase 3 | Pending |
+| SRV-05 | Phase 3 | Pending |
 | LOOP-01 | Phase 4 | Pending |
 | LOOP-02 | Phase 4 | Pending |
 | LOOP-03 | Phase 4 | Pending |

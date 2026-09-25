@@ -93,13 +93,14 @@ Plans:
 
 **Goal**: The dedicated ATM9 server accepts local websocket connections from the bridge and hosts each device's Lua, token, and startup script directly on disk, so real devices have somewhere to run in the next phase.
 **Depends on**: Phase 1
-**Requirements**: SRV-01, SRV-02, SRV-03, SRV-04
+**Requirements**: SRV-01, SRV-02, SRV-03, SRV-04, SRV-05
 **Success Criteria** (what must be TRUE):
 
   1. `world/serverconfig/computercraft-server.toml` carries an `[[http.rules]]` entry allowing host `127.0.0.1` placed before the default private-range deny; after a server restart, a documented in-game one-line smoke check (`http.websocket` to the bridge's address) succeeds instead of being blocked.
   2. `chat.lua` and `client.lua` are placed directly into their respective per-computer folders on disk with no GitHub push or pastebin step, and the actual folder path is confirmed against the running server and corrected in the docs if it differs from the researched guess (`<world>/computercraft/computer/<id>/` is MEDIUM confidence going in).
   3. Each device's folder contains its own `secret.txt` holding only the bridge token; a repo-wide search for the token value confirms it appears nowhere else in the Lua, the repo, or version control.
   4. Each device's folder contains a `startup.lua` that launches `chat` or `client` as appropriate, and rebooting the computer in-game (without touching the bridge) brings the script back up on its own.
+  5. A fresh computer set up with only the documented in-game `wget run` line and the typed bridge token connects to the bridge after `reboot`, and a later push to `main` plus `reboot` updates its Lua with no PC-side step (decisions D-14..D-18, added 2026-09-25).
 
 **Plans**: 3/4 plans executed
 
