@@ -35,6 +35,7 @@ from pydantic_ai.messages import (  # noqa: E402
     ToolCallPart,
     ToolReturnPart,
 )
+from pydantic_ai.models.anthropic import AnthropicModel  # noqa: E402
 from pydantic_ai.models.function import AgentInfo, FunctionModel  # noqa: E402
 
 from bridge import agent as a  # noqa: E402
@@ -97,10 +98,12 @@ class Script:
         self.turns = list(turns)
         self.tools_seen: list[list[str]] = []
         self.messages_seen: list[list[ModelMessage]] = []
+        self.instructions_seen: list[str | None] = []
 
     def respond(self, messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
         self.tools_seen.append(sorted(t.name for t in info.function_tools))
         self.messages_seen.append(list(messages))
+        self.instructions_seen.append(info.instructions)
         turn: list[ToolCallPart] | str = self.turns.pop(0) if self.turns else "done"
         if isinstance(turn, str):
             return ModelResponse(parts=[TextPart(content=turn)])
@@ -269,6 +272,142 @@ def test_every_primitive_is_a_typed_tool_with_the_lua_signature() -> None:
     assert move_dir["dir"]["enum"] == ["forward", "back", "up", "down"], move_dir
 
 
+# ----------------------------------------------------------------- Task 2: local tools, toolset
+LOCAL_TOOLS = ["list_devices", "say"]
+
+
+def require_build_toolset() -> Any:
+    build = getattr(a, "build_toolset", None)
+    assert build is not None, "agent.py defines no build_toolset()"
+    return build
+
+
+def require_agent() -> Any:
+    agent = getattr(a, "agent", None)
+    assert agent is not None, "agent.py has no module-level agent after configure()"
+    assert isinstance(agent, Agent), type(agent)
+    return agent
+
+
+def toolset_names(devices: dict[str, dict[str, object]]) -> list[str]:
+    """Tool names build_toolset() registers for a given live device registry."""
+    configure(devices)
+    toolset = require_build_toolset()()
+    assert isinstance(toolset, FunctionToolset), type(toolset)
+    return sorted(toolset.tools)
+
+
+def turtle(caps: list[str] | None = None) -> dict[str, object]:
+    return {"role": "turtle", "caps": list(TURTLE_CAPS if caps is None else caps), "ws": object()}
+
+
+def computer(caps: list[str] | None = None) -> dict[str, object]:
+    return {"role": "computer", "caps": list(COMPUTER_CAPS if caps is None else caps)}
+
+
+def test_toolset_with_no_devices_has_only_local_tools() -> None:
+    assert toolset_names({}) == LOCAL_TOOLS
+
+
+def test_toolset_with_computer_worker_adds_only_its_caps() -> None:
+    names = toolset_names({"chat-1": {"role": "chat", "caps": ["say"]}, "w1": computer()})
+    assert names == sorted(LOCAL_TOOLS + COMPUTER_CAPS), names
+    for movement in ("move", "turn", "dig", "inspect", "refuel"):
+        assert movement not in names, names
+
+
+def test_toolset_with_turtle_adds_all_eight_primitives() -> None:
+    names = toolset_names({"t1": turtle([*TURTLE_CAPS, "run_lua"])})
+    assert names == sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES)), names
+    assert "run_lua" not in names, names  # an advertised cap with no typed tool adds nothing
+
+
+def test_toolset_is_rebuilt_from_the_live_registry_each_call() -> None:
+    devices: dict[str, dict[str, object]] = {}
+    configure(devices)
+    build = require_build_toolset()
+    assert sorted(build().tools) == LOCAL_TOOLS
+    devices["w1"] = computer()
+    assert sorted(build().tools) == sorted(LOCAL_TOOLS + COMPUTER_CAPS)
+    devices["t1"] = turtle()
+    assert sorted(build().tools) == sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES))
+    devices.clear()
+    assert sorted(build().tools) == LOCAL_TOOLS
+    assert build() is not build(), "build_toolset() must hand out a fresh toolset per run"
+
+
+def test_local_tools_carry_the_old_descriptions() -> None:
+    configure({})
+    toolset = require_build_toolset()()
+    for name in LOCAL_TOOLS:
+        assert toolset.tools[name].description == CARRIED_DESCRIPTIONS[name], (
+            name,
+            toolset.tools[name].description,
+        )
+    say_schema = toolset.tools["say"].function_schema.json_schema
+    assert say_schema.get("required") == ["text"], say_schema
+    assert set(say_schema["properties"]) == {"text", "to"}, say_schema
+
+
+async def test_list_devices_reports_roles_and_caps_only() -> None:
+    configure({"w1": computer(), "t1": turtle()})
+    tool = require_tool("list_devices")
+    messages = await run_tool_through_model(tool, Script(call("list_devices"), "done"))
+    returns = [p for p in parts(messages) if isinstance(p, ToolReturnPart)]
+    assert len(returns) == 1, [type(p).__name__ for p in parts(messages)]
+    assert returns[0].content == {
+        "w1": {"role": "computer", "caps": COMPUTER_CAPS},
+        "t1": {"role": "turtle", "caps": TURTLE_CAPS},
+    }, returns[0].content
+
+
+async def test_say_tool_calls_the_injected_say_and_accepts_null_to() -> None:
+    rec = configure({})
+    tool = require_tool("say")
+    script = Script(
+        call("say", text="Hello Nate", to=None),  # what the pre-swap model actually sent (02-04)
+        call("say", text="psst", to="Nate"),
+        call("say", text="all done"),
+        "done",
+    )
+    messages = await run_tool_through_model(tool, script)
+    returns = [p for p in parts(messages) if isinstance(p, ToolReturnPart)]
+    assert [r.content for r in returns] == [{"ok": True}] * 3, returns
+    assert rec.said == [("Hello Nate", None), ("psst", "Nate"), ("all done", None)], rec.said
+    assert rec.cmds == [], rec.cmds
+
+
+async def test_say_without_text_is_rejected_before_it_speaks() -> None:
+    rec = configure({})
+    tool = require_tool("say")
+    messages = await run_tool_through_model(tool, Script(call("say", to="Nate"), "done"))
+    retries = [p for p in parts(messages) if isinstance(p, RetryPromptPart)]
+    assert len(retries) == 1 and retries[0].tool_name == "say", retries
+    assert rec.said == [], rec.said
+
+
+def test_configure_builds_the_agent_on_the_injected_anthropic_client() -> None:
+    client = anthropic.AsyncAnthropic(api_key="sk-ant-test")
+    rec = Recorder()
+    settings = make_settings()
+    a.configure(settings, client, {}, rec.send_cmd, rec.say, rec.default_worker)
+    model = require_agent().model
+    assert isinstance(model, AnthropicModel), type(model)
+    assert model.client is client, "AnthropicProvider must wrap bridge.py's client, not a new one"
+    assert model.model_name == settings.model, model.model_name
+
+
+async def test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions() -> None:
+    configure({"t1": turtle()})  # a turtle is connected, yet without build_toolset()...
+    agent = require_agent()
+    script = Script("done")
+    with agent.override(model=script.model()):
+        result = await agent.run("[Nate] hi")  # ...no toolsets are passed for this run
+    assert result.output == "done", result.output
+    assert script.tools_seen == [[]], script.tools_seen  # ...so the model sees no tools at all
+    assert script.instructions_seen[0] == a.system, script.instructions_seen
+
+
 # ----------------------------------------------------------------- runner (TAP output)
 TESTS: list[Callable[[], Any]] = [
     test_list_chest_without_name_is_rejected_before_the_tool_runs,
@@ -278,6 +417,16 @@ TESTS: list[Callable[[], Any]] = [
     test_push_one_slot_wire_args_match_client_lua,
     test_move_forwards_dir_and_steps_and_omits_unset_fields,
     test_every_primitive_is_a_typed_tool_with_the_lua_signature,
+    test_toolset_with_no_devices_has_only_local_tools,
+    test_toolset_with_computer_worker_adds_only_its_caps,
+    test_toolset_with_turtle_adds_all_eight_primitives,
+    test_toolset_is_rebuilt_from_the_live_registry_each_call,
+    test_local_tools_carry_the_old_descriptions,
+    test_list_devices_reports_roles_and_caps_only,
+    test_say_tool_calls_the_injected_say_and_accepts_null_to,
+    test_say_without_text_is_rejected_before_it_speaks,
+    test_configure_builds_the_agent_on_the_injected_anthropic_client,
+    test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions,
 ]
 
 
