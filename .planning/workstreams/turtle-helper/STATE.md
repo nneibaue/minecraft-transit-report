@@ -4,18 +4,18 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 03
 current_phase_name: Local Server Setup
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-09-25T08:53:12.899Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-09-25T08:57:22.218Z"
 last_activity: 2026-09-25
 last_activity_desc: Phase 03 execution started
-state_head: 9454137d1fe5baea345c4b4b3c792310624c20ca
+state_head: d66710c7293d9cbdfb732141ed578177722e52d0
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
   percent: 0
 ---
 
@@ -24,7 +24,7 @@ progress:
 ## Current Position
 
 Phase: 03 (Local Server Setup) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-09-25 — Phase 03 execution started
 
@@ -33,7 +33,7 @@ Last activity: 2026-09-25 — Phase 03 execution started
 Progress: ████░░░░░░ [░░░░░░░░░░] 0%
 
 **Phases Complete:** 2 of 5
-**Current Plan:** 2
+**Current Plan:** 3
 
 ## Project Reference
 
@@ -44,9 +44,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T08:53:12.862Z
+**Last session:** 2026-09-25T08:57:22.181Z
 
-**Stopped At:** Completed 03-01-PLAN.md
+**Stopped At:** Completed 03-02-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -63,6 +63,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 02 P06 | 17 min | 3 tasks | 8 files |
 | Phase 02 P07 | 30 min | 4 tasks | 8 files |
 | Phase 03 P01 | 8 min | 3 tasks | 10 files |
+| Phase 03 P02 | 1 min | 2 tasks | 2 files |
 
 ## Decisions
 
@@ -96,6 +97,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: Blank SERVER_DIR= maps to None (BeforeValidator); pydantic-settings otherwise yields Path('.') and deploy would treat the cwd as the server root
 - [Phase 03]: deploy edits computercraft-server.toml with newline='' so the file's own LF/CRLF endings survive; server-running gate is a TCP probe of port 25565, not session.lock
 - [Phase 03]: uv run launch opens bridge and run.bat via CREATE_NEW_CONSOLE (cmd /c start needs a quoted title subprocess cannot produce); marker file is _marker.txt, URL file bridge.txt
+- [Phase 03]: chat.lua and client.lua default BRIDGE_URL to ws://127.0.0.1:8765 and reassign (not re-declare) it from a trimmed bridge.txt; chat.lua DEVICE_ID is label-or-device-<id> like client.lua
 
 ## Blockers/Concerns
 

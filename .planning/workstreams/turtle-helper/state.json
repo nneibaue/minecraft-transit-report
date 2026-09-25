@@ -16,7 +16,7 @@
     {
       "number": "3",
       "name": "Local Server Setup",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "4",
@@ -34,5 +34,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 03 of 5 · 0% · executing"
   },
-  "updated_at": "2026-09-25T08:53:10.623Z"
+  "updated_at": "2026-09-25T08:57:20.657Z"
 }
