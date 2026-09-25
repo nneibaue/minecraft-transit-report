@@ -24,10 +24,10 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 ### Local Server Setup (SRV)
 
 - [x] **SRV-01**: The dedicated ATM9 server's `world/serverconfig/computercraft-server.toml` carries an `[[http.rules]]` allow rule for host `127.0.0.1` placed before the default private-range deny; the exact file, rule, ordering, restart requirement, and an in-game one-line smoke check are documented
-- [ ] **SRV-02**: `chat.lua`, `client.lua` and `startup.lua` land in the server's per-computer folder on disk (`<world>/computercraft/computer/<id>/`) through the in-game installer, with the folder-to-device mapping confirmed against the running server and the reload step (`reboot`) documented; there is no second placement path
-- [ ] **SRV-03**: Each device reads the bridge token from `secret.txt` in its own folder; the token appears nowhere in the Lua, the repo, or the world save other than those per-device files
-- [ ] **SRV-04**: Each device has a `startup.lua` that launches `chat` or `client`, so devices come back on their own after a server restart or device reboot
-- [ ] **SRV-05**: A non-technical server admin can set up a new device with a single in-game command (`wget run` of `install.lua` from GitHub `main`), typing only the bridge token once; after that, pushing Lua changes to `main` and rebooting the device is the whole update path (`startup.lua` re-downloads the Lua on boot and falls back to the local copies when GitHub is unreachable)
+- [x] **SRV-02**: `chat.lua`, `client.lua` and `startup.lua` land in the server's per-computer folder on disk (`<world>/computercraft/computer/<id>/`) through the in-game installer, with the folder-to-device mapping confirmed against the running server and the reload step (`reboot`) documented; there is no second placement path
+- [x] **SRV-03**: Each device reads the bridge token from `secret.txt` in its own folder; the token appears nowhere in the Lua, the repo, or the world save other than those per-device files
+- [x] **SRV-04**: Each device has a `startup.lua` that launches `chat` or `client`, so devices come back on their own after a server restart or device reboot
+- [x] **SRV-05**: A non-technical server admin can set up a new device with a single in-game command (`wget run` of `install.lua` from GitHub `main`), typing only the bridge token once; after that, pushing Lua changes to `main` and rebooting the device is the whole update path (`startup.lua` re-downloads the Lua on boot and falls back to the local copies when GitHub is unreachable)
 
 ### In-Game Round Trip (LOOP)
 
@@ -105,10 +105,10 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | HARN-03 | Phase 2 | Complete |
 | HARN-04 | Phase 2 | Complete |
 | SRV-01 | Phase 3 | Complete |
-| SRV-02 | Phase 3 | Pending |
-| SRV-03 | Phase 3 | Pending |
-| SRV-04 | Phase 3 | Pending |
-| SRV-05 | Phase 3 | Pending |
+| SRV-02 | Phase 3 | Complete |
+| SRV-03 | Phase 3 | Complete |
+| SRV-04 | Phase 3 | Complete |
+| SRV-05 | Phase 3 | Complete |
 | LOOP-01 | Phase 4 | Pending |
 | LOOP-02 | Phase 4 | Pending |
 | LOOP-03 | Phase 4 | Pending |

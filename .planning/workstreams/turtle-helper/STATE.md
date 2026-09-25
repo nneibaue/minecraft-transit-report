@@ -5,18 +5,18 @@ milestone_name: Local Round Trip
 current_phase: 03
 current_phase_name: Local Server Setup
 current_plan: 6
-status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-09-25T11:08:35.915Z"
+status: verifying
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-09-25T11:31:30.095Z"
 last_activity: 2026-09-25
-last_activity_desc: Completed 03-05 (first in-game install, live SRV-02/03 proofs, D-19 deploy removal)
-state_head: bcf63e9c039bced7ed5c84d2f9261416f10e88bf
+last_activity_desc: Completed 03-06 (single-path README recipe, push-and-reboot update proven on device A)
+state_head: 557270ce384659fd484620fd5604643f2591b295
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 15
-  completed_plans: 14
-  percent: 93
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ progress:
 
 Phase: 03 (Local Server Setup) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
-Last activity: 2026-09-25 — Completed 03-05 (first in-game install, live SRV-02/03 proofs, D-19 deploy removal); next 03-06
+Status: Phase complete — ready for verification
+Last activity: 2026-09-25 — Completed 03-06 (single-path README recipe, push-and-reboot update proven on device A); phase 3 ready for verification
 
 ## Progress
 
-Progress: [█████████░] 93% (14 of 15 plans)
+Progress: [██████████] 100% (15 of 15 plans)
 
 **Phases Complete:** 2 of 6
 **Current Plan:** 6
@@ -44,9 +44,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T11:08:35.876Z
+**Last session:** 2026-09-25T11:31:30.053Z
 
-**Stopped At:** Completed 03-05-PLAN.md
+**Stopped At:** Completed 03-06-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -67,6 +67,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 03 P03 | 48 min | 6 tasks | 0 files |
 | Phase 03 P04 | 5min | 2 tasks | 5 files |
 | Phase 03 P05 | 20 min | 4 tasks | 10 files |
+| Phase 03 P06 | 9 min | 5 tasks | 5 files |
 
 ## Decisions
 
@@ -112,6 +113,8 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: D-13 smoke text captured verbatim: success 'table: <addr> nil', denied 'Domain not permitted', no listener 'Could not connect'
 - [Phase 03]: Token isolation proven live: only computercraft/computer/0/secret.txt holds BRIDGE_TOKEN (repo, git history, world, logs incl. UTF-16LE/.gz scanned)
 - [Phase 03]: Device A keeps the 4df2021 startup.lua (dead marker skip) until the wget line is re-run; startup.lua is not self-updating
+- [Phase 03]: Push to main + reboot proven as the whole update path: device A's chat.lua/client.lua equal origin/main c1a773e after the reboot (rewritten 11:26:26Z), secret.txt/bridge.txt/startup.lua untouched, no PC-side step (UPDATE_PATH_OK)
+- [Phase 03]: Device A's startup.lua is blob 8db52b5 (introduced 4b4dd67, same at 4df2021), pre-D-19 with a dead marker branch; offline fallback skipped by the operator and left judgment-verified
 
 ## Blockers/Concerns
 
