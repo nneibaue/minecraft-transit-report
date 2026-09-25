@@ -4,6 +4,8 @@ There is no Lua runtime on the PC, so the in-game install and boot-time update a
 here at the text level: one pinned raw GitHub base, the download header every device checks,
 download validation before any write, the masked token prompt, no print of the typed token,
 no developer-device marker (D-19: every device updates on boot), and no loopback hostname.
+Phase 4 plan 04-01 pins the ``$`` restore in chat.lua, the DEBUG marker and the no-token rule
+for debug output.
 Same dependency-free TAP layout as tests/test_deploy_rules.py; every ``test_*`` function is
 pytest-collectable later.
 
@@ -32,10 +34,28 @@ DEVICE_FILES = {
 LUA_FILES = {**DEVICE_FILES, "install.lua": REPO_ROOT / "install.lua"}
 
 GLOBAL_OUTPUT_CALL = re.compile(r"(?<![.\w])(print|write|printError)\s*\(")
+# Device-side output: the global writers plus each file's own log() and dbg() helpers.
+DEVICE_OUTPUT_CALL = re.compile(r"(?<![.\w])(print|write|printError|log|dbg)\s*\(")
+
+# Device files that carry the DEBUG marker (Phase 4 D-11).
+DEBUG_FILES: tuple[str, ...] = ("chat.lua",)
+
+DOLLAR_RESTORE = re.compile(
+    r'if\s+hidden\s+and\s+text:sub\(1,\s*1\)\s*~=\s*"\$"\s+then\s+text\s*=\s*"\$"\s*\.\.\s*text'
+)
 
 
 def lua(name: str) -> str:
     return LUA_FILES[name].read_text(encoding="utf-8")
+
+
+def code_lines(name: str) -> list[tuple[int, str]]:
+    """Numbered lines of a Lua file, skipping comment lines so prose never trips a check."""
+    return [
+        (n, line)
+        for n, line in enumerate(lua(name).splitlines(), 1)
+        if not line.strip().startswith("--")
+    ]
 
 
 def test_device_files_start_with_their_download_header() -> None:
@@ -116,6 +136,35 @@ def test_install_never_prints_the_typed_token() -> None:
             assert "newToken" not in line, f"install.lua:{n} displays the token: {line.strip()}"
 
 
+def test_chat_restores_the_dollar_ap_strips() -> None:
+    # AP 0.7.46r strips every "$" from a hidden message; chat.lua puts the prefix back
+    # before the event frame is built (Phase 4 RESEARCH Finding 1).
+    lines = code_lines("chat.lua")
+    restore = [n for n, line in lines if DOLLAR_RESTORE.search(line)]
+    frame = [n for n, line in lines if 'name = "chat"' in line]
+    assert restore, "chat.lua does not restore the $ on hidden chat"
+    assert frame, "chat.lua builds no chat event frame"
+    assert restore[0] < frame[0], "the $ restore comes after the event frame"
+
+
+def test_device_output_never_shows_the_token() -> None:
+    for name in ("chat.lua", "client.lua"):
+        for n, line in code_lines(name):
+            if DEVICE_OUTPUT_CALL.search(line):
+                assert not re.search(
+                    r"token|hello", line, re.IGNORECASE
+                ), f"{name}:{n} may show the token: {line.strip()}"
+
+
+def test_debug_is_a_marker_file() -> None:
+    for name in DEBUG_FILES:
+        text = lua(name)
+        for needle in ('fs.exists("debug")', "local function dbg(", '"debug.log"'):
+            assert needle in text, f"{name} lacks {needle}"
+        for n, line in code_lines(name):
+            assert not re.search(r"\bDEBUG\s*=\s*true\b", line), f"{name}:{n} forces DEBUG on"
+
+
 TESTS: list[Callable[[], None]] = [
     test_device_files_start_with_their_download_header,
     test_startup_and_install_pin_the_same_raw_base,
@@ -127,6 +176,9 @@ TESTS: list[Callable[[], None]] = [
     test_startup_never_touches_the_token,
     test_install_masks_the_token_and_keeps_an_existing_secret,
     test_install_never_prints_the_typed_token,
+    test_chat_restores_the_dollar_ap_strips,
+    test_device_output_never_shows_the_token,
+    test_debug_is_a_marker_file,
 ]
 
 

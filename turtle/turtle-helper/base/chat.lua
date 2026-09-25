@@ -24,6 +24,18 @@ if BRIDGE_FILE then BRIDGE_URL = BRIDGE_FILE:gsub("%s+$", "") end
 
 local function log(...) print(("[%s] "):format(textutils.formatTime(os.time(), true)), ...) end
 
+-- DEBUG on: `mkdir debug` at the device prompt, then reboot. Off: `rm debug`, then reboot.
+local DEBUG = fs.exists("debug")
+local function dbg(...)
+  if not DEBUG then return end
+  local parts = {}
+  for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
+  local line = table.concat(parts, " ")
+  log("DEBUG", line)
+  local f = fs.open("debug.log", "a")
+  if f then f.writeLine(line); f.close() end
+end
+
 -- Outbound message queue, drained at SEND_GAP to respect the cooldown.
 local outbox = {}
 local function drainOutbox()
@@ -31,11 +43,13 @@ local function drainOutbox()
     local m = table.remove(outbox, 1)
     if m then
       local ok, err
+      dbg("say: to=" .. tostring(m.to), "prefix=" .. tostring(m.prefix or DEFAULT_NAME), "text=" .. tostring(m.text))
       if m.to then
         ok, err = chatBox.sendMessageToPlayer(m.text, m.to, m.prefix or DEFAULT_NAME)
       else
         ok, err = chatBox.sendMessage(m.text, m.prefix or DEFAULT_NAME)
       end
+      dbg("say returned: ok=" .. tostring(ok), "err=" .. tostring(err))
       if not ok then
         log("send failed:", err, "- requeueing")
         table.insert(outbox, 1, m)
@@ -56,10 +70,15 @@ local function session(ws)
   while true do
     local ev = {os.pullEvent()}
     if ev[1] == "chat" then
-      -- ev: "chat", username, message, uuid, isHidden
+      -- AP 0.7.46r queues "chat", username, message, uuid, isHidden. A "$" message arrives hidden
+      -- with every "$" removed (Events.onChatBox calls String.replace), so put the prefix back here.
+      local user, text, uuid, hidden = ev[2], ev[3], ev[4], ev[5] == true
+      dbg("chat event: user=" .. tostring(ev[2]), "text=" .. tostring(ev[3]), "uuid=" .. tostring(ev[4]),
+        "hidden=" .. tostring(ev[5]), "extra=" .. tostring(ev[6]))
+      if hidden and text:sub(1, 1) ~= "$" then text = "$" .. text end
       ws.send(textutils.serialiseJSON({
         type = "event", name = "chat",
-        user = ev[2], text = ev[3], uuid = ev[4], hidden = ev[5] == true,
+        user = user, text = text, uuid = uuid, hidden = hidden,
       }))
     elseif ev[1] == "websocket_message" and ev[2] == BRIDGE_URL then
       local msg = textutils.unserialiseJSON(ev[3])
