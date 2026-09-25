@@ -127,7 +127,8 @@ def configure(devices: dict[str, dict[str, object]] | None = None, **fakes: Any)
     """Wire agent.py the way bridge.main() does, with recording fakes and an offline client."""
     rec = Recorder(**fakes)
     client = anthropic.AsyncAnthropic(api_key="sk-ant-test")  # never used to send anything
-    a.configure(make_settings(), client, devices or {}, rec.send_cmd, rec.say, rec.default_worker)
+    registry = devices if devices is not None else {}  # keep the caller's dict as the registry
+    a.configure(make_settings(), client, registry, rec.send_cmd, rec.say, rec.default_worker)
     getattr(a, "histories", {}).clear()
     return rec
 
@@ -405,7 +406,8 @@ async def test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions() -
         result = await agent.run("[Nate] hi")  # ...no toolsets are passed for this run
     assert result.output == "done", result.output
     assert script.tools_seen == [[]], script.tools_seen  # ...so the model sees no tools at all
-    assert script.instructions_seen[0] == a.system, script.instructions_seen
+    # pydantic-ai strips the instructions' surrounding whitespace before the request goes out
+    assert script.instructions_seen[0] == a.system.strip(), script.instructions_seen
 
 
 # ----------------------------------------------------------------- runner (TAP output)

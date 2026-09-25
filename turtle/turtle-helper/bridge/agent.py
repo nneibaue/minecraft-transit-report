@@ -8,7 +8,9 @@ from typing import Literal
 
 import anthropic
 from pydantic import BaseModel, Field
-from pydantic_ai import RunContext
+from pydantic_ai import Agent, FunctionToolset, RunContext
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from bridge.settings import Settings
 
@@ -26,9 +28,12 @@ settings: Settings
 client: anthropic.AsyncAnthropic
 devices: dict[str, dict[str, object]]
 send_cmd: SendCmdFn
-say: SayFn
+say_in_chat: SayFn  # bridge.say(); named apart from the `say` tool the model calls
 default_worker: DefaultWorkerFn
 system: str
+# The pydantic-ai Agent, built once in configure(). It carries the model and instructions
+# only: every tool reaches it per run through build_toolset() (D-09), never at construction.
+agent: Agent[None, str]
 
 SYSTEM_TEMPLATE = """You are {robot_name}, a helpful robot assistant living inside a Minecraft
 (All the Mods 9) world, in the spirit of Heinlein's Hired Girl. Players give you chores in chat;
@@ -56,15 +61,21 @@ def configure(
     new_say: SayFn,
     new_default_worker: DefaultWorkerFn,
 ) -> None:
-    """Hand runtime values from bridge.py to this module. Called once, from main()."""
-    global settings, client, devices, send_cmd, say, default_worker, system
+    """Hand runtime values from bridge.py to this module and build the Agent. Called once."""
+    global settings, client, devices, send_cmd, say_in_chat, default_worker, system, agent
     settings = new_settings
     client = new_client
     devices = new_devices
     send_cmd = new_send_cmd
-    say = new_say
+    say_in_chat = new_say
     default_worker = new_default_worker
     system = SYSTEM_TEMPLATE.format(robot_name=new_settings.robot_name)
+    # AnthropicProvider wraps bridge.py's own client (the one main() already verified the model
+    # against) rather than opening a second one from the API key.
+    agent = Agent(
+        AnthropicModel(new_settings.model, provider=AnthropicProvider(anthropic_client=new_client)),
+        instructions=system,
+    )
 
 
 # ----------------------------------------------------------------- device-forwarding tools
@@ -194,6 +205,61 @@ async def inspect(ctx: RunContext[None], args: InspectArgs) -> dict[str, object]
 async def refuel(ctx: RunContext[None], args: RefuelArgs) -> dict[str, object]:
     """Burn fuel items from the turtle's inventory."""
     return await _forward(args, "refuel")
+
+
+# ----------------------------------------------------------------- local tools
+# Always available, whatever is connected: they run on the bridge itself.
+
+
+async def list_devices() -> dict[str, dict[str, object]]:
+    """List connected devices, their roles and the tools each supports."""
+    return {d: {"role": v["role"], "caps": v["caps"]} for d, v in devices.items()}
+
+
+class SayArgs(BaseModel):
+    """Arguments for say."""
+
+    text: str
+    to: str | None = Field(default=None, description="player name to whisper to; omit to broadcast")
+
+
+async def say(ctx: RunContext[None], args: SayArgs) -> dict[str, object]:
+    """Speak in game chat. Use once at the end with a short summary, not for every step."""
+    await say_in_chat(args.text, args.to)
+    return {"ok": True}
+
+
+# ----------------------------------------------------------------- per-run toolset (D-09)
+DEVICE_PRIMITIVES: tuple[Callable[..., Awaitable[dict[str, object]]], ...] = (
+    status,
+    list_chest,
+    push_one_slot,
+    move,
+    turn,
+    dig,
+    inspect,
+    refuel,
+)
+
+
+def _caps(entry: dict[str, object]) -> list[str]:
+    caps = entry.get("caps")
+    return [str(cap) for cap in caps] if isinstance(caps, list) else []
+
+
+def build_toolset() -> FunctionToolset[None]:
+    """The tools the model may call right now: local tools plus every device primitive some
+    connected device advertises in its hello caps.
+
+    Rebuilt from the live registry on every request, so with no turtle connected the model never
+    sees move/turn/dig/inspect/refuel, and with no worker at all it sees only list_devices/say.
+    """
+    toolset: FunctionToolset[None] = FunctionToolset([list_devices, say])
+    advertised = {cap for entry in devices.values() for cap in _caps(entry)}
+    for primitive in DEVICE_PRIMITIVES:
+        if primitive.__name__ in advertised:
+            toolset.add_function(primitive)
+    return toolset
 
 
 # ----------------------------------------------------------------- chat requests
