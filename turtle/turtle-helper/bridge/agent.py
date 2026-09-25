@@ -1,4 +1,9 @@
-"""The Pydantic AI agent: typed device/local tools, per-run toolset and per-player chat handling."""
+"""The Pydantic AI agent: typed device/local tools, per-run toolset and per-player chat handling.
+
+The model may speak in game chat through the say tool during a run; if a run ends without one,
+handle_request speaks the run's final output to the requesting player, so an answer the model gave
+as plain text (which an Agent with str output invites) is never dropped.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ import anthropic
 import pydantic_ai
 from pydantic import BaseModel, Field, ValidationError
 from pydantic_ai import Agent, FunctionToolset, ModelRetry, RunContext
-from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
+from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart, UserPromptPart
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.usage import UsageLimits
@@ -52,7 +57,7 @@ Rules:
 - When something can't be done, say so plainly and suggest what would fix it (e.g. a missing
   rule).
 - Finish every task with exactly one say() containing a short, friendly summary (1-2 sentences).
-  No markdown in chat.
+  Answer through say(), not as plain text: players only read game chat. No markdown in chat.
 - Item ids look like "minecraft:iron_ingot" or "mekanism:hdpe_sheet". Inventory names look like
   "minecraft:chest_3".
 """
@@ -486,7 +491,8 @@ def build_toolset() -> FunctionToolset[None]:
 # ----------------------------------------------------------------- chat requests
 # Per-player conversation memory, kept as pydantic-ai's own message objects so it can go straight
 # back in as message_history. Only replaced after a run succeeds, so a failed request leaves the
-# player's memory exactly as it was.
+# player's memory exactly as it was. The instructions ask the model to answer through say(); the
+# bridge guarantees delivery by speaking the final output itself when the model did not (below).
 histories: dict[str, list[ModelMessage]] = {}
 HISTORY_LIMIT = 40  # messages (requests + responses) kept per player
 # The hand-rolled loop capped tool rounds at 12 per request; the same spend guard, as a UsageLimits.
@@ -515,12 +521,30 @@ def trim_history(messages: list[ModelMessage], limit: int = HISTORY_LIMIT) -> li
     return list(messages)
 
 
-async def handle_request(user: str, text: str) -> None:
-    """Run one chat request through the agent and remember the exchange for that player.
+def _spoke(messages: list[ModelMessage]) -> bool:
+    """True if the say tool ran, and so spoke, somewhere in these messages.
 
-    The model speaks through the say tool inside the run; nothing is spoken here. Anything that
-    escapes agent.run() (a bug, a usage limit, a tool that exhausted its retries) propagates to
-    bridge.on_event's catch-all, and this player's history stays as it was.
+    The evidence is the tool's return part, not the model's call part: a say call that failed
+    validation leaves a RetryPromptPart behind and never spoke.
+    """
+    return any(
+        isinstance(part, ToolReturnPart) and part.tool_name == "say"
+        for message in messages
+        if isinstance(message, ModelRequest)
+        for part in message.parts
+    )
+
+
+async def handle_request(user: str, text: str) -> None:
+    """Run one chat request through the agent, see that its answer is spoken, and remember the
+    exchange for that player.
+
+    The model normally speaks through the say tool inside the run. If the run ends without a say
+    (the model answered as plain text instead), the final output is spoken here, whispered to the
+    requester, so no answer is lost; an answer the model already spoke is not repeated. The final
+    output is logged either way. Anything that escapes agent.run() (a bug, a usage limit, a tool
+    that exhausted its retries) propagates to bridge.on_event's catch-all, which speaks the error
+    fallback, and this player's history stays as it was.
     """
     log.info("request from %s: %s", user, text)
     result = await agent.run(
@@ -530,3 +554,14 @@ async def handle_request(user: str, text: str) -> None:
         usage_limits=REQUEST_LIMITS,
     )
     histories[user] = trim_history(result.all_messages())
+    answer = result.output.strip()
+    spoke = _spoke(result.new_messages())
+    log.info(
+        "answer for %s (%s): %s",
+        user,
+        "spoken via say" if spoke else "plain text, not spoken by the model",
+        answer[:200] or "<empty>",
+    )
+    if not spoke and answer:
+        await say_in_chat(answer, user)
+        log.info("spoke the final output to %s on the model's behalf", user)

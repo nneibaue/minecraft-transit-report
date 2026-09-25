@@ -575,11 +575,15 @@ async def test_plain_text_answer_is_spoken_to_the_requester_when_the_model_skips
     rec = configure({"harness-worker": computer()})
     script = Script(call("list_devices"), POST_SWAP_ANSWER)  # the 22:17 shape: tool, then text
     catcher = LogCatcher()
-    logging.getLogger("bridge").addHandler(catcher)
+    bridge_log = logging.getLogger("bridge")
+    previous_level = bridge_log.level  # nothing configures it here, so INFO lines would be dropped
+    bridge_log.setLevel(logging.INFO)
+    bridge_log.addHandler(catcher)
     try:
         await run_request(script, "DisraSenkovi", "what devices are connected?")
     finally:
-        logging.getLogger("bridge").removeHandler(catcher)
+        bridge_log.removeHandler(catcher)
+        bridge_log.setLevel(previous_level)
     assert len(script.tools_seen) == 2, script.tools_seen  # two model round trips, as observed
     assert rec.said == [(POST_SWAP_ANSWER, "DisraSenkovi")], rec.said  # whispered to the asker
     assert any(POST_SWAP_ANSWER in line for line in catcher.lines), catcher.lines
