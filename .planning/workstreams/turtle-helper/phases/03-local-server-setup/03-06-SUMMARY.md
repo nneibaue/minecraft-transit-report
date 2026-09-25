@@ -21,7 +21,7 @@ affects: [phase-04-in-game-round-trip, phase-05-docs, phase-06-remote-host-setup
 actuals:
   tokens: 3100
   tasks: 5
-  commits: 1
+  commits: 2
 plan_head_before: 6b7ab5f951fc8814444c7e0dc408b1733ef77f02
 
 # Tech tracking
@@ -170,7 +170,7 @@ REPO_TOKEN_CLEAN_OK: `REPO_TOKEN_CLEAN_OK`. Zero token hits in tracked and untra
 4. **Task 4: reboot device A (checkpoint).** Done by the operator, who said "skip-offline, left. everything looked fine on reboot". No commit.
 5. **Task 5: prove the update landed and the repo stayed token-free.** Read-only. UPDATE_PATH_OK and REPO_TOKEN_CLEAN_OK passed. No code commit; this SUMMARY is the only output.
 
-The ledger measures 1 commit from base `6b7ab5f`, which is `c1a773e`.
+The ledger measures 2 commits from base `6b7ab5f` up to this SUMMARY's parent. One is `c1a773e`. The other is `30be7d8`, a concurrent config-only commit (`turtle-helper/config.json`, hobby-mode GSD settings) made outside this plan while Task 5 ran. It falls inside the range but is not plan work.
 
 ## Files Created/Modified
 
