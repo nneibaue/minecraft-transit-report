@@ -287,6 +287,10 @@ def test_every_primitive_is_a_typed_tool_with_the_lua_signature() -> None:
 # Always in the toolset whatever is connected: the two Phase 1 local tools plus the four rule tools
 # plan 02-06 moved onto the bridge (D-08). Sorted, because toolset_names() sorts.
 LOCAL_TOOLS = ["add_rule", "list_devices", "list_rules", "remove_rule", "say", "set_overflow"]
+# Python compositions (plan 02-06, D-07/D-09): offered only when one connected device advertises
+# every primitive they need; sort_chest needs list_chest and push_one_slot, which both a plain
+# computer and a turtle advertise.
+COMPOSITIONS = ["sort_chest"]
 
 
 def require_build_toolset() -> Any:
@@ -324,14 +328,14 @@ def test_toolset_with_no_devices_has_only_local_tools() -> None:
 
 def test_toolset_with_computer_worker_adds_only_its_caps() -> None:
     names = toolset_names({"chat-1": {"role": "chat", "caps": ["say"]}, "w1": computer()})
-    assert names == sorted(LOCAL_TOOLS + COMPUTER_CAPS), names
+    assert names == sorted(LOCAL_TOOLS + COMPUTER_CAPS + COMPOSITIONS), names
     for movement in ("move", "turn", "dig", "inspect", "refuel"):
         assert movement not in names, names
 
 
 def test_toolset_with_turtle_adds_all_eight_primitives() -> None:
     names = toolset_names({"t1": turtle([*TURTLE_CAPS, "run_lua"])})
-    assert names == sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES)), names
+    assert names == sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES) + COMPOSITIONS), names
     assert "run_lua" not in names, names  # an advertised cap with no typed tool adds nothing
 
 
@@ -341,9 +345,9 @@ def test_toolset_is_rebuilt_from_the_live_registry_each_call() -> None:
     build = require_build_toolset()
     assert sorted(build().tools) == LOCAL_TOOLS
     devices["w1"] = computer()
-    assert sorted(build().tools) == sorted(LOCAL_TOOLS + COMPUTER_CAPS)
+    assert sorted(build().tools) == sorted(LOCAL_TOOLS + COMPUTER_CAPS + COMPOSITIONS)
     devices["t1"] = turtle()
-    assert sorted(build().tools) == sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES))
+    assert sorted(build().tools) == sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES) + COMPOSITIONS)
     devices.clear()
     assert sorted(build().tools) == LOCAL_TOOLS
     assert build() is not build(), "build_toolset() must hand out a fresh toolset per run"
@@ -459,7 +463,7 @@ async def test_handle_request_runs_the_model_with_the_per_run_toolset() -> None:
     await run_request(script, "Nate", "and now?")
     assert script.tools_seen == [
         LOCAL_TOOLS,
-        sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES)),
+        sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES) + COMPOSITIONS),
     ], script.tools_seen
 
 
