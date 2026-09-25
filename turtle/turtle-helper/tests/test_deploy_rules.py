@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from bridge.settings import Settings  # noqa: E402
 from deploy import deploy as d  # noqa: E402
+from deploy import launcher  # noqa: E402
 from deploy.rules import (  # noqa: E402
     PRIVATE_DENY_ANCHOR,
     insert_allow_rule,
@@ -184,6 +185,40 @@ def test_main_reports_a_missing_anchor_as_exit_1() -> None:
         assert "deploy error:" in err
 
 
+def refuse_spawn(*args: object, **kwargs: object) -> None:
+    raise AssertionError("must not spawn a process")
+
+
+def test_launch_commands_are_the_bridge_and_run_bat() -> None:
+    server_dir = Path("C:/fixture/server")
+    bridge_cmd, server_cmd = launcher.build_launch_commands(make_settings(), server_dir)
+    assert bridge_cmd[-3:] == ["uv", "run", "bridge/bridge.py"], bridge_cmd
+    assert server_cmd == [str(server_dir / "run.bat")], server_cmd
+
+
+def test_launch_without_server_dir_refuses_and_spawns_nothing() -> None:
+    err = io.StringIO()
+    with (
+        patch.object(launcher, "Settings", lambda: make_settings()),
+        patch("subprocess.Popen", refuse_spawn),
+        contextlib.redirect_stderr(err),
+    ):
+        assert launcher.main() == 2
+    assert "config error: server_dir" in err.getvalue()
+
+
+def test_launch_without_run_bat_refuses_and_spawns_nothing() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        err = io.StringIO()
+        with (
+            patch.object(launcher, "Settings", lambda: make_settings(server_dir=Path(tmp))),
+            patch("subprocess.Popen", refuse_spawn),
+            contextlib.redirect_stderr(err),
+        ):
+            assert launcher.main() == 2
+        assert "run.bat not found" in err.getvalue()
+
+
 TESTS: list[Callable[[], None]] = [
     test_rule_is_inserted_before_the_private_deny,
     test_second_run_is_a_byte_identical_no_op,
@@ -197,6 +232,9 @@ TESTS: list[Callable[[], None]] = [
     test_main_never_edits_the_toml_while_the_server_runs,
     test_main_inserts_then_reports_already_present,
     test_main_reports_a_missing_anchor_as_exit_1,
+    test_launch_commands_are_the_bridge_and_run_bat,
+    test_launch_without_server_dir_refuses_and_spawns_nothing,
+    test_launch_without_run_bat_refuses_and_spawns_nothing,
 ]
 
 

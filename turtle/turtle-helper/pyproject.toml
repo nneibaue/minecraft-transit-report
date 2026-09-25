@@ -19,6 +19,7 @@ dev = [
 [project.scripts]
 harness = "harness.harness:main"
 deploy = "deploy.deploy:main"
+launch = "deploy.launcher:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]
