@@ -16,23 +16,25 @@ you type "$robot sort the dump chest"
 | path | runs on | job |
 |---|---|---|
 | `base/chat.lua` | Advanced Computer with a Chat Box attached | forwards chat to the bridge, speaks replies (cooldown-safe queue) |
-| `turtle/client.lua` | turtle **or** stationary Advanced Computer | executes tools: `sort_chest`, `list_chest`, `add_rule`, … ; movement tools appear only on a turtle |
-| `bridge/bridge.py` | your PC (dev) / a small always-on host (prod) | websocket server + Claude agent loop |
+| `turtle/client.lua` | turtle **or** stationary Advanced Computer | exposes CC:Tweaked primitives one-to-one: `status`, `list_chest`, `push_one_slot`; movement primitives appear only on a turtle |
+| `bridge/bridge.py` + `bridge/agent.py` | your PC (dev) / a small always-on host (prod) | websocket server + Pydantic AI agent with typed tools; compositions such as `sort_chest` and the sorting rules live here |
+| `harness/` | your terminal | fake chat/worker device that speaks the protocol against the bridge, no game needed (see [Harness](#harness)) |
 
 ## Protocol (all JSON over one websocket per device)
 
 ```jsonc
 // device -> bridge, once
-{"type":"hello","id":"turtle-1","token":"…","role":"turtle","caps":["sort_chest","move",…]}
+{"type":"hello","id":"turtle-1","token":"…","role":"turtle","caps":["status","list_chest","push_one_slot","move",…]}
 // device -> bridge, when something happens
 {"type":"event","name":"chat","user":"Nate","text":"$robot sort the dump chest","hidden":true}
-// bridge -> device, then device -> bridge
-{"type":"cmd","cid":"a1","tool":"sort_chest","args":{"from":"minecraft:chest_0"}}
-{"type":"result","cid":"a1","ok":true,"data":{"moved":47,"no_rule":[],"destination_full":[]}}
+// bridge -> device, then device -> bridge (one primitive per cmd; the bridge composes the chore)
+{"type":"cmd","cid":"a1","tool":"push_one_slot","args":{"from":"minecraft:chest_0","slot":3,"dest":"minecraft:chest_2"}}
+{"type":"result","cid":"a1","ok":true,"data":{"moved":64}}
 ```
 
-Adding a chore = add a `tools.xxx` function in `client.lua` and a matching schema entry in
-`DEVICE_TOOLS` in `bridge.py`. Nothing else changes.
+Adding a chore = one typed Python tool function in `bridge/agent.py` (anything with a loop or a
+policy lives there), plus a `tools.xxx` function in `client.lua` only if it needs a new
+device-side primitive. The wire shapes above never change.
 
 ## Setup
 
@@ -82,6 +84,9 @@ bridge elsewhere and tunneling to it (cloudflared, Tailscale, a VPS) returns in 
   action = "allow"
   ```
 
+Before touching the game, you can exercise the running bridge from a terminal with the
+[harness](#harness) below; every scenario but one spends nothing.
+
 ### 2. In game
 
 On the base computer (Chat Box attached, wired modem optional):
@@ -117,16 +122,85 @@ $robot what's in overflow?
 Messages starting with `$` are hidden from public chat by Advanced Peripherals; only Chat Boxes see
 them. Change `COMMAND_PREFIX` if you want a different trigger word.
 
+## Harness
+
+`harness/` is a terminal-driven fake device. It speaks the same wire protocol as `chat.lua` and
+`client.lua` against the running bridge, prints every frame in both directions, and proves one
+named scenario per run with an exit code. No game involved, and no API spend except the one
+scenario that asks for it explicitly.
+
+Start the bridge first (`uv run bridge/bridge.py`, above). The harness reads `HOST`, `PORT`,
+`BRIDGE_TOKEN`, `COMMAND_PREFIX` and `ALLOWED_PLAYERS` from the same `.env` (it never imports the
+bridge itself, only its settings). Then, from `turtle-helper`:
+
+```bash
+uv run harness --role chat|worker --scenario <name> [--turtle] [--spend] [--token <value>]
+```
+
+| flag | meaning |
+|---|---|
+| `--role chat` | play `chat.lua`: id `harness-chat`, caps `["say"]`, answers `say` with `{queued: true}` |
+| `--role worker` | play `client.lua` on a computer: id `harness-worker`, caps `status`, `list_chest`, `push_one_slot`, canned results in the Lua's shapes |
+| `--turtle` | the worker connects as role `turtle` and adds `move`, `turn`, `dig`, `inspect`, `refuel` |
+| `--spend` | allow the one scenario that costs a real model call (`devices-question`); see below |
+| `--token <value>` | override the hello token (for `wrong-token`); may be empty |
+
+Exit code `0` is a pass (`PASS: <scenario>`), `1` a failed expectation (`FAIL: <scenario> - <why>`),
+and `2` a refusal (`REFUSED: ...`: no `--spend`, or a config error) - a refusal is not a protocol
+failure. Every wire message prints as one line - timestamp, device id, `->` sent or `<-` received,
+then the compact JSON exactly as it went over the wire; the hello token is the one field the log
+redacts. Every wait is bounded, so a scenario never hangs on a bridge that stopped answering.
+
+### Scenarios
+
+| scenario | role | proves | run |
+|---|---|---|---|
+| `hello-handshake` | chat or worker | the hello is accepted: no close arrives within 5 s | `uv run harness --role chat --scenario hello-handshake` |
+| `status-command` | worker | the fake worker advertises exactly `client.lua`'s caps and answers `status`, `list_chest`, `push_one_slot` and an unknown tool with the Lua's result shapes, then stays registered | `uv run harness --role worker --scenario status-command` (add `--turtle` for the turtle set) |
+| `drop-and-reconnect` | chat or worker | a garbage frame is logged and ignored (the device stays registered), a drop followed by a same-id rejoin is accepted, and a second same-id connection replaces the stale socket, which is closed with code `4000` | `uv run harness --role worker --scenario drop-and-reconnect` |
+| `wrong-token` | chat or worker | a wrong or empty token is closed with code `4001`; the bridge logs `rejected device harness-chat from <addr>: bad token` without the token value | `uv run harness --role chat --scenario wrong-token --token wrong-value-0001`, then again with `--token ""` |
+| `disallowed-player` | chat | a prefixed chat event from a player not in `ALLOWED_PLAYERS` produces nothing for 5 s; the bridge logs `ignoring <user> (not allowed)`. Costs nothing: the bridge drops it before the model | `uv run harness --role chat --scenario disallowed-player` |
+| `devices-question` | worker + chat, two terminals | `$robot what devices are connected?` is answered by a `say` cmd that is a real answer (the bridge's `Sorry ..., something went wrong: ...` fallback fails it). **The one paid scenario.** | see below |
+
+The bridge's own log is where the two sides of an exchange interleave; each harness process shows
+only its own device.
+
+### devices-question: two terminals and `--spend`
+
+This is the only scenario that sends a prefixed chat event from an allowed player, so it is the only
+one that makes the bridge call the model. Start the worker first, so it is registered when the model
+asks what is connected:
+
+```bash
+# terminal 1 - the fake worker registers with client.lua's caps and holds for 60 s, answering any cmd
+uv run harness --role worker --scenario devices-question
+
+# terminal 2, within those 60 s - the paid call
+uv run harness --role chat --scenario devices-question --spend
+```
+
+Terminal 2 passes when a `say` cmd arrives within 30 s carrying an answer (a `list_devices` cmd
+before it is accepted too), and prints `devices-question: robot said '...'` so you can read what the
+model actually said. A good answer names `harness-worker`.
+
+`--spend` is the deliberate act. Without it the chat side refuses before connecting
+(`REFUSED: devices-question - ...`, exit 2) and nothing is sent. The guard is enforced in code, in
+two places: the scenario refuses up front, and the fake device itself refuses to send any
+`$robot`-prefixed chat event from an allowed player unless the flag was given, so no scenario can
+spend by accident. Every other scenario needs no flag and spends nothing.
+
 ## Safety knobs
 
 - `BRIDGE_TOKEN` — connections without it are dropped.
 - `ALLOWED_PLAYERS` — chat from anyone else is ignored (the API key is yours; every request costs you).
 - `ALLOW_EVAL` in `client.lua` (default `false`) — enables a `run_lua` tool so the agent can write
   its own routines. Powerful, Voyager-style, and also lets it do anything a program on that
-  computer can do. Turn on deliberately, and add `run_lua` to `DEVICE_TOOLS` when you do.
+  computer can do. Turn on deliberately, and add a matching typed `run_lua` tool in
+  `bridge/agent.py` when you do (the bridge only offers tools a connected device advertises).
 - `MODEL` env var — set to whatever current model you want; default is a placeholder.
 
 ## Next chores to add
 
 `goto(x,y,z)` (GPS + simple pathing), `fetch_item(name, count)` via an ME/RS Bridge,
-`restock(machine, item, count)`, `mine_vein`. Each is Lua on the device + one schema entry.
+`restock(machine, item, count)`, `mine_vein`. Each is a typed tool in `bridge/agent.py`, plus a
+new Lua primitive only where the device has to do something it cannot do yet.
