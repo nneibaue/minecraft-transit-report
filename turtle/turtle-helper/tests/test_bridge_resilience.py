@@ -21,6 +21,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -109,7 +110,7 @@ def reset() -> None:
 def capture_logs() -> Iterator[list[logging.LogRecord]]:
     records: list[logging.LogRecord] = []
     handler = logging.Handler()
-    handler.emit = records.append  # type: ignore[method-assign]
+    handler.emit = records.append  # type: ignore[method-assign, assignment]
     previous = (b.log.level, b.log.propagate)
     b.log.setLevel(logging.DEBUG)
     b.log.propagate = False  # keep bridge log lines off the TAP stream
@@ -285,6 +286,36 @@ async def test_malformed_frames_are_logged_and_loop_continues() -> None:
     assert "nope" in warnings[2] and "bogus" in warnings[3], warnings
 
 
+async def test_event_task_is_held_until_it_finishes() -> None:
+    """handler() keeps a reference to each on_event task; asyncio alone holds only a weak one."""
+    reset()
+    started = asyncio.Event()
+    finish = asyncio.Event()
+    seen: list[tuple[str, dict[str, object]]] = []
+
+    async def slow_on_event(dev_id: str, ev: dict[str, object]) -> None:
+        seen.append((dev_id, ev))
+        started.set()
+        await finish.wait()
+
+    ws = FakeWs(hello(id="dev-1"), frames=[json.dumps({"type": "event", "name": "probe"})])
+    with patch.object(b, "on_event", slow_on_event):
+        task = asyncio.create_task(b.handler(ws))  # type: ignore[arg-type]
+        try:
+            await asyncio.wait_for(started.wait(), 1)
+            held = getattr(b, "background_tasks", None)
+            assert isinstance(held, set) and len(held) == 1, held
+            (event_task,) = held
+            assert not event_task.done(), "the event task should still be running"
+            finish.set()
+            await asyncio.wait_for(event_task, 1)
+            assert not held, held  # discarded once done, so the set cannot grow without bound
+        finally:
+            ws.release()
+            await asyncio.wait_for(task, 1)
+    assert seen == [("dev-1", {"type": "event", "name": "probe"})], seen
+
+
 async def test_disconnect_resolves_only_that_devices_pending_futures() -> None:
     reset()
     loop = asyncio.get_running_loop()
@@ -340,6 +371,7 @@ TESTS: list[Callable[[], Any]] = [
     test_send_cmd_tracks_pending_cid_per_device_until_resolved,
     test_send_cmd_timeout_clears_pending_and_device_index,
     test_malformed_frames_are_logged_and_loop_continues,
+    test_event_task_is_held_until_it_finishes,
     test_disconnect_resolves_only_that_devices_pending_futures,
     test_replaced_connection_fails_its_in_flight_commands,
 ]

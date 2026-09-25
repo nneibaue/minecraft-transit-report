@@ -47,6 +47,9 @@ client: anthropic.AsyncAnthropic
 devices: dict[str, dict[str, object]] = {}  # id -> {"ws", "role", "caps"}
 pending: dict[str, asyncio.Future[dict[str, object]]] = {}  # cid -> future resolved by result
 pending_by_device: dict[str, set[str]] = {}  # device id -> cids in flight to it (D-10 cleanup)
+# asyncio keeps only weak references to tasks, so an event task (it awaits the model call) is held
+# here until it finishes; otherwise a long request could be garbage-collected mid-flight.
+background_tasks: set[asyncio.Task[None]] = set()
 
 
 async def send_cmd(
@@ -179,7 +182,9 @@ async def handler(websocket: ServerConnection) -> None:
                     if not fut.done():
                         fut.set_result(msg)
                 elif t == "event":
-                    asyncio.create_task(on_event(dev_id, msg))
+                    task = asyncio.create_task(on_event(dev_id, msg))
+                    background_tasks.add(task)
+                    task.add_done_callback(background_tasks.discard)
                 else:
                     log.warning("ignoring frame with unknown type from %s: %r", dev_id, t)
             except json.JSONDecodeError:
