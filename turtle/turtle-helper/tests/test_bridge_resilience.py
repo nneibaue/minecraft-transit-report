@@ -256,6 +256,26 @@ async def test_send_cmd_timeout_clears_pending_and_device_index() -> None:
     assert not b.pending_by_device.get("dev-1"), b.pending_by_device
 
 
+async def test_say_folds_non_ascii_to_plain_ascii_before_the_chat_box() -> None:
+    # Phase 4 day one: Haiku wrote "directly\u2014things" and Advanced Peripherals 0.7.46r shows
+    # each UTF-8 byte as its own char in chat (RESEARCH Finding 6), so bridge.say folds the text.
+    reset()
+    ws = FakeWs()
+    b.devices["device-0"] = {"ws": ws, "role": "chat", "caps": ["say"]}
+    text = "caf\u00e9 \u2014 \u201cquotes\u201d, it\u2019s 1\u20133 \u2026 ok \U0001f600"
+    task = asyncio.create_task(b.say(text, "Nate"))
+    await until(lambda: bool(ws.sent), "say cmd sent")
+    frame = json.loads(ws.sent[0])
+    b.pending[frame["cid"]].set_result({"type": "result", "cid": frame["cid"], "ok": True})
+    await asyncio.wait_for(task, 1)
+    assert frame["tool"] == "say" and frame["args"]["to"] == "Nate", frame
+    assert frame["args"]["text"] == 'cafe - "quotes", it\'s 1-3 ... ok ', frame["args"]["text"]
+    assert (
+        b.ascii_fold("plain ASCII, kept as is -- even this")
+        == "plain ASCII, kept as is -- even this"
+    )
+
+
 # ----------------------------------------------------------------- Task 3: loop + disconnect
 async def test_malformed_frames_are_logged_and_loop_continues() -> None:
     reset()
@@ -370,6 +390,7 @@ TESTS: list[Callable[[], Any]] = [
     test_send_cmd_returns_error_when_send_raises_connection_closed,
     test_send_cmd_tracks_pending_cid_per_device_until_resolved,
     test_send_cmd_timeout_clears_pending_and_device_index,
+    test_say_folds_non_ascii_to_plain_ascii_before_the_chat_box,
     test_malformed_frames_are_logged_and_loop_continues,
     test_event_task_is_held_until_it_finishes,
     test_disconnect_resolves_only_that_devices_pending_futures,

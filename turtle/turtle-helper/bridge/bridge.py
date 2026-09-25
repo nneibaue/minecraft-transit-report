@@ -13,7 +13,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import sys
+import unicodedata
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -95,11 +97,41 @@ def fail_pending(device_id: str, error: str) -> None:
             fut.set_result({"ok": False, "error": error})
 
 
+# Phase 4 RESEARCH Finding 6: Advanced Peripherals 0.7.46r hands the Chat Box one char per
+# byte, so non-ASCII in an answer shows in chat as mojibake. Haiku wrote "directly\u2014things"
+# on the first live day despite the prompt's plain-ASCII rule; this fold is the guarantee.
+# Typographic punctuation gets its ASCII counterpart, accents are stripped (cafe), anything
+# else non-ASCII (emoji) is dropped, and runs of spaces left behind collapse to one.
+_ASCII_PUNCTUATION = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201a": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u201e": '"',
+        "\u2013": "-",
+        "\u2014": " - ",
+        "\u2026": "...",
+        "\u00a0": " ",
+        "\u00d7": "x",
+    }
+)
+
+
+def ascii_fold(text: str) -> str:
+    """Return text as plain ASCII the Chat Box can show (see _ASCII_PUNCTUATION)."""
+    folded = unicodedata.normalize("NFKD", text.translate(_ASCII_PUNCTUATION))
+    return re.sub(" {2,}", " ", folded.encode("ascii", "ignore").decode("ascii"))
+
+
 async def say(text: str, to: str | None = None) -> None:
-    """Speak in game chat via the connected chat device, if any."""
+    """Speak in game chat via the connected chat device, if any; the text is folded to ASCII."""
     base = next((d for d, v in devices.items() if v["role"] == "chat"), None)
     if base:
-        await send_cmd(base, "say", {"text": text, "to": to, "prefix": settings.robot_name})
+        await send_cmd(
+            base, "say", {"text": ascii_fold(text), "to": to, "prefix": settings.robot_name}
+        )
     else:
         log.warning("no chat device connected; would say: %s", text)
 
