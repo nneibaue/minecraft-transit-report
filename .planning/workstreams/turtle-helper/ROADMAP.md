@@ -61,7 +61,7 @@ sorting rules persist in a git-ignored `rules.json` beside `.env` on the bridge 
 device. This amends the "high-level tools live in Lua" principle in `PROJECT.md` (see its Key
 Decisions table).
 
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 **Wave 1**
@@ -79,7 +79,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 02-05-PLAN.md — Agent core: typed pydantic-ai tools, per-run toolset, Agent construction (Wave 4)
+- [x] 02-05-PLAN.md — Agent core: typed pydantic-ai tools, per-run toolset, Agent construction (Wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -140,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
-| 2. Fake Device Harness & Protocol Resilience | 4/7 | In Progress|  |
+| 2. Fake Device Harness & Protocol Resilience | 5/7 | In Progress|  |
 | 3. Local Server Setup | 0/TBD | Not started | - |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |

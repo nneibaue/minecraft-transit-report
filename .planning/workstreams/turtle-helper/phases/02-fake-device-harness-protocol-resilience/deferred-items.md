@@ -26,3 +26,16 @@ later plan or milestone.
 - **Model `say` call used `"to": null`** in the successful run, so the answer went to broadcast
   instead of the asking player. Carry into plan 02-05's typed Pydantic AI `say` tool: make `to`
   required, or default it to the requesting player.
+  status: resolved
+  **02-05 decision:** `SayArgs.to` stays `str | None = None` (null accepted, meaning broadcast) so the
+  post-swap wire matches the 02-04 transcript for 02-07's like-for-like comparison; the prompt still
+  opens with `[<player>]`, so the model can whisper by name when it chooses to. Revisit after 02-07.
+
+## From plan 02-05 (agent core on pydantic-ai)
+
+- Pre-existing mypy error in tests/test_bridge_resilience.py:112 (`handler.emit = records.append` needs `# type: ignore[method-assign, assignment]`; mypy 1.14 reports the assignment code, the ignore only covers method-assign)
+  status: open
+  **Found during:** 02-05 Task 1 (running `uv run mypy bridge/ tests/ harness/`); not caused by this plan, left for 02-06's cleanup pass alongside the bridge.py formatting debt.
+- pydantic-ai prints a one-time observability banner to stderr on the first agent run when Logfire is not configured; set `PYDANTIC_AI_NO_BANNER=1` (e.g. in .env.example or bridge.py) before 02-07 reads the bridge log
+  status: open
+  **Found during:** 02-05 Task 2 prototype; cosmetic, bridge.py is out of this plan's scope.
