@@ -23,7 +23,7 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 
 ### Local Server Setup (SRV)
 
-- [ ] **SRV-01**: The dedicated ATM9 server's `world/serverconfig/computercraft-server.toml` carries an `[[http.rules]]` allow rule for host `127.0.0.1` placed before the default private-range deny; the exact file, rule, ordering, restart requirement, and an in-game one-line smoke check are documented
+- [x] **SRV-01**: The dedicated ATM9 server's `world/serverconfig/computercraft-server.toml` carries an `[[http.rules]]` allow rule for host `127.0.0.1` placed before the default private-range deny; the exact file, rule, ordering, restart requirement, and an in-game one-line smoke check are documented
 - [ ] **SRV-02**: Developer can place `chat.lua` and `client.lua` directly into the server's per-computer folders on disk (`<world>/computercraft/computer/<id>/`) with the folder-to-device mapping and the reload step documented; no GitHub push or pastebin involved
 - [ ] **SRV-03**: Each device reads the bridge token from `secret.txt` in its own folder; the token appears nowhere in the Lua, the repo, or the world save other than those per-device files
 - [ ] **SRV-04**: Each device has a `startup.lua` that launches `chat` or `client`, so devices come back on their own after a server restart or device reboot
@@ -99,7 +99,7 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | HARN-02 | Phase 2 | Complete |
 | HARN-03 | Phase 2 | Complete |
 | HARN-04 | Phase 2 | Complete |
-| SRV-01 | Phase 3 | Pending |
+| SRV-01 | Phase 3 | Complete |
 | SRV-02 | Phase 3 | Pending |
 | SRV-03 | Phase 3 | Pending |
 | SRV-04 | Phase 3 | Pending |

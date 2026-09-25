@@ -4,18 +4,18 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 03
 current_phase_name: Local Server Setup
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-09-25T08:57:22.218Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-09-25T09:49:29.785Z"
 last_activity: 2026-09-25
 last_activity_desc: Phase 03 execution started
-state_head: d66710c7293d9cbdfb732141ed578177722e52d0
+state_head: e8e8179e5cd94726d68984b11ec5cfe344315be9
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -24,7 +24,7 @@ progress:
 ## Current Position
 
 Phase: 03 (Local Server Setup) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-09-25 — Phase 03 execution started
 
@@ -33,7 +33,7 @@ Last activity: 2026-09-25 — Phase 03 execution started
 Progress: ████░░░░░░ [░░░░░░░░░░] 0%
 
 **Phases Complete:** 2 of 5
-**Current Plan:** 3
+**Current Plan:** 4
 
 ## Project Reference
 
@@ -44,9 +44,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T08:57:22.181Z
+**Last session:** 2026-09-25T09:49:08.562Z
 
-**Stopped At:** Completed 03-02-PLAN.md
+**Stopped At:** Completed 03-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -64,6 +64,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 02 P07 | 30 min | 4 tasks | 8 files |
 | Phase 03 P01 | 8 min | 3 tasks | 10 files |
 | Phase 03 P02 | 1 min | 2 tasks | 2 files |
+| Phase 03 P03 | 48 min | 6 tasks | 0 files |
 
 ## Decisions
 
@@ -98,6 +99,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: deploy edits computercraft-server.toml with newline='' so the file's own LF/CRLF endings survive; server-running gate is a TCP probe of port 25565, not session.lock
 - [Phase 03]: uv run launch opens bridge and run.bat via CREATE_NEW_CONSOLE (cmd /c start needs a quoted title subprocess cannot produce); marker file is _marker.txt, URL file bridge.txt
 - [Phase 03]: chat.lua and client.lua default BRIDGE_URL to ws://127.0.0.1:8765 and reassign (not re-declare) it from a trimmed bridge.txt; chat.lua DEVICE_ID is label-or-device-<id> like client.lua
+- [Phase 03]: SERVER_DIR was appended to the gitignored .env by a scratchpad script (a hook blocks Bash reads of .env); Settings() resolves C:/Users/nneib/Documents/Server-Files-1.1.1/Server-Files-1.1.1 with no .env value printed
+- [Phase 03]: The real computercraft-server.toml carries the 127.0.0.1 allow at line 114 before $private at line 118 (8648 -> 8709 bytes, md5 0c2b4863 -> f3a8a0a8, 4 CRLF lines added); after a full restart Forge rewrote the file at boot byte-identically, confirming RESEARCH.md A4
+- [Phase 03]: Forge loads cc-tweaked-1.20.1-forge-1.116.1.jar (UniqueModListBuilder, logs/debug.log line 916); the duplicate 1.113.1 jar is found but skipped, and removing it stays an operator decision
 
 ## Blockers/Concerns
 
