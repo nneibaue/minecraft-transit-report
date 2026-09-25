@@ -27,6 +27,7 @@ import anthropic  # noqa: E402
 from pydantic_ai import Agent, FunctionToolset  # noqa: E402
 from pydantic_ai.messages import (  # noqa: E402
     ModelMessage,
+    ModelRequest,
     ModelRequestPart,
     ModelResponse,
     ModelResponsePart,
@@ -34,6 +35,7 @@ from pydantic_ai.messages import (  # noqa: E402
     TextPart,
     ToolCallPart,
     ToolReturnPart,
+    UserPromptPart,
 )
 from pydantic_ai.models.anthropic import AnthropicModel  # noqa: E402
 from pydantic_ai.models.function import AgentInfo, FunctionModel  # noqa: E402
@@ -410,6 +412,126 @@ async def test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions() -
     assert script.instructions_seen[0] == a.system.strip(), script.instructions_seen
 
 
+# ----------------------------------------------------------------- Task 3: handle_request
+class ModelBlewUpError(Exception):
+    """A genuinely unexpected failure inside the model call (not a tool error)."""
+
+
+async def run_request(script: Script, user: str, text: str) -> None:
+    """Drive handle_request() exactly as bridge.on_event does, with the model scripted."""
+    with require_agent().override(model=script.model()):
+        await a.handle_request(user, text)
+
+
+def histories() -> dict[str, list[ModelMessage]]:
+    stored = getattr(a, "histories", None)
+    assert isinstance(stored, dict), "agent.py has no per-player histories dict"
+    return stored
+
+
+def user_prompts(messages: list[ModelMessage]) -> list[str]:
+    return [str(p.content) for p in parts(messages) if isinstance(p, UserPromptPart)]
+
+
+def test_handle_request_keeps_the_phase_1_signature() -> None:
+    sig = inspect.signature(a.handle_request, eval_str=True)
+    assert list(sig.parameters) == ["user", "text"], sig
+    assert all(p.annotation is str for p in sig.parameters.values()), sig
+    assert sig.return_annotation is None, sig
+
+
+async def test_handle_request_runs_the_model_with_the_per_run_toolset() -> None:
+    devices: dict[str, dict[str, object]] = {}
+    configure(devices)
+    script = Script("done", "done")
+    await run_request(script, "Nate", "what devices are connected?")
+    devices["t1"] = turtle()  # a turtle connects between two requests
+    await run_request(script, "Nate", "and now?")
+    assert script.tools_seen == [
+        LOCAL_TOOLS,
+        sorted(LOCAL_TOOLS + list(DEVICE_PRIMITIVES)),
+    ], script.tools_seen
+
+
+async def test_handle_request_keeps_history_per_player() -> None:
+    configure({})
+    script = Script("hi Nate", "hi again", "hi Bob")
+    await run_request(script, "Nate", "hello")
+    await run_request(script, "Nate", "again")
+    await run_request(script, "Bob", "yo")
+    first, second, bob = script.messages_seen
+    assert user_prompts(first) == ["[Nate] hello"], user_prompts(first)
+    assert user_prompts(second) == ["[Nate] hello", "[Nate] again"], user_prompts(second)
+    assert user_prompts(bob) == ["[Bob] yo"], user_prompts(bob)  # never another player's turns
+    stored = histories()
+    assert set(stored) == {"Nate", "Bob"}, set(stored)
+    assert len(stored["Nate"]) == 4 and len(stored["Bob"]) == 2, {
+        k: len(v) for k, v in stored.items()
+    }
+    assert all(isinstance(m, ModelRequest | ModelResponse) for m in stored["Nate"]), stored["Nate"]
+
+
+async def test_failed_run_raises_and_leaves_that_players_history_untouched() -> None:
+    configure({})
+    await run_request(Script("ok"), "Nate", "hello")
+    before = list(histories()["Nate"])
+
+    def explode(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        raise ModelBlewUpError("model call blew up")
+
+    try:
+        with require_agent().override(model=FunctionModel(explode)):
+            await a.handle_request("Nate", "again")
+    except ModelBlewUpError:
+        pass  # bridge.on_event's try/except is the intended catcher
+    else:
+        raise AssertionError("handle_request swallowed the failure instead of raising")
+    assert histories()["Nate"] == before, histories()["Nate"]
+
+
+async def test_history_is_bounded_and_trimmed_on_turn_boundaries() -> None:
+    configure({})
+    limit = getattr(a, "HISTORY_LIMIT", None)
+    assert isinstance(limit, int) and limit > 0, limit
+    turns = limit // 6 + 1  # each turn below is 6 messages, so the total overshoots the cap
+    one_turn: list[list[ToolCallPart] | str] = [call("list_devices"), call("list_devices"), "ok"]
+    script = Script(*(one_turn * turns))
+    for i in range(turns):
+        await run_request(script, "Nate", f"turn {i}")
+    hist = histories()["Nate"]
+    assert len(hist) <= limit, len(hist)
+    assert isinstance(hist[0], ModelRequest) and isinstance(hist[0].parts[0], UserPromptPart), hist[
+        0
+    ]  # never cut inside a turn: the kept history starts on a player's prompt
+    kept = user_prompts(hist)
+    assert kept[0] != "[Nate] turn 0" and kept[-1] == f"[Nate] turn {turns - 1}", kept
+    calls = sum(isinstance(p, ToolCallPart) for p in parts(hist))
+    returns = sum(isinstance(p, ToolReturnPart) for p in parts(hist))
+    assert calls == returns, (calls, returns)  # every kept tool_use still has its tool_result
+
+
+async def test_runaway_tool_loop_is_cut_off_and_history_untouched() -> None:
+    configure({})
+    await run_request(Script("ok"), "Nate", "hello")
+    before = list(histories()["Nate"])
+    model_calls = 0
+
+    def forever(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        nonlocal model_calls
+        model_calls += 1
+        return ModelResponse(parts=[ToolCallPart(tool_name="list_devices", args={})])
+
+    try:
+        with require_agent().override(model=FunctionModel(forever)):
+            await a.handle_request("Nate", "loop")
+    except Exception as exc:
+        assert "UsageLimit" in type(exc).__name__, type(exc).__name__
+    else:
+        raise AssertionError("a request that never stops calling tools was not cut off")
+    assert 2 <= model_calls <= 12, model_calls  # the old loop's cap of 12 model rounds carries over
+    assert histories()["Nate"] == before, histories()["Nate"]
+
+
 # ----------------------------------------------------------------- runner (TAP output)
 TESTS: list[Callable[[], Any]] = [
     test_list_chest_without_name_is_rejected_before_the_tool_runs,
@@ -429,6 +551,12 @@ TESTS: list[Callable[[], Any]] = [
     test_say_without_text_is_rejected_before_it_speaks,
     test_configure_builds_the_agent_on_the_injected_anthropic_client,
     test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions,
+    test_handle_request_keeps_the_phase_1_signature,
+    test_handle_request_runs_the_model_with_the_per_run_toolset,
+    test_handle_request_keeps_history_per_player,
+    test_failed_run_raises_and_leaves_that_players_history_untouched,
+    test_history_is_bounded_and_trimmed_on_turn_boundaries,
+    test_runaway_tool_loop_is_cut_off_and_history_untouched,
 ]
 
 
