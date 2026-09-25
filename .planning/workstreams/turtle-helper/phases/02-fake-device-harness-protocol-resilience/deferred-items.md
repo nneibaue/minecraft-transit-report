@@ -12,6 +12,10 @@ later plan or milestone.
   `background_tasks: set[asyncio.Task[None]]` with `task.add_done_callback(background_tasks.discard)`.
   Natural home: plan 02-05/02-06 when `agent.handle_request` is rewritten, since that is the
   awaited call inside the task.
+  status: resolved
+  **02-06 fix:** `bridge.py` now has a module-level `background_tasks: set[asyncio.Task[None]]`;
+  `handler()` adds each event task and discards it on completion. Covered by
+  `tests/test_bridge_resilience.py::test_event_task_is_held_until_it_finishes`.
 
 ## From plan 02-04 (paid devices-question run, pre-swap)
 
@@ -34,8 +38,10 @@ later plan or milestone.
 ## From plan 02-05 (agent core on pydantic-ai)
 
 - Pre-existing mypy error in tests/test_bridge_resilience.py:112 (`handler.emit = records.append` needs `# type: ignore[method-assign, assignment]`; mypy 1.14 reports the assignment code, the ignore only covers method-assign)
-  status: open
+  status: resolved
   **Found during:** 02-05 Task 1 (running `uv run mypy bridge/ tests/ harness/`); not caused by this plan, left for 02-06's cleanup pass alongside the bridge.py formatting debt.
+  **02-06 fix:** ignore widened to `[method-assign, assignment]`; `uv run mypy bridge/ harness/ tests/` is clean. The bridge.py formatting debt (`ruff format --check`) was cleared in the same pass as a formatting-only `style(02-06)` commit.
 - pydantic-ai prints a one-time observability banner to stderr on the first agent run when Logfire is not configured; set `PYDANTIC_AI_NO_BANNER=1` (e.g. in .env.example or bridge.py) before 02-07 reads the bridge log
-  status: open
+  status: resolved
   **Found during:** 02-05 Task 2 prototype; cosmetic, bridge.py is out of this plan's scope.
+  **02-06 fix:** `agent.configure()` sets `pydantic_ai.BANNER_ENABLED = False` (the switch the installed 2.46.0 documents in `pydantic_ai/__init__.py`; `PYDANTIC_AI_NO_BANNER` is its env-var twin) before the Agent is built, so no env var or `.env.example` entry is needed. Covered by `tests/test_agent_composition.py::test_configure_turns_off_the_pydantic_ai_first_run_banner`.

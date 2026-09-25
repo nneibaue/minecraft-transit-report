@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # keep pydantic-ai's banner off the TAP stream
 
 import anthropic  # noqa: E402
+import pydantic_ai  # noqa: E402
 from pydantic_ai import FunctionToolset  # noqa: E402
 from pydantic_ai.messages import RetryPromptPart, ToolReturnPart  # noqa: E402
 from test_agent import (  # noqa: E402
@@ -476,6 +477,14 @@ async def test_add_rule_rejects_a_malformed_lua_pattern_with_a_retry() -> None:
         assert not path.exists(), "a rejected rule must not be saved"
 
 
+# ----------------------------------------------------------------- Task 3: cleanup
+def test_configure_turns_off_the_pydantic_ai_first_run_banner() -> None:
+    """The bridge log is read by humans and by plan 02-07's transcript; the banner stays out."""
+    pydantic_ai.BANNER_ENABLED = True
+    configure({})
+    assert pydantic_ai.BANNER_ENABLED is False
+
+
 # ----------------------------------------------------------------- runner (TAP output)
 TESTS: list[Callable[[], Any]] = [
     test_rules_path_sits_beside_env_resolved_from_the_source_file,
@@ -493,6 +502,7 @@ TESTS: list[Callable[[], Any]] = [
     test_sort_chest_stops_on_a_failed_push_and_reports_progress,
     test_lua_patterns_match_like_string_find_not_like_regex,
     test_add_rule_rejects_a_malformed_lua_pattern_with_a_retry,
+    test_configure_turns_off_the_pydantic_ai_first_run_banner,
 ]
 
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 import anthropic
+import pydantic_ai
 from pydantic import BaseModel, Field, ValidationError
 from pydantic_ai import Agent, FunctionToolset, ModelRetry, RunContext
 from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
@@ -74,6 +75,9 @@ def configure(
     say_in_chat = new_say
     default_worker = new_default_worker
     system = SYSTEM_TEMPLATE.format(robot_name=new_settings.robot_name)
+    # pydantic-ai prints a one-time observability banner to stderr on the first run unless told
+    # not to; the bridge log is read by humans and by plan 02-07's transcript, so keep it out.
+    pydantic_ai.BANNER_ENABLED = False
     # AnthropicProvider wraps bridge.py's own client (the one main() already verified the model
     # against) rather than opening a second one from the API key.
     agent = Agent(
