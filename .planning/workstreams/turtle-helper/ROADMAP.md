@@ -61,7 +61,7 @@ sorting rules persist in a git-ignored `rules.json` beside `.env` on the bridge 
 device. This amends the "high-level tools live in Lua" principle in `PROJECT.md` (see its Key
 Decisions table).
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans executed
 
 Plans:
 **Wave 1**
@@ -87,7 +87,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 02-07-PLAN.md — Harness docs, CLAUDE.md amendments, paid devices-question run post-swap (2nd of 2 paid calls) (Wave 6)
+- [x] 02-07-PLAN.md — Harness docs, CLAUDE.md amendments, paid devices-question run post-swap (2nd of 2 paid calls) (Wave 6)
 
 ### Phase 3: Local Server Setup
 
@@ -140,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
-| 2. Fake Device Harness & Protocol Resilience | 6/7 | In Progress|  |
+| 2. Fake Device Harness & Protocol Resilience | 7/7 | In Progress|  |
 | 3. Local Server Setup | 0/TBD | Not started | - |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |
