@@ -4,18 +4,18 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 02
 current_phase_name: Fake Device Harness & Protocol Resilience
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-09-25T04:41:10.657Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-09-25T05:03:55.462Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 02 execution started
-state_head: 1279e4a068c1686f9bdacc89e45c5d7c64de5657
+state_head: bc74867ba3d7e61a1bf80aa5ce06d7cd4837d881
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -24,20 +24,20 @@ progress:
 ## Current Position
 
 Phase: 02 (Fake Device Harness & Protocol Resilience) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-09-23 — Phase 02 execution started
 
 ## Progress
 
 **Phases Complete:** 1
-**Current Plan:** 6
+**Current Plan:** 7
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T04:40:42.380Z
+**Last session:** 2026-09-25T05:03:55.436Z
 
-**Stopped At:** Completed 02-05-PLAN.md
+**Stopped At:** Completed 02-06-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -51,6 +51,7 @@ Last activity: 2026-09-23 — Phase 02 execution started
 | Phase 02 P03 | 13 min | 3 tasks | 4 files |
 | Phase 02 P04 | 7 min | 2 tasks | 2 files |
 | Phase 02 P05 | 19 min | 3 tasks | 4 files |
+| Phase 02 P06 | 17 min | 3 tasks | 8 files |
 
 ## Decisions
 
@@ -72,3 +73,9 @@ Last activity: 2026-09-23 — Phase 02 execution started
 - [Phase 02]: SayArgs.to stays optional (null = broadcast) so 02-07's post-swap wire matches the 02-04 transcript; the injected bridge.say() is held as agent.say_in_chat so the model-facing tool is a real function named say; configure() signature unchanged
 - [Phase 02]: History trimming drops whole oldest turns to HISTORY_LIMIT=40 messages (cut only at a request carrying the player's prompt) and UsageLimits(request_limit=12) carries over the old 12-round cap; histories is replaced only after agent.run() returns (WR-03)
 - [Phase 02]: RESEARCH.md's pydantic-ai claims (ResultError, RunContext history) were wrong; every symbol verified against installed 2.46.0 (ModelRetry/RetryPromptPart, message_history=, per-run toolsets=, FunctionModel for zero-spend tests)
+- [Phase 02]: rules.json is a typed RuleBook (ordered SortRule list + optional overflow) behind load_rulebook()/save_rulebook() with an atomic temp-file replace; load_rules() is the JSON view list_rules returns; a missing file is an empty book, a corrupt one raises rather than being silently discarded
+- [Phase 02]: Rule patterns keep Lua string.find semantics on the bridge via bridge/lua_pattern.py (translation to re); %b, %f and back-references are rejected, and add_rule refuses an unmatchable pattern with ModelRetry before saving
+- [Phase 02]: sort_chest is gated on a single device advertising both list_chest and push_one_slot (COMPOSITIONS table), not the union of all caps; it stops at the first failed push and returns the device error plus progress so far
+- [Phase 02]: pydantic-ai banner switched off with pydantic_ai.BANNER_ENABLED = False inside configure() (documented switch in 2.46.0), not an env var, keeping imports side-effect free
+- [Phase 02]: anthropic stays a direct pyproject dependency: bridge.py's boot check constructs anthropic.AsyncAnthropic itself and calls models.retrieve before pydantic-ai wraps that client
+- [Phase 02]: The pre-02-01 Lua sort_chest body is not preserved in git; the port follows the plan's spec and 02-01-SUMMARY (list, first-match rule, overflow fallback, push per slot, moved/no_rule/destination_full)
