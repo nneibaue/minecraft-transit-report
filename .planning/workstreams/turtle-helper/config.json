@@ -1,6 +1,16 @@
 {
   "workflow": {
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "nyquist_validation": false,
+    "security_enforcement": false,
+    "code_review": false,
+    "api_coverage_gate": false,
+    "pattern_mapper": false,
+    "post_planning_gaps": false,
+    "ui_phase": false,
+    "ui_safety_gate": false,
+    "ai_integration_phase": false
   },
-  "model_profile": "quality"
+  "model_profile": "quality",
+  "granularity": "coarse"
 }
