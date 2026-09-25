@@ -15,7 +15,7 @@ from typing import Literal
 import anthropic
 import pydantic_ai
 from pydantic import BaseModel, Field, ValidationError
-from pydantic_ai import Agent, FunctionToolset, ModelRetry, RunContext
+from pydantic_ai import Agent, FunctionToolset, ModelRetry, RunContext, ToolOutput
 from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart, UserPromptPart
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
@@ -41,8 +41,9 @@ send_cmd: SendCmdFn
 say_in_chat: SayFn  # bridge.say(); named apart from the `say` tool the model calls
 default_worker: DefaultWorkerFn
 system: str
-# The pydantic-ai Agent, built once in configure(). It carries the model and instructions
-# only: every tool reaches it per run through build_toolset() (D-09), never at construction.
+# The pydantic-ai Agent, built once in configure(). It carries the model, the instructions and
+# the say output tool (the reply that ends a run); every other tool reaches it per run through
+# build_toolset() (D-09), never at construction.
 agent: Agent[None, str]
 
 SYSTEM_TEMPLATE = """You are {robot_name}, a helpful robot assistant living inside a Minecraft
@@ -91,6 +92,14 @@ def configure(
     agent = Agent(
         AnthropicModel(new_settings.model, provider=AnthropicProvider(anthropic_client=new_client)),
         instructions=system,
+        # say is the output tool, not a function tool: calling it ends the run with the spoken
+        # text as the output, so the model is never asked for a turn after it has spoken. Phase 4
+        # 04-02's first live request showed why: as a plain tool, say ran, Haiku (told to answer
+        # only through say) returned an empty turn, pydantic-ai retried it with "Please return
+        # text or call a tool", the model spoke the same answer again, returned empty again, and
+        # the run failed with UnexpectedModelBehavior. Plain text stays allowed: it is the
+        # fallback handle_request speaks itself.
+        output_type=[str, ToolOutput(say, name="say")],
     )
 
 
@@ -241,10 +250,10 @@ class SayArgs(BaseModel):
     to: str | None = Field(default=None, description="player name to whisper to; omit to broadcast")
 
 
-async def say(ctx: RunContext[None], args: SayArgs) -> dict[str, object]:
-    """Speak in game chat. Use once at the end with a short summary, not for every step."""
+async def say(ctx: RunContext[None], args: SayArgs) -> str:
+    """Speak in game chat. This is your reply and it ends the request; call it once, last."""
     await say_in_chat(args.text, args.to)
-    return {"ok": True}
+    return args.text
 
 
 # ----------------------------------------------------------------- sorting rules (D-08)
@@ -476,10 +485,11 @@ def build_toolset() -> FunctionToolset[None]:
 
     Rebuilt from the live registry on every request, so with no turtle connected the model never
     sees move/turn/dig/inspect/refuel, and with no worker at all it sees only the local tools
-    (list_devices, say and the four rule tools, which edit the bridge-side rules.json).
+    (list_devices and the four rule tools, which edit the bridge-side rules.json). say is not in
+    here: it is the agent's output tool (see configure), offered on every run.
     """
     toolset: FunctionToolset[None] = FunctionToolset(
-        [list_devices, say, list_rules, add_rule, remove_rule, set_overflow]
+        [list_devices, list_rules, add_rule, remove_rule, set_overflow]
     )
     advertised = {cap for entry in devices.values() for cap in _caps(entry)}
     for primitive in DEVICE_PRIMITIVES:
@@ -527,8 +537,9 @@ def trim_history(messages: list[ModelMessage], limit: int = HISTORY_LIMIT) -> li
 def _spoke(messages: list[ModelMessage]) -> bool:
     """True if the say tool ran, and so spoke, somewhere in these messages.
 
-    The evidence is the tool's return part, not the model's call part: a say call that failed
-    validation leaves a RetryPromptPart behind and never spoke.
+    The evidence is the tool's return part (pydantic-ai records the output tool's as "Final result
+    processed."), not the model's call part: a say call that failed validation leaves a
+    RetryPromptPart behind and never spoke.
     """
     return any(
         isinstance(part, ToolReturnPart) and part.tool_name == "say"
@@ -542,12 +553,13 @@ async def handle_request(user: str, text: str) -> None:
     """Run one chat request through the agent, see that its answer is spoken, and remember the
     exchange for that player.
 
-    The model normally speaks through the say tool inside the run. If the run ends without a say
-    (the model answered as plain text instead), the final output is spoken here, whispered to the
-    requester, so no answer is lost; an answer the model already spoke is not repeated. The final
-    output is logged either way. Anything that escapes agent.run() (a bug, a usage limit, a tool
-    that exhausted its retries) propagates to bridge.on_event's catch-all, which speaks the error
-    fallback, and this player's history stays as it was.
+    The model normally speaks through the say output tool, which ends the run with the spoken text
+    as its output. If the run ends without a say (the model answered as plain text instead), the
+    final output is spoken here, whispered to the requester, so no answer is lost; an answer the
+    model already spoke is not repeated. The final output is logged either way. Anything that
+    escapes agent.run() (a bug, a usage limit, a tool that exhausted its retries) propagates to
+    bridge.on_event's catch-all, which speaks the error fallback, and this player's history stays
+    as it was.
     """
     log.info("request from %s: %s", user, text)
     result = await agent.run(

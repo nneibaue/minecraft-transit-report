@@ -68,7 +68,8 @@ CARRIED_DESCRIPTIONS = {
     "inspect": "Name the blocks in front, above and below a turtle.",
     "refuel": "Burn fuel items from the turtle's inventory.",
     "list_devices": "List connected devices, their roles and the tools each supports.",
-    "say": "Speak in game chat. Use once at the end with a short summary, not for every step.",
+    # Phase 4 (04-02): say became the output tool that ends the run; its text says so.
+    "say": "Speak in game chat. This is your reply and it ends the request; call it once, last.",
     # Plan 02-06: the rule tools moved from the device to the bridge (D-08), same descriptions.
     "list_rules": "Show the sorting rules and overflow chest.",
     "add_rule": (
@@ -110,9 +111,13 @@ class Script:
         self.tools_seen: list[list[str]] = []
         self.messages_seen: list[list[ModelMessage]] = []
         self.instructions_seen: list[str | None] = []
+        self.output_tools_seen: list[list[tuple[str, str | None, dict[str, Any]]]] = []
 
     def respond(self, messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
         self.tools_seen.append(sorted(t.name for t in info.function_tools))
+        self.output_tools_seen.append(
+            [(t.name, t.description, t.parameters_json_schema) for t in info.output_tools]
+        )
         self.messages_seen.append(list(messages))
         self.instructions_seen.append(info.instructions)
         turn: list[ToolCallPart] | str = self.turns.pop(0) if self.turns else "done"
@@ -285,9 +290,10 @@ def test_every_primitive_is_a_typed_tool_with_the_lua_signature() -> None:
 
 
 # ----------------------------------------------------------------- Task 2: local tools, toolset
-# Always in the toolset whatever is connected: the two Phase 1 local tools plus the four rule tools
-# plan 02-06 moved onto the bridge (D-08). Sorted, because toolset_names() sorts.
-LOCAL_TOOLS = ["add_rule", "list_devices", "list_rules", "remove_rule", "say", "set_overflow"]
+# Always in the toolset whatever is connected: list_devices plus the four rule tools plan 02-06
+# moved onto the bridge (D-08). Sorted, because toolset_names() sorts. Since plan 04-02 say is
+# the agent's output tool, not a function tool (test_say_is_the_output_tool_with_the_flat_schema).
+LOCAL_TOOLS = ["add_rule", "list_devices", "list_rules", "remove_rule", "set_overflow"]
 # Python compositions (plan 02-06, D-07/D-09): offered only when one connected device advertises
 # every primitive they need; sort_chest needs list_chest and push_one_slot, which both a plain
 # computer and a turtle advertise.
@@ -362,9 +368,19 @@ def test_local_tools_carry_the_old_descriptions() -> None:
             name,
             toolset.tools[name].description,
         )
-    say_schema = toolset.tools["say"].function_schema.json_schema
-    assert say_schema.get("required") == ["text"], say_schema
-    assert set(say_schema["properties"]) == {"text", "to"}, say_schema
+
+
+async def test_say_is_the_output_tool_with_the_flat_schema() -> None:
+    configure({})
+    script = Script("done")
+    with require_agent().override(model=script.model()):
+        await require_agent().run("[Nate] hi", toolsets=[require_build_toolset()()])
+    assert "say" not in script.tools_seen[0], script.tools_seen  # not a function tool any more
+    [only] = script.output_tools_seen[0]  # the one output tool the model may call instead of text
+    name, description, schema = only
+    assert name == "say" and description == CARRIED_DESCRIPTIONS["say"], (name, description)
+    assert schema.get("required") == ["text"], schema  # SayArgs flattened, as before
+    assert set(schema["properties"]) == {"text", "to"}, schema
 
 
 async def test_list_devices_reports_roles_and_caps_only() -> None:
@@ -379,29 +395,30 @@ async def test_list_devices_reports_roles_and_caps_only() -> None:
     }, returns[0].content
 
 
-async def test_say_tool_calls_the_injected_say_and_accepts_null_to() -> None:
+async def test_say_speaks_through_the_injected_say_and_ends_the_run() -> None:
     rec = configure({})
-    tool = require_tool("say")
-    script = Script(
+    turns = [
         call("say", text="Hello Nate", to=None),  # what the pre-swap model actually sent (02-04)
         call("say", text="psst", to="Nate"),
         call("say", text="all done"),
-        "done",
-    )
-    messages = await run_tool_through_model(tool, script)
-    returns = [p for p in parts(messages) if isinstance(p, ToolReturnPart)]
-    assert [r.content for r in returns] == [{"ok": True}] * 3, returns
+    ]
+    for turn in turns:
+        script = Script(turn, "never asked for")
+        await run_request(script, "Nate", "hi")
+        assert len(script.tools_seen) == 1, script.tools_seen  # say ended the run: one model call
     assert rec.said == [("Hello Nate", None), ("psst", "Nate"), ("all done", None)], rec.said
     assert rec.cmds == [], rec.cmds
+    returns = [p for p in parts(histories()["Nate"]) if isinstance(p, ToolReturnPart)]
+    assert [r.tool_name for r in returns] == ["say"] * 3, returns  # the evidence _spoke() reads
 
 
 async def test_say_without_text_is_rejected_before_it_speaks() -> None:
     rec = configure({})
-    tool = require_tool("say")
-    messages = await run_tool_through_model(tool, Script(call("say", to="Nate"), "done"))
-    retries = [p for p in parts(messages) if isinstance(p, RetryPromptPart)]
+    script = Script(call("say", to="Nate"), call("say", text="ok", to="Nate"))
+    await run_request(script, "Nate", "hi")
+    retries = [p for p in parts(histories()["Nate"]) if isinstance(p, RetryPromptPart)]
     assert len(retries) == 1 and retries[0].tool_name == "say", retries
-    assert rec.said == [], rec.said
+    assert rec.said == [("ok", "Nate")], rec.said  # nothing spoken until the call validated
 
 
 def test_configure_builds_the_agent_on_the_injected_anthropic_client() -> None:
@@ -422,7 +439,8 @@ async def test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions() -
     with agent.override(model=script.model()):
         result = await agent.run("[Nate] hi")  # ...no toolsets are passed for this run
     assert result.output == "done", result.output
-    assert script.tools_seen == [[]], script.tools_seen  # ...so the model sees no tools at all
+    assert script.tools_seen == [[]], script.tools_seen  # ...so the model sees no function tools
+    assert [t[0] for t in script.output_tools_seen[0]] == ["say"]  # only its own output tool
     # pydantic-ai strips the instructions' surrounding whitespace before the request goes out
     assert script.instructions_seen[0] == a.system.strip(), script.instructions_seen
 
@@ -592,10 +610,37 @@ async def test_plain_text_answer_is_spoken_to_the_requester_when_the_model_skips
 async def test_answer_the_model_spoke_through_say_is_not_repeated() -> None:
     rec = configure({"harness-worker": computer()})
     spoken = "Just one computer, harness-worker, and the chat box."
-    # The pre-swap 21:09 shape: list_devices, say(to=null), then a throwaway closing text.
+    # The pre-swap 21:09 shape: list_devices, say(to=null), then a throwaway closing text. Since
+    # plan 04-02 say ends the run, so that closing text is never even asked for.
     script = Script(call("list_devices"), call("say", text=spoken, to=None), "Done.")
     await run_request(script, "DisraSenkovi", "what devices are connected?")
     assert rec.said == [(spoken, None)], rec.said  # once, exactly as the model sent it
+    assert len(script.tools_seen) == 2, script.tools_seen
+
+
+async def test_say_ends_the_run_so_no_empty_follow_up_turn_is_requested() -> None:
+    # Phase 4's first live request (2026-09-25, claude-haiku-4-5, "$robot what is atm9"): with say
+    # as a plain function tool the model spoke through it, then, told to answer only through say,
+    # returned an empty turn. pydantic-ai retried that turn ("Please return text or call a tool"),
+    # the model spoke the same answer again (a duplicate in chat), returned empty once more, and
+    # the run died with UnexpectedModelBehavior, so the bridge said "something went wrong". With
+    # say as the output tool the run ends at the say call and the empty turn is never requested.
+    rec = configure({})
+    answer = "ATM9 is short for All the Mods 9, the modpack we are playing in right now."
+    script = Script(call("say", text=answer, to=None), [], [])  # the empties are never reached
+    catcher = LogCatcher()
+    bridge_log = logging.getLogger("bridge")
+    previous_level = bridge_log.level
+    bridge_log.setLevel(logging.INFO)
+    bridge_log.addHandler(catcher)
+    try:
+        await run_request(script, "DisraSenkovi", "what is atm9")
+    finally:
+        bridge_log.removeHandler(catcher)
+        bridge_log.setLevel(previous_level)
+    assert len(script.tools_seen) == 1, script.tools_seen  # one model call, no retry round
+    assert rec.said == [(answer, None)], rec.said  # spoken once, never duplicated
+    assert any("spoken via say" in line and answer in line for line in catcher.lines)
 
 
 async def test_blank_final_output_without_say_speaks_nothing() -> None:
@@ -622,8 +667,9 @@ TESTS: list[Callable[[], Any]] = [
     test_toolset_with_turtle_adds_all_eight_primitives,
     test_toolset_is_rebuilt_from_the_live_registry_each_call,
     test_local_tools_carry_the_old_descriptions,
+    test_say_is_the_output_tool_with_the_flat_schema,
     test_list_devices_reports_roles_and_caps_only,
-    test_say_tool_calls_the_injected_say_and_accepts_null_to,
+    test_say_speaks_through_the_injected_say_and_ends_the_run,
     test_say_without_text_is_rejected_before_it_speaks,
     test_configure_builds_the_agent_on_the_injected_anthropic_client,
     test_agent_has_no_tools_of_its_own_and_uses_system_as_instructions,
@@ -635,6 +681,7 @@ TESTS: list[Callable[[], Any]] = [
     test_runaway_tool_loop_is_cut_off_and_history_untouched,
     test_plain_text_answer_is_spoken_to_the_requester_when_the_model_skips_say,
     test_answer_the_model_spoke_through_say_is_not_repeated,
+    test_say_ends_the_run_so_no_empty_follow_up_turn_is_requested,
     test_blank_final_output_without_say_speaks_nothing,
 ]
 
