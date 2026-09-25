@@ -4,18 +4,18 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 02
 current_phase_name: Fake Device Harness & Protocol Resilience
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-09-23T20:30:06.694Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-09-25T04:15:47.045Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 02 execution started
-state_head: 423eba8f7de17f91a6cfbbe1a9ae1ec6e3dc236d
+state_head: 7006e6ceee881e55adb15d3094887c6db17468c9
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -24,20 +24,20 @@ progress:
 ## Current Position
 
 Phase: 02 (Fake Device Harness & Protocol Resilience) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-09-23 — Phase 02 execution started
 
 ## Progress
 
 **Phases Complete:** 1
-**Current Plan:** 4
+**Current Plan:** 5
 
 ## Session Continuity
 
-**Last session:** 2026-09-23T20:30:06.666Z
+**Last session:** 2026-09-25T04:15:47.020Z
 
-**Stopped At:** Completed 02-03-PLAN.md
+**Stopped At:** Completed 02-04-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -49,6 +49,7 @@ Last activity: 2026-09-23 — Phase 02 execution started
 | Phase 02 P01 | 3 min | 2 tasks | 1 files |
 | Phase 02 P02 | 12 min | 3 tasks | 3 files |
 | Phase 02 P03 | 13 min | 3 tasks | 4 files |
+| Phase 02 P04 | 7 min | 2 tasks | 2 files |
 
 ## Decisions
 
@@ -64,3 +65,6 @@ Last activity: 2026-09-23 — Phase 02 execution started
 - [Phase 02]: Spend guard enforced in two layers: the devices-question scenario refuses before connecting and FakeDevice.send_event refuses a prefixed chat event from an allowed player without --spend
 - [Phase 02]: devices-question has a worker-role branch that holds the connection 60s auto-answering cmds, because status-command's 5s window cannot be the worker side of a paid run (D-02 recipe)
 - [Phase 02]: Harness close codes surface as a synthetic close frame read from ws.close_code after the reader loop, giving scenarios one bounded way to await 1000 or 4xxx closes
+- [Phase 02]: Phase 2 paid devices-question runs (02-04 pre-swap and 02-07 post-swap) use claude-haiku-4-5 via the operator's local .env MODEL setting, not the .env.example default of claude-sonnet-5 — First 02-04 attempt on 2026-09-24 returned a 400 from the API (account out of credit); the operator chose Haiku for the remaining paid runs after topping up. Both transcripts must use the same model so 02-07's wire comparison is like-for-like. The harness also marked PASS on the bridge's error-fallback say text, a false positive to tighten in 02-07.
+- [Phase 02]: Long-lived processes a paid harness run depends on (bridge, worker hold) are owned by the operator's terminals, not by an executor subagent whose background jobs die when it returns; 02-04's first two --spend attempts hit WinError 1225 for that reason
+- [Phase 02]: The worker side of a paid devices-question run is 'uv run harness --role worker --scenario devices-question' (60 s hold), not status-command (5 s window); 02-07's plan text must say so
