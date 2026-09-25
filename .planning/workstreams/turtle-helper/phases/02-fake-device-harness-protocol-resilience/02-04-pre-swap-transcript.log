@@ -1,0 +1,23 @@
+# 02-04 pre-swap devices-question transcript (HARN-02, first of the phase's two budgeted paid calls)
+# Captured: 2026-09-24 21:09 local time, operator's PowerShell terminal; transcribed from the operator's terminal screenshot.
+# Bridge: turtle/turtle-helper/bridge/bridge.py, pre-swap hand-rolled agent loop (repo HEAD cb69bd3 at run time), MODEL=claude-haiku-4-5, ws://127.0.0.1:8765, started by the operator (terminal C).
+# Worker side: `uv run harness --role worker --scenario devices-question` (terminal A), started by the operator shortly before the chat run; registers as harness-worker with client.lua's computer caps and holds for 60 s.
+# Chat side (terminal B, the paid call): `uv run harness --role chat --scenario devices-question --spend`
+#
+# Earlier attempts the same evening, NOT part of the proof:
+#   - two runs failed immediately with "[WinError 1225] The remote computer refused the network connection" (no bridge listening on 8765);
+#   - one run at 21:02 (MODEL=claude-sonnet-5) received a say cmd carrying the bridge's error fallback
+#     ("Sorry DisraSenkovi, something went wrong: BadRequestError" - the API returned 400, account out of credit)
+#     and the harness still printed PASS: devices-question. That is a false positive; see 02-04-SUMMARY.md.
+#
+# Successful run follows verbatim (hello token redacted by the harness itself):
+
+PS C:\Users\nneib\code\minecraft-transit-report\turtle\turtle-helper> uv run harness --role chat --scenario devices-question --spend
+harness: harness-chat (chat) -> ws://127.0.0.1:8765 scenario=devices-question
+2026-09-24 21:09:38.643 harness-chat -> {"type":"hello","id":"harness-chat","token":"***","role":"chat","caps":["say"]}
+2026-09-24 21:09:40.660 harness-chat -> {"type":"event","name":"chat","user":"DisraSenkovi","text":"$robot what devices are connected?","uuid":"00000000-0000-4000-8000-000000000001","hidden":true}
+2026-09-24 21:09:43.850 harness-chat <- {"type": "cmd", "cid": "a50ed22a", "tool": "say", "args": {"text": "Right now I only see one computer, \"harness-worker\", which can list and access a connected chest, plus the chat interface. No turtles or sorting network are hooked up at the moment.", "to": null, "prefix": "Robot"}}
+2026-09-24 21:09:43.850 harness-chat -> {"type":"result","cid":"a50ed22a","ok":true,"data":{"queued":true}}
+devices-question: robot said 'Right now I only see one computer, "harness-worker", which can list and access a connected chest, plus the chat interface. No turtles or sorting network are hooked up at the moment.'
+2026-09-24 21:09:43.857 harness-chat <- {"type":"close","code":1000,"reason":""}
+PASS: devices-question
