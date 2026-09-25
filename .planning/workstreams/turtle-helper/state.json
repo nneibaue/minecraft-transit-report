@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "In-Game Round Trip",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "5",
@@ -39,5 +39,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 04 of 6 · 0% · executing"
   },
-  "updated_at": "2026-09-25T16:59:42.131Z"
+  "updated_at": "2026-09-25T18:01:43.993Z"
 }

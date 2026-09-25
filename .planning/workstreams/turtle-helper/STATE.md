@@ -4,18 +4,18 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 04
 current_phase_name: In-Game Round Trip
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: "Phase 4 Wave 2: plan 04-02 Task 1 pre-flight checkpoint (awaiting operator paste)"
-last_updated: "2026-09-25T17:02:45.645Z"
+stopped_at: Completed 04-02-PLAN.md (chat loop proven with the base computer alone; next 04-03, the second computer)
+last_updated: "2026-09-25T18:02:03.206Z"
 last_activity: 2026-09-25
-last_activity_desc: Plan 04-01 complete (the $ restore, DEBUG marker, prompt line; pushed, RAW_MATCH_OK)
-state_head: cc719fb42b0987d876fc56f010119add770004e0
+last_activity_desc: Plan 04-02 complete (chat loop proven in game with the base computer alone; fixes 8b7f082, e6dd9a4)
+state_head: e6dd9a459eac3a78e292b04d5ba79a5067dbe39d
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
 ---
 
@@ -24,16 +24,16 @@ progress:
 ## Current Position
 
 Phase: 04 (In-Game Round Trip) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
-Last activity: 2026-09-25 — Plan 04-01 complete; next is 04-02 (chat-only loop in game)
+Last activity: 2026-09-25 — Plan 04-02 complete (chat loop proven in game, 2 bridge-side fixes); next is 04-03 (the second computer)
 
 ## Progress
 
-Progress: [░░░░░░░░░░] 0% (16 of 18 plans)
+Progress: [░░░░░░░░░░] 0% (17 of 18 plans)
 
 **Phases Complete:** 3 of 6
-**Current Plan:** 2
+**Current Plan:** 3
 
 ## Project Reference
 
@@ -44,10 +44,10 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T17:02:45.596Z
+**Last session:** 2026-09-25T18:01:54.946Z
 
-**Stopped At:** Phase 4 Wave 2: plan 04-02 Task 1 pre-flight checkpoint (awaiting operator paste)
-**Resume File:** .planning/workstreams/turtle-helper/phases/04-in-game-round-trip/04-02-PLAN.md
+**Stopped At:** Completed 04-02-PLAN.md (chat loop proven with the base computer alone; next 04-03, the second computer)
+**Resume File:** None
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 03 P05 | 20 min | 4 tasks | 10 files |
 | Phase 03 P06 | 9 min | 5 tasks | 5 files |
 | Phase 04 P01 | 3 min | 4 tasks | 4 files |
+| Phase 04 P02 | 1h 0m | 5 tasks | 4 files |
 
 ## Decisions
 
@@ -118,6 +119,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: Device A's startup.lua is blob 8db52b5 (introduced 4b4dd67, same at 4df2021), pre-D-19 with a dead marker branch; offline fallback skipped by the operator and left judgment-verified
 - [Phase 04]: DEBUG in chat.lua and client.lua is a marker (fs.exists("debug") at program start; mkdir debug / rm debug plus reboot), not a committed constant; dbg() writes the same line to the screen and debug.log in the device folder and never sees the hello frame or token
 - [Phase 04]: chat.lua restores the $ AP 0.7.46r strips from hidden chat (only when hidden text lacks a leading $); the bridge prefix check stays unchanged. Pushed c318561..3bde837, raw GitHub serves all four device files (RAW_MATCH_OK)
+- [Phase 04]: say is the agent's output tool (ToolOutput(say, name="say") in output_type): calling it ends the run, so pydantic-ai never asks for a follow-up text turn; this fixed the in-game duplicate answer + UnexpectedModelBehavior (8b7f082)
+- [Phase 04]: Every Chat Box line is folded to plain ASCII inside bridge.say() (ascii_fold); the prompt line is the preference, the fold is the guarantee (Finding 6, e6dd9a4)
+- [Phase 04]: Finding 1 confirmed in game: AP 0.7.46r strips the $ from hidden chat and chat.lua's restore makes $robot reach the bridge (debug.log: 6 hidden text=robot events, DOLLAR_STRIP_SEEN 6); the chat loop works with the base computer alone and needed no Lua fix beyond 04-01
 
 ## Blockers/Concerns
 
