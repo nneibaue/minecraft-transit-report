@@ -2,52 +2,52 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 milestone_name: Local Round Trip
-current_phase: 3
+current_phase: 03
 current_phase_name: Local Server Setup
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-09-25T08:27:26.618Z"
-last_activity: 2026-09-24
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: 67ae98706d49ac5c601567ad28fcffdedf9a9b1e
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-09-25T08:53:12.899Z"
+last_activity: 2026-09-25
+last_activity_desc: Phase 03 execution started
+state_head: 9454137d1fe5baea345c4b4b3c792310624c20ca
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 13
-  completed_plans: 9
-  percent: 20
+  completed_plans: 10
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 3 (Local Server Setup) — READY TO EXECUTE
-Plan: Not started
+Phase: 03 (Local Server Setup) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-24 — Phase 02 complete, transitioned to Phase 3
+Last activity: 2026-09-25 — Phase 03 execution started
 
 ## Progress
 
-Progress: ████░░░░░░ [██░░░░░░░░] 20%
+Progress: ████░░░░░░ [░░░░░░░░░░] 0%
 
 **Phases Complete:** 2 of 5
-**Current Plan:** Not started
+**Current Plan:** 2
 
 ## Project Reference
 
 See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 **Core value:** A player types `$robot ...` in game chat and gets a correct answer or action back, through a loop whose pieces reconnect on their own after any one of them restarts.
-**Current focus:** Phase 3 — Local Server Setup (CC:Tweaked `127.0.0.1` allow rule, on-disk Lua placement, per-device `secret.txt`, `startup.lua`)
+**Current focus:** Phase 03 — Local Server Setup
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T07:12:46.307Z
+**Last session:** 2026-09-25T08:53:12.862Z
 
-**Stopped At:** Phase 3 context gathered
-**Resume File:** .planning/workstreams/turtle-helper/phases/03-local-server-setup/03-CONTEXT.md
+**Stopped At:** Completed 03-01-PLAN.md
+**Resume File:** None
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 02 P05 | 19 min | 3 tasks | 4 files |
 | Phase 02 P06 | 17 min | 3 tasks | 8 files |
 | Phase 02 P07 | 30 min | 4 tasks | 8 files |
+| Phase 03 P01 | 8 min | 3 tasks | 10 files |
 
 ## Decisions
 
@@ -92,6 +93,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 02]: The bridge guarantees reply delivery: handle_request speaks the model's plain-text final output to the requesting player when a run ends without a say ToolReturnPart, never repeats an answer already spoken, and logs the final output every run; Agent output_type=str invites a plain-text answer, so the pre-swap reliance on the model calling say() was luck, not a contract (02-07 fix bcff617)
 - [Phase 02]: D-05's two-paid-call budget was exceeded by one with the operator's go-ahead: 02-04 pre-swap pass, 02-07 first attempt failed (exposed the dropped plain-text answer), 02-07 second attempt passed; all claude-haiku-4-5; the post-swap wire matches pre-swap frame for frame, with to: DisraSenkovi instead of to: null accepted as a legitimate difference
 - [Phase 02]: devices-question rejects the bridge's error-fallback say shape (is_error_fallback) rather than requiring the answer to name a device id: the chat process cannot know a worker is connected, and the transcript prints the text for the human read
+- [Phase 03]: Blank SERVER_DIR= maps to None (BeforeValidator); pydantic-settings otherwise yields Path('.') and deploy would treat the cwd as the server root
+- [Phase 03]: deploy edits computercraft-server.toml with newline='' so the file's own LF/CRLF endings survive; server-running gate is a TCP probe of port 25565, not session.lock
+- [Phase 03]: uv run launch opens bridge and run.bat via CREATE_NEW_CONSOLE (cmd /c start needs a quoted title subprocess cannot produce); marker file is _marker.txt, URL file bridge.txt
 
 ## Blockers/Concerns
 

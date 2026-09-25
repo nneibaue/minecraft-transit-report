@@ -101,12 +101,12 @@ Plans:
   3. Each device's folder contains its own `secret.txt` holding only the bridge token; a repo-wide search for the token value confirms it appears nowhere else in the Lua, the repo, or version control.
   4. Each device's folder contains a `startup.lua` that launches `chat` or `client` as appropriate, and rebooting the computer in-game (without touching the bridge) brings the script back up on its own.
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Deploy engine: Settings.server_dir, TOML allow-rule logic, server-running gate, marker scan, file placement, launcher (Wave 1)
+- [x] 03-01-PLAN.md — Deploy engine: Settings.server_dir, TOML allow-rule logic, server-running gate, marker scan, file placement, launcher (Wave 1)
 - [ ] 03-02-PLAN.md — Lua amendments: bridge-URL fallback/override (D-06) and device naming (D-10) in chat.lua and client.lua (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -155,6 +155,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|-----------------|--------|-----------|
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
 | 2. Fake Device Harness & Protocol Resilience | 7/7 | Complete    | 2026-09-24 |
-| 3. Local Server Setup | 0/TBD | Not started | - |
+| 3. Local Server Setup | 1/4 | In Progress|  |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |
