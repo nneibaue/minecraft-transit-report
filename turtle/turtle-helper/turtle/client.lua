@@ -4,11 +4,11 @@
 -- tools are registered only when `turtle` exists.
 --
 -- Setup on the device:
---   1. edit BRIDGE_URL below
---   2. write your shared token to a file called "secret.txt" (one line)
---   3. run:  client   (or add `shell.run("client")` to startup.lua)
+--   1. `uv run deploy` writes secret.txt (the shared token) and bridge.txt
+--      (the bridge URL); without bridge.txt the BRIDGE_URL default below is used
+--   2. run:  client   (deploy's startup.lua does this on boot)
 
-local BRIDGE_URL = "wss://YOUR-BRIDGE-HOST"      -- <-- change me (ws:// for local dev)
+local BRIDGE_URL = "ws://127.0.0.1:8765"         -- default; bridge.txt overrides it
 local DEVICE_ID  = os.getComputerLabel() or ("device-" .. os.getComputerID())
 local ALLOW_EVAL = false   -- set true to let the agent run arbitrary Lua (run_lua tool)
 
@@ -27,6 +27,8 @@ end
 local TOKEN = readFile("secret.txt")
 if not TOKEN then error("secret.txt missing: put the bridge token in it") end
 TOKEN = TOKEN:gsub("%s+$", "")
+local BRIDGE_FILE = readFile("bridge.txt")
+if BRIDGE_FILE then BRIDGE_URL = BRIDGE_FILE:gsub("%s+$", "") end
 
 local function log(...) print(("[%s] "):format(textutils.formatTime(os.time(), true)), ...) end
 
