@@ -1,9 +1,9 @@
 """Zero-network checks for deploy's marker scan and per-device file placement (Phase 3 plan 03-01).
 
-Everything runs inside temp directories: a fake repo tree (base/chat.lua, turtle/client.lua)
-and a fake server tree (world/computercraft/computer/<id>/). No real server, no bridge, no
-.env. Same dependency-free TAP layout as tests/test_harness_scenarios.py; every ``test_*``
-function is pytest-collectable later.
+Everything runs inside temp directories: a fake repo tree (base/chat.lua, turtle/client.lua,
+startup.lua) and a fake server tree (world/computercraft/computer/<id>/). No real server, no
+bridge, no .env. Same dependency-free TAP layout as tests/test_harness_scenarios.py; every
+``test_*`` function is pytest-collectable later.
 
     uv run python tests/test_deploy_files.py
 """
@@ -29,6 +29,7 @@ from deploy import deploy as d  # noqa: E402
 TOKEN = "fixture-token-9c1e"
 CHAT_LUA = b"-- fixture chat.lua\r\nprint('chat')\n\xe2\x9c\x93\n"
 CLIENT_LUA = b"-- fixture client.lua\nprint('client')\n"
+STARTUP_FIXTURE = b"-- startup.lua : fixture\r\nshell.run('client')\n\xe2\x9c\x93\n"
 ALL_FILES = ["bridge.txt", "chat.lua", "client.lua", "secret.txt", "startup.lua"]
 
 
@@ -60,6 +61,7 @@ def fixture() -> Iterator[Fixture]:
         (repo / "turtle").mkdir()
         (repo / "base" / "chat.lua").write_bytes(CHAT_LUA)
         (repo / "turtle" / "client.lua").write_bytes(CLIENT_LUA)
+        (repo / "startup.lua").write_bytes(STARTUP_FIXTURE)
         computers = server / "world" / "computercraft" / "computer"
         for cid in ("5", "6", "10"):
             (computers / cid).mkdir(parents=True)
@@ -104,17 +106,46 @@ def test_bridge_txt_is_the_ipv4_literal_url() -> None:
         assert b"localhost" not in url
 
 
-def test_startup_lua_detects_role_and_is_always_overwritten() -> None:
+def test_startup_lua_is_the_repo_copy_and_always_overwritten() -> None:
     with fixture() as fx:
         folder = fx.computers / "5"
         settings = make_settings(server_dir=fx.server)
         d.deploy_to_folder(folder, settings, fx.repo)
-        first = (folder / "startup.lua").read_text(encoding="utf-8")
-        assert 'peripheral.find("chatBox")' in first
-        assert 'shell.run("chat")' in first and 'shell.run("client")' in first
-        (folder / "startup.lua").write_text("-- hand edit\nshell.run('quarry')\n")
+        assert (folder / "startup.lua").read_bytes() == STARTUP_FIXTURE
+        (folder / "startup.lua").write_bytes(b"-- hand edit\nshell.run('quarry')\n")
         d.deploy_to_folder(folder, settings, fx.repo)
-        assert (folder / "startup.lua").read_text(encoding="utf-8") == first
+        assert (folder / "startup.lua").read_bytes() == STARTUP_FIXTURE
+
+
+def test_missing_repo_startup_lua_writes_nothing() -> None:
+    with fixture() as fx:
+        (fx.repo / "startup.lua").unlink()
+        folder = fx.computers / "5"
+        before = snapshot(folder)
+        assert list(before) == ["_marker.txt"], before
+        try:
+            d.deploy_to_folder(folder, make_settings(server_dir=fx.server), fx.repo)
+        except FileNotFoundError as exc:
+            assert TOKEN not in str(exc), "the token leaked into the error"
+            assert "startup.lua" in str(exc), str(exc)
+        else:
+            raise AssertionError("deploy_to_folder did not raise FileNotFoundError")
+        assert snapshot(folder) == before, snapshot(folder)
+
+
+def test_any_missing_repo_source_writes_nothing() -> None:
+    with fixture() as fx:
+        (fx.repo / "turtle" / "client.lua").unlink()
+        folder = fx.computers / "5"
+        before = snapshot(folder)
+        try:
+            d.deploy_to_folder(folder, make_settings(server_dir=fx.server), fx.repo)
+        except FileNotFoundError as exc:
+            assert TOKEN not in str(exc), "the token leaked into the error"
+            assert "client.lua" in str(exc), str(exc)
+        else:
+            raise AssertionError("deploy_to_folder did not raise FileNotFoundError")
+        assert snapshot(folder) == before, "a file was written before the missing source was found"
 
 
 def test_second_run_is_byte_identical() -> None:
@@ -177,7 +208,9 @@ TESTS: list[Callable[[], None]] = [
     test_deploy_writes_byte_identical_lua_copies,
     test_secret_txt_holds_exactly_the_token,
     test_bridge_txt_is_the_ipv4_literal_url,
-    test_startup_lua_detects_role_and_is_always_overwritten,
+    test_startup_lua_is_the_repo_copy_and_always_overwritten,
+    test_missing_repo_startup_lua_writes_nothing,
+    test_any_missing_repo_source_writes_nothing,
     test_second_run_is_byte_identical,
     test_token_rotation_rewrites_secret_txt,
     test_marked_folders_get_rows_and_unmarked_is_untouched,
