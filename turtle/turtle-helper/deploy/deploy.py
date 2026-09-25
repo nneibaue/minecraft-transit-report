@@ -6,7 +6,11 @@ Reads SERVER_DIR, HOST, PORT and BRIDGE_TOKEN from .env through ``bridge.setting
 CC:Tweaked allow rule for 127.0.0.1 to ``world/serverconfig/computercraft-server.toml`` when the
 server is stopped, then places the device files into every computer folder under
 ``world/computercraft/computer/`` that holds the ``_marker.txt`` opt-in file. Safe to re-run:
-it is also the redeploy step after any Lua edit (reboot the device afterwards).
+it is also the no-push redeploy step after any Lua edit (reboot the device afterwards).
+
+startup.lua is copied from the repo like the other Lua (D-16), not generated here. On a device
+holding ``_marker.txt`` that startup.lua skips its boot-time GitHub update, so a reboot keeps
+the files deploy placed instead of replacing them with whatever ``main`` holds.
 
 The bridge token is written to each marked folder's ``secret.txt`` and nowhere else: it is
 never printed, logged or put in an exception message.
@@ -29,20 +33,21 @@ from bridge.settings import Settings
 from deploy.rules import insert_allow_rule
 from deploy.server_state import is_server_running
 
-# The turtle-helper directory: base/chat.lua and turtle/client.lua are copied from here.
+# The turtle-helper directory: base/chat.lua, turtle/client.lua and startup.lua are copied
+# from here.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # The opt-in file the author creates at a computer's own prompt; unmarked folders are never
 # touched, so the other turtles on the server never receive a bridge secret (D-03).
 MARKER_NAME = "_marker.txt"
 
-# The universal role detector every marked device boots (D-08): a Chat Box means this is the
-# chat device, anything else is a worker. Plain shell.run, so a Lua error stays on screen.
-STARTUP_LUA = (
-    "-- startup.lua : detect role (chat box present?) and launch the appropriate script\n"
-    'local chatBox = peripheral.find("chatBox")\n'
-    'if chatBox then shell.run("chat") else shell.run("client") end\n'
-)
+# Device file name -> path under the repo root. startup.lua is the repo file install.lua also
+# downloads (D-16): one source of truth for the boot code.
+LUA_SOURCES = {
+    "chat.lua": ("base", "chat.lua"),
+    "client.lua": ("turtle", "client.lua"),
+    "startup.lua": ("startup.lua",),
+}
 
 
 class DeployRow(TypedDict):
@@ -58,8 +63,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="deploy",
         description=(
             "Add the CC:Tweaked 127.0.0.1 allow rule and place chat.lua, client.lua, "
-            "startup.lua, secret.txt and bridge.txt into every marked computer folder "
-            "under SERVER_DIR/world/computercraft/computer/."
+            "startup.lua (all copied from the repo), secret.txt and bridge.txt into every "
+            "marked computer folder under SERVER_DIR/world/computercraft/computer/. Marked "
+            "devices skip startup.lua's GitHub update at boot."
         ),
     )
 
@@ -98,14 +104,21 @@ def folder_sort_key(folder: Path) -> tuple[int, int, str]:
 def deploy_to_folder(folder: Path, settings: Settings, repo_root: Path) -> list[str]:
     """Write the device files into one marked folder; the sorted names written.
 
+    chat.lua, client.lua and startup.lua are byte-identical copies of the repo files; startup.lua
+    is the repo's own boot script (D-16), which skips its GitHub update on this marked device.
+    Every source is checked before anything is written, so a missing repo file raises
+    FileNotFoundError naming only its repo-relative path and leaves the folder untouched.
     Every file is overwritten on every run, with no merge against what was there, so a Lua
     edit, a token rotation or a hand-edited startup.lua all converge on one re-run. The token
     goes into secret.txt and nowhere else.
     """
-    shutil.copy2(repo_root / "base" / "chat.lua", folder / "chat.lua")
-    shutil.copy2(repo_root / "turtle" / "client.lua", folder / "client.lua")
+    sources = {name: repo_root.joinpath(*parts) for name, parts in LUA_SOURCES.items()}
+    for name, source in sources.items():
+        if not source.is_file():
+            raise FileNotFoundError(f"repo file missing: {'/'.join(LUA_SOURCES[name])}")
+    for name, source in sources.items():
+        shutil.copy2(source, folder / name)
     # write_bytes, not write_text: text mode on Windows would turn LF into CRLF.
-    (folder / "startup.lua").write_bytes(STARTUP_LUA.encode("utf-8"))
     (folder / "secret.txt").write_bytes(settings.bridge_token.encode("utf-8"))
     bridge_url = f"ws://{settings.host}:{settings.port}"
     (folder / "bridge.txt").write_bytes(bridge_url.encode("utf-8"))
