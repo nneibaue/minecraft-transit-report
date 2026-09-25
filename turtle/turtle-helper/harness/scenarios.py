@@ -29,6 +29,21 @@ SILENCE_WINDOW = 5.0  # how long "nothing arrived" must last to count as ignored
 MODEL_WINDOW = 30.0  # generous bound for a real model round trip (devices-question)
 WORKER_HOLD = 60.0  # how long the worker side of devices-question stays registered
 TEST_UUID = "00000000-0000-4000-8000-000000000001"  # fixed uuid for scripted chat events
+ERROR_FALLBACK = "something went wrong"  # bridge.on_event's catch-all say text (pre- and post-swap)
+
+
+def is_error_fallback(text: object) -> bool:
+    """True when a say text is bridge.on_event's catch-all reply, not an answer.
+
+    The bridge answers any exception that escapes the agent with
+    ``say("Sorry <user>, something went wrong: <ErrorName>")``. That frame is a real ``say``
+    cmd on the wire, so a scenario that only waits for one would pass on it (02-04 saw exactly
+    that on a 400 from the API). Matched on the shape, not the exact user or error name.
+    """
+    if not isinstance(text, str):
+        return False
+    stripped = text.strip()
+    return stripped.startswith("Sorry") and ERROR_FALLBACK in stripped.lower()
 
 
 def _cmd(tool: str, **args: object) -> Frame:
@@ -224,7 +239,8 @@ async def devices_question(dev: FakeDevice, args: ScenarioArgs) -> None:
     caps and stays for WORKER_HOLD seconds, auto-answering any cmd, so it is listed (and can
     answer ``status``) while the model runs. The chat side refuses to send anything unless
     --spend is on the command line (D-15), then emits the scripted event from the first
-    allowed player and passes when a ``say`` cmd arrives within MODEL_WINDOW; a
+    allowed player and passes when a ``say`` cmd arrives within MODEL_WINDOW carrying a real
+    answer -- the bridge's ``Sorry ..., something went wrong: ...`` fallback fails it; a
     ``list_devices`` cmd is accepted first in case a later agent loop forwards it. The paid
     runs themselves are Plan 02-04 (pre-swap) and Plan 02-07 (post-swap).
     """
@@ -262,6 +278,12 @@ async def devices_question(dev: FakeDevice, args: ScenarioArgs) -> None:
     say_args = said.get("args")
     text = say_args.get("text") if isinstance(say_args, dict) else None
     print(f"devices-question: robot said {text!r}", flush=True)
+    _require(isinstance(text, str) and text.strip() != "", f"say cmd without text: {said}")
+    _require(
+        not is_error_fallback(text),
+        f"the say was the bridge's error fallback, not an answer: {text!r} "
+        "(check the bridge log for the exception)",
+    )
 
 
 SCENARIOS: dict[str, Scenario] = {
