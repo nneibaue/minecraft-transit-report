@@ -2,8 +2,9 @@
 -- (Advanced Peripherals) attached. Forwards chat to the bridge and speaks
 -- whatever the bridge tells it to. Holds no logic of its own.
 --
--- Setup: `uv run deploy` writes secret.txt and bridge.txt beside this file;
--- without bridge.txt it uses the BRIDGE_URL default below. Run `chat`.
+-- Setup: the in-game installer (install.lua, see README "Setup > 2. In game")
+-- writes secret.txt and bridge.txt beside this file. startup.lua runs it on boot,
+-- after updating it from main. Without bridge.txt the BRIDGE_URL default below applies.
 
 local BRIDGE_URL   = "ws://127.0.0.1:8765"      -- default; bridge.txt overrides it
 local DEVICE_ID    = os.getComputerLabel() or ("device-" .. os.getComputerID())

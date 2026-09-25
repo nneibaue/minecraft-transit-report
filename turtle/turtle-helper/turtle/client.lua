@@ -4,9 +4,10 @@
 -- tools are registered only when `turtle` exists.
 --
 -- Setup on the device:
---   1. `uv run deploy` writes secret.txt (the shared token) and bridge.txt
---      (the bridge URL); without bridge.txt the BRIDGE_URL default below is used
---   2. run:  client   (deploy's startup.lua does this on boot)
+--   1. the in-game installer (install.lua, see README "Setup > 2. In game")
+--      writes secret.txt (the shared token) and bridge.txt (the bridge URL);
+--      without bridge.txt the BRIDGE_URL default below applies
+--   2. startup.lua runs this file on boot, after updating it from main
 
 local BRIDGE_URL = "ws://127.0.0.1:8765"         -- default; bridge.txt overrides it
 local DEVICE_ID  = os.getComputerLabel() or ("device-" .. os.getComputerID())

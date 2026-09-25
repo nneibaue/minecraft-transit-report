@@ -38,7 +38,8 @@ chat; it carries them out with turtles/computers and reports back. The brain run
 - **Sorting rules persist on the bridge**, in a git-ignored `rules.json` beside `.env` (resolved
   from the source file's location, like `.env`), edited by the `add_rule` / `remove_rule` /
   `list_rules` / `set_overflow` local tools. Rule patterns keep Lua `string.find` semantics
-  (`bridge/lua_pattern.py`). The device stores only `secret.txt` and its Lua.
+  (`bridge/lua_pattern.py`). The device stores `secret.txt`, `bridge.txt`, `startup.lua` and its
+  Lua (Phase 3 D-06/D-16).
 - Why: Lua only runs in game, Python runs against the harness. Testability drove this, not taste.
 
 ## Protocol (JSON, one websocket per device)
@@ -77,12 +78,18 @@ needs a new device-side primitive. The message shapes above do not change.
 ## Conventions
 - Lua: CC:Tweaked 1.20.x APIs (`textutils.serialiseJSON`, `textutils.empty_json_array` for empty
   lists, `http.websocket`). Keep tools pure functions returning JSON-safe tables; errors via `error()`.
+  Line 1 of `base/chat.lua`, `turtle/client.lua` and `startup.lua` must keep its `-- <file name>`
+  header, because devices refuse any download that does not start with it
+  (`tests/test_device_lua.py` pins this).
 - Python: asyncio + `websockets` + `pydantic-ai` (Anthropic provider) + `pydantic-settings`, uv-managed
   (`pyproject.toml` + `uv.lock`). Three modules: `bridge/settings.py`, `bridge/agent.py`,
   `bridge/bridge.py`. Type hints on every function, `from __future__ import annotations`, ruff
-  (check + format) and mypy clean on `bridge/`, `harness/`, `tests/`.
+  (check + format) and mypy clean on `bridge/`, `harness/`, `deploy/`, `tests/`. `deploy/` now holds
+  only the host-side helpers: the allow rule, the server probe and `uv run launch`.
 - Dev loop: run `uv run bridge/bridge.py` locally and drive it with the harness
   (`uv run harness --role chat|worker --scenario <name>`; every scenario except `devices-question`
   spends nothing, and that one needs `--spend`). Zero-spend TAP tests live in `tests/`
-  (`uv run python tests/test_agent.py` etc.). No tunnel this milestone. Lua goes onto devices by
-  placing files in the local dedicated server's per-computer folders (Phase 3), not pastebin/wget.
+  (`uv run python tests/test_agent.py` etc.). No tunnel this milestone. Devices are set up in game
+  with the one `wget run` line for `install.lua` (token typed once, Phase 3 D-14/D-15), and
+  `startup.lua` updates `chat.lua` and `client.lua` from `main` on every reboot (D-16); there is
+  no PC-side placement path (D-19).

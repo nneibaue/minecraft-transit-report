@@ -59,8 +59,10 @@ cp .env.example .env       # local secrets file, git-ignored
 **Configure** — fill in the new `.env`:
 
 - `ANTHROPIC_API_KEY` — from the [Anthropic console](https://console.anthropic.com)
-- `BRIDGE_TOKEN` — generate with `python -c "import secrets; print(secrets.token_hex(24))"`;
-  save it, it goes in `secret.txt` in game
+- `BRIDGE_TOKEN` — the shared secret every device presents. It is typed once per device at the
+  in-game installer's hidden prompt, so a short but distinctive passphrase is easiest. For a random
+  one, run `python -c "import secrets; print(secrets.token_hex(24))"`. It lives only in `.env` and
+  in each device's `secret.txt`, never in the repo.
 - `ALLOWED_PLAYERS` — comma-separated player names allowed to give orders
 
 **Run**
@@ -72,42 +74,102 @@ uv run bridge/bridge.py
 Listens on `ws://127.0.0.1:8765` by default; `HOST`, `PORT`, `MODEL`, and the other settings
 documented in `.env.example` can all be overridden in `.env`.
 
+With `SERVER_DIR` in `.env` set to the server's root folder (where `run.bat` lives),
+
+```bash
+uv run launch
+```
+
+opens the bridge and the server's `run.bat` in two windows (Windows only) and returns. It does
+not watch or restart either one.
+
 Expose it to the Minecraft **server** (the websocket originates from the server, not your
 client). This milestone runs the dedicated server and the bridge on the same PC; hosting the
 bridge elsewhere and tunneling to it (cloudflared, Tailscale, a VPS) returns in a later milestone.
 
-- **Same box as the MC server:** use `ws://127.0.0.1:8765`, but the server admin must allow it in
-  `computercraft-server.toml` (local addresses are blocked by default):
+- **Same box as the MC server:** use `ws://127.0.0.1:8765`. CC:Tweaked blocks local addresses by
+  default, so the server needs one allow rule in
+  `<SERVER_DIR>/world/serverconfig/computercraft-server.toml`:
   ```toml
   [[http.rules]]
   host = "127.0.0.1"
   action = "allow"
   ```
+  - Add it by hand while the server is stopped, as its own block placed **before** the stock
+    `$private` deny rule (rules are read top to bottom).
+  - A full server restart applies it; `/reload` does not.
+  - Forge rewrites this file when the server boots and keeps the rule. That was checked on this
+    server, which loads CC:Tweaked 1.116.1.
+  - Write `127.0.0.1`, never the hostname `localhost`: Windows resolves `localhost` to `::1`,
+    which the `$private` deny blocks.
+  - The [smoke check](#smoke-check) below confirms the rule from a computer in game.
 
 Before touching the game, you can exercise the running bridge from a terminal with the
 [harness](#harness) below; every scenario but one spends nothing.
 
 ### 2. In game
 
-On the base computer (Chat Box attached, wired modem optional):
+Every device, the base computer with the Chat Box and any sorter alike, is set up the same way,
+entirely in game, with one line at its prompt:
+
 ```
-edit secret.txt      -> paste BRIDGE_TOKEN
-edit chat.lua        -> paste base/chat.lua, set BRIDGE_URL
-chat
+wget run https://raw.githubusercontent.com/nneibaue/minecraft-transit-report/main/turtle/turtle-helper/install.lua
 ```
 
-On the sorter (turtle or Advanced Computer), on the same **wired modem network** as the chests:
-```
-label set sorter
-edit secret.txt      -> paste BRIDGE_TOKEN
-edit client.lua      -> paste turtle/client.lua, set BRIDGE_URL
-client
-```
-Put `shell.run("client")` / `shell.run("chat")` in `startup.lua` so they survive restarts.
+1. At `Bridge token (typing is hidden):`, type the bridge token (`BRIDGE_TOKEN` from `.env`) and
+   press Enter. Only the first install on a computer asks for it.
+2. At `Bridge URL (press Enter to keep it):`, press Enter to keep `ws://127.0.0.1:8765`.
+3. Type `reboot`.
 
+After the reboot the device runs `chat` if a Chat Box is attached, and `client` otherwise; nothing
+is configured per device. The installer puts `chat.lua`, `client.lua`, `startup.lua`, `bridge.txt`
+and `secret.txt` in the computer's own folder on the server,
+`<SERVER_DIR>/world/computercraft/computer/<id>/`; the `id` command shows a computer's number.
+`label set <name>` is optional: the bridge shows the label, or `device-<id>` without one.
+
+To repair a device, run the same line again. It keeps `secret.txt` and offers the current bridge
+URL as the default, and it asks before replacing a `startup.lua` that is not turtle-helper's own.
+To change a device's token, run `rm secret.txt`, then the line again.
+
+A sorter (turtle or Advanced Computer) sits on the same **wired modem network** as the chests.
 Find inventory names with `peripheral.getNames()` in the Lua prompt, or right-click a wired modem
 on a chest (it prints the name). The sorter uses `pushItems`, so items move over the network
 without the device carrying them; a stationary computer works as well as a turtle for this job.
+
+#### Updating
+
+Push the change to `main`, wait up to about 5 minutes (raw.githubusercontent.com caches files for
+a few minutes), then type `reboot` on each device. On every boot `startup.lua` downloads `chat.lua`
+and `client.lua` from `main` and prints, for each file, `updated <file>` or `<file> up to date`.
+
+If GitHub is unreachable, or a download is incomplete or is not the expected Lua file, it prints
+`<file>: <reason>; using the local copy` and runs the last good copy, so a GitHub outage never
+stops a device.
+
+`startup.lua` does not update itself, and `install.lua` runs only when you run it. A change to
+either one reaches a device only when you re-run the wget line on it, which keeps `secret.txt`.
+
+#### Smoke check
+
+With the bridge running, type `lua` at any computer's prompt, then each line below. After lines 2
+and 3 the prompt also prints `1`, which is `print`'s own return value; ignore it.
+
+1. ```lua
+   ws, err = http.websocket("ws://127.0.0.1:8765") print(ws, err) if ws then ws.close() end
+   ```
+   prints `table: <address> nil` (for example `table: 3c9a6ef1 nil`): a handle, so the
+   connection works. The bridge logs a `no valid hello` warning for this bare connection, which
+   is expected.
+2. ```lua
+   print(http.websocket("ws://127.0.0.2:8765"))
+   ```
+   prints `false Domain not permitted`. This is what any computer sees for an address no allow
+   rule covers, and also what `ws://127.0.0.1:8765` gives while the allow rule is missing.
+3. ```lua
+   print(http.websocket("ws://127.0.0.1:8766"))
+   ```
+   prints `false Could not connect`. This is what you see when the rule is present but nothing
+   listens on that port, and also what `ws://127.0.0.1:8765` gives while the bridge is not running.
 
 ### 3. Talk to it
 
