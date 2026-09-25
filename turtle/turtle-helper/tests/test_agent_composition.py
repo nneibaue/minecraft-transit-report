@@ -160,11 +160,12 @@ async def test_set_overflow_is_saved_and_reported_by_list_rules() -> None:
 
 
 def test_rule_tools_are_always_offered_whatever_is_connected() -> None:
-    for registry in (
+    registries: tuple[dict[str, dict[str, object]], ...] = (
         {},
         {"chat-1": {"role": "chat", "caps": ["say"]}},
         {"w1": {"role": "computer", "caps": ["status"]}},
-    ):
+    )
+    for registry in registries:
         configure(dict(registry))
         toolset = require_build_toolset()()
         for name in RULE_TOOLS:

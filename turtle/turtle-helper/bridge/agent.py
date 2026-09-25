@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Literal
 
 import anthropic
@@ -233,6 +234,103 @@ async def say(ctx: RunContext[None], args: SayArgs) -> dict[str, object]:
     return {"ok": True}
 
 
+# ----------------------------------------------------------------- sorting rules (D-08)
+# One global rule set for the one worker, kept on the bridge in rules.json beside .env: resolved
+# from this file's location exactly as settings.py resolves .env, never from the process cwd. The
+# file is git-ignored. The device stores only secret.txt and its Lua.
+rules_path: Path = Path(__file__).resolve().parent.parent / "rules.json"
+
+
+class SortRule(BaseModel):
+    """One sorting rule: items whose id matches the Lua pattern go to dest."""
+
+    pattern: str = Field(
+        description="Lua pattern matched against item id, e.g. 'ingot' or '^minecraft:.*_log$'"
+    )
+    dest: str = Field(description="destination inventory peripheral name")
+
+
+class RuleBook(BaseModel):
+    """The saved sorting rules, in order (first match wins), and the overflow chest, if any."""
+
+    rules: list[SortRule] = Field(default_factory=list)
+    overflow: str | None = None
+
+
+def load_rulebook(path: Path | None = None) -> RuleBook:
+    """Read rules.json; a missing file is an empty rule book with no overflow, not an error."""
+    path = rules_path if path is None else path
+    if not path.exists():
+        return RuleBook()
+    return RuleBook.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def save_rulebook(book: RuleBook, path: Path | None = None) -> None:
+    """Write rules.json in full, via a sibling temp file so a crash mid-write cannot truncate it."""
+    path = rules_path if path is None else path
+    scratch = path.with_name(path.name + ".tmp")
+    scratch.write_text(book.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    scratch.replace(path)
+
+
+def load_rules() -> dict[str, object]:
+    """The rule book as the JSON object the model sees: {"rules": [...], "overflow": ...}."""
+    return load_rulebook().model_dump()
+
+
+class AddRuleArgs(BaseModel):
+    """Arguments for add_rule."""
+
+    pattern: str = Field(
+        description="Lua pattern matched against item id, e.g. 'ingot' or '^minecraft:.*_log$'"
+    )
+    dest: str = Field(description="destination inventory peripheral name")
+
+
+class RemoveRuleArgs(BaseModel):
+    """Arguments for remove_rule."""
+
+    pattern: str = Field(description="the exact pattern of the rule to remove")
+
+
+class SetOverflowArgs(BaseModel):
+    """Arguments for set_overflow."""
+
+    dest: str = Field(description="inventory peripheral name that receives unmatched items")
+
+
+async def list_rules() -> dict[str, object]:
+    """Show the sorting rules and overflow chest."""
+    return load_rules()
+
+
+async def add_rule(ctx: RunContext[None], args: AddRuleArgs) -> dict[str, object]:
+    """Add a sorting rule: items whose id matches the Lua pattern go to dest. First matching rule wins."""  # noqa: E501
+    book = load_rulebook()
+    book.rules.append(SortRule(pattern=args.pattern, dest=args.dest))
+    save_rulebook(book)
+    return {"ok": True, "count": len(book.rules)}
+
+
+async def remove_rule(ctx: RunContext[None], args: RemoveRuleArgs) -> dict[str, object]:
+    """Remove a sorting rule by its exact pattern."""
+    book = load_rulebook()
+    index = next((i for i, rule in enumerate(book.rules) if rule.pattern == args.pattern), None)
+    if index is None:
+        return {"removed": False}
+    del book.rules[index]
+    save_rulebook(book)
+    return {"removed": True}
+
+
+async def set_overflow(ctx: RunContext[None], args: SetOverflowArgs) -> dict[str, object]:
+    """Set the chest that receives items no rule matches."""
+    book = load_rulebook()
+    book.overflow = args.dest
+    save_rulebook(book)
+    return {"overflow": args.dest}
+
+
 # ----------------------------------------------------------------- per-run toolset (D-09)
 DEVICE_PRIMITIVES: tuple[Callable[..., Awaitable[dict[str, object]]], ...] = (
     status,
@@ -256,9 +354,12 @@ def build_toolset() -> FunctionToolset[None]:
     connected device advertises in its hello caps.
 
     Rebuilt from the live registry on every request, so with no turtle connected the model never
-    sees move/turn/dig/inspect/refuel, and with no worker at all it sees only list_devices/say.
+    sees move/turn/dig/inspect/refuel, and with no worker at all it sees only the local tools
+    (list_devices, say and the four rule tools, which edit the bridge-side rules.json).
     """
-    toolset: FunctionToolset[None] = FunctionToolset([list_devices, say])
+    toolset: FunctionToolset[None] = FunctionToolset(
+        [list_devices, say, list_rules, add_rule, remove_rule, set_overflow]
+    )
     advertised = {cap for entry in devices.values() for cap in _caps(entry)}
     for primitive in DEVICE_PRIMITIVES:
         if primitive.__name__ in advertised:
