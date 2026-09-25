@@ -8,13 +8,14 @@ from pathlib import Path
 from typing import Literal
 
 import anthropic
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent, FunctionToolset, RunContext
+from pydantic import BaseModel, Field, ValidationError
+from pydantic_ai import Agent, FunctionToolset, ModelRetry, RunContext
 from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.usage import UsageLimits
 
+from bridge import lua_pattern
 from bridge.settings import Settings
 
 log = logging.getLogger("bridge")
@@ -306,6 +307,10 @@ async def list_rules() -> dict[str, object]:
 
 async def add_rule(ctx: RunContext[None], args: AddRuleArgs) -> dict[str, object]:
     """Add a sorting rule: items whose id matches the Lua pattern go to dest. First matching rule wins."""  # noqa: E501
+    try:
+        lua_pattern.compile_pattern(args.pattern)
+    except lua_pattern.LuaPatternError as exc:
+        raise ModelRetry(f"{args.pattern!r} is not a usable Lua pattern: {exc}") from None
     book = load_rulebook()
     book.rules.append(SortRule(pattern=args.pattern, dest=args.dest))
     save_rulebook(book)
@@ -331,6 +336,102 @@ async def set_overflow(ctx: RunContext[None], args: SetOverflowArgs) -> dict[str
     return {"overflow": args.dest}
 
 
+# ----------------------------------------------------------------- compositions (D-07)
+# Anything with a loop or a policy lives here, never on the device. sort_chest is the loop
+# client.lua used to run on-device (removed in plan 02-01), composed over the list_chest and
+# push_one_slot primitives through the same send_cmd the forwarding tools use.
+
+
+class ChestItem(BaseModel):
+    """One occupied slot as client.lua's list_chest reports it."""
+
+    slot: int
+    name: str
+    count: int
+
+
+class ChestListing(BaseModel):
+    """The data of a successful list_chest result."""
+
+    name: str
+    size: int
+    items: list[ChestItem] = Field(default_factory=list)
+
+
+class PushResult(BaseModel):
+    """The data of a successful push_one_slot result: how many items pushItems moved."""
+
+    moved: int
+
+
+class SortOutcome(BaseModel):
+    """What one sort_chest run achieved, in the shape the old Lua loop reported."""
+
+    moved: int = 0
+    no_rule: list[str] = Field(default_factory=list)  # item ids no rule (and no overflow) placed
+    destination_full: list[str] = Field(default_factory=list)  # ids whose stack did not all fit
+
+    def failed(self, error: str) -> dict[str, object]:
+        """An error result that still reports the progress made before the failure."""
+        return {"ok": False, "error": error, **self.model_dump()}
+
+
+class SortChestArgs(DeviceArgs):
+    """Arguments for sort_chest; `from_name` travels to the device as `from`."""
+
+    from_name: str = Field(description="source inventory peripheral name")
+
+
+def destination_for(item_name: str, book: RuleBook) -> str | None:
+    """Where an item goes: the first rule whose Lua pattern matches wins, else the overflow."""
+    for rule in book.rules:
+        if lua_pattern.matches(item_name, rule.pattern):
+            return rule.dest
+    return book.overflow
+
+
+async def sort_chest(ctx: RunContext[None], args: SortChestArgs) -> dict[str, object]:
+    """Sort every item in an inventory into destinations using the saved rules. Returns counts and anything it couldn't place."""  # noqa: E501
+    device_id = args.device or default_worker()
+    if not device_id:
+        return {"ok": False, "error": "no turtle or computer connected"}
+    listed = await send_cmd(device_id, "list_chest", {"name": args.from_name})
+    if not listed.get("ok"):
+        return listed  # the device-side error, e.g. "no inventory called <from>"
+    outcome = SortOutcome()
+    try:
+        listing = ChestListing.model_validate(listed.get("data"))
+    except ValidationError:
+        return outcome.failed(f"unexpected list_chest result from {device_id}: {listed!s:.200}")
+    book = load_rulebook()
+    for item in listing.items:
+        dest = destination_for(item.name, book)
+        if dest is None:
+            if item.name not in outcome.no_rule:
+                outcome.no_rule.append(item.name)
+            continue
+        wire: dict[str, object] = {
+            "from": args.from_name,
+            "slot": item.slot,
+            "dest": dest,
+            "limit": item.count,
+        }
+        pushed = await send_cmd(device_id, "push_one_slot", wire)
+        if not pushed.get("ok"):
+            return outcome.failed(f"push slot {item.slot} to {dest} failed: {pushed.get('error')}")
+        try:
+            moved = PushResult.model_validate(pushed.get("data")).moved
+        except ValidationError:
+            return outcome.failed(
+                f"unexpected push_one_slot result from {device_id}: {pushed!s:.200}"
+            )
+        outcome.moved += moved
+        if moved < item.count and item.name not in outcome.destination_full:
+            outcome.destination_full.append(item.name)
+    log.info("sort_chest@%s from %s -> %s", device_id, args.from_name, outcome)
+    return outcome.model_dump()
+
+
 # ----------------------------------------------------------------- per-run toolset (D-09)
 DEVICE_PRIMITIVES: tuple[Callable[..., Awaitable[dict[str, object]]], ...] = (
     status,
@@ -344,14 +445,22 @@ DEVICE_PRIMITIVES: tuple[Callable[..., Awaitable[dict[str, object]]], ...] = (
 )
 
 
+# Each composition with the primitives it needs. Offered only when ONE connected device advertises
+# all of them (D-09): the composition sends every command to that one device, so primitives split
+# across two devices would not do.
+COMPOSITIONS: tuple[tuple[Callable[..., Awaitable[dict[str, object]]], frozenset[str]], ...] = (
+    (sort_chest, frozenset({"list_chest", "push_one_slot"})),
+)
+
+
 def _caps(entry: dict[str, object]) -> list[str]:
     caps = entry.get("caps")
     return [str(cap) for cap in caps] if isinstance(caps, list) else []
 
 
 def build_toolset() -> FunctionToolset[None]:
-    """The tools the model may call right now: local tools plus every device primitive some
-    connected device advertises in its hello caps.
+    """The tools the model may call right now: local tools, every device primitive some connected
+    device advertises in its hello caps, and each composition whose primitives one device has.
 
     Rebuilt from the live registry on every request, so with no turtle connected the model never
     sees move/turn/dig/inspect/refuel, and with no worker at all it sees only the local tools
@@ -364,6 +473,9 @@ def build_toolset() -> FunctionToolset[None]:
     for primitive in DEVICE_PRIMITIVES:
         if primitive.__name__ in advertised:
             toolset.add_function(primitive)
+    for composition, needed in COMPOSITIONS:
+        if any(needed <= set(_caps(entry)) for entry in devices.values()):
+            toolset.add_function(composition)
     return toolset
 
 
