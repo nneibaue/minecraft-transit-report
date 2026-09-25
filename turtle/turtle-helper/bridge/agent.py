@@ -60,6 +60,9 @@ Rules:
   Answer through say(), not as plain text: players only read game chat. No markdown in chat.
 - Item ids look like "minecraft:iron_ingot" or "mekanism:hdpe_sheet". Inventory names look like
   "minecraft:chest_3".
+- Players may also just ask a question (about the modpack, a mod, a recipe); answer it directly
+  from what you know, through say(), in one or two sentences. Use plain ASCII only: no emoji,
+  curly quotes or long dashes, which game chat cannot show.
 """
 
 
