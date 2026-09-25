@@ -31,6 +31,10 @@ from deploy.server_state import is_server_running
 # The turtle-helper directory: base/chat.lua and turtle/client.lua are copied from here.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# The opt-in file the author creates at a computer's own prompt; unmarked folders are never
+# touched, so the other turtles on the server never receive a bridge secret (D-03).
+MARKER_NAME = "_marker.txt"
+
 
 class DeployRow(TypedDict):
     """One marked computer and the files deploy wrote into its folder."""
@@ -66,7 +70,17 @@ def apply_allow_rule(server_dir: Path) -> None:
         print("allow rule already present")
 
 
-def deploy_marked_folders(settings: Settings) -> list[DeployRow]:
+def scan_marked_folders(computer_root: Path, marker_name: str = MARKER_NAME) -> list[Path]:
+    """Computer folders holding the opt-in marker file."""
+    return []
+
+
+def deploy_to_folder(folder: Path, settings: Settings, repo_root: Path) -> list[str]:
+    """Write the device files into one marked folder; the sorted names written."""
+    return []
+
+
+def deploy_marked_folders(settings: Settings, repo_root: Path = REPO_ROOT) -> list[DeployRow]:
     """Place the device files into every marked computer folder; one row per folder."""
     return []
 
