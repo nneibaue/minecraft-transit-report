@@ -212,7 +212,7 @@ async def on_event(dev_id: str, ev: dict[str, object]) -> None:
         if settings.allowed_players and user not in settings.allowed_players:
             log.info("ignoring %s (not allowed)", user)
             return
-        request = text[len(settings.command_prefix):].strip() or "hello"
+        request = text[len(settings.command_prefix) :].strip() or "hello"
         try:
             await agent.handle_request(user, request)
         except Exception as e:  # never let one bad request kill the bridge
