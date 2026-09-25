@@ -50,6 +50,11 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 - [ ] **DOC-01**: `turtle/turtle-helper/README.md` documents the local dedicated-server path end to end: env recipe, allow rule, on-disk file placement, `secret.txt`, `startup.lua`, and harness usage
 - [ ] **DOC-02**: `turtle/turtle-helper/CLAUDE.md` "Current state" reflects that the round trip has run in game, lists the Lua fixes made, and names the harness as the dev loop
 
+### Hosting (HOST)
+
+- [ ] **HOST-01**: The bridge runs on the server admin's machine alongside the ATM9 dedicated server (or behind a tunnel if the two are ever split), installed once by a non-developer from a documented setup script that installs `uv`, fetches the repo, prompts for the `.env` values, and applies the `127.0.0.1` allow rule, so the real server can reach it with no developer present
+- [ ] **HOST-03**: `run.bat` alone starts both the bridge (in its own window) and the ATM9 server; the patch that achieves this is applied by the setup script, is idempotent, and is re-applicable after a server-bundle update overwrites `run.bat`
+
 ## v2 Requirements
 
 Deferred to a later milestone. Tracked but not in the v1.0 roadmap.
@@ -69,7 +74,6 @@ Deferred to a later milestone. Tracked but not in the v1.0 roadmap.
 
 ### Hosting and Operations (HOST)
 
-- **HOST-01**: Bridge runs on an always-on host or behind a tunnel so the real ATM9 server can reach it
 - **HOST-02**: Scheduled chores (bridge-side timers) and multi-turtle dispatch
 
 ## Out of Scope
@@ -117,11 +121,13 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | RESIL-05 | Phase 2 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
+| HOST-01 | Phase 6 | Pending |
+| HOST-03 | Phase 6 | Pending |
 
 **Coverage:**
 
-- v1 requirements: 24 total
-- Mapped to phases: 24
+- v1 requirements: 27 total
+- Mapped to phases: 27
 - Unmapped: 0 ✓
 
 ## Verification Notes

@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Local Server Setup** - The dedicated ATM9 server allows local websocket connections and hosts each device's Lua, token, and startup script on disk
 - [ ] **Phase 4: In-Game Round Trip** - Real `chat.lua` and `client.lua` on real devices connect and answer the devices question in chat
 - [ ] **Phase 5: Real-Device Resilience & Documentation** - Bridge-restart and devices-before-bridge proofs on real devices, and the docs now describe the proven path
+- [ ] **Phase 6: Remote Host Setup** - The bridge runs on the server admin's machine, installed once by a non-developer, and `run.bat` alone brings up both the bridge and the server
 
 ## Phase Details
 
@@ -155,10 +156,24 @@ Plans:
 
 **Plans**: TBD
 
+### Phase 6: Remote Host Setup
+
+**Goal**: The bridge runs on the server admin's machine alongside the ATM9 dedicated server, installed once by a non-developer from a documented setup script, and afterwards `run.bat` alone brings up both the bridge and the server, so devices set up from Nate's remote client work with no PC-side step by anyone.
+**Depends on**: Phase 5
+**Requirements**: HOST-01, HOST-03
+**Success Criteria** (what must be TRUE):
+
+  1. On a Windows machine that already runs the ATM9 dedicated server, a non-developer completes the bridge setup by running one documented script that installs `uv`, fetches the repo, prompts for the `.env` values (`BRIDGE_TOKEN`, `ANTHROPIC_API_KEY`, `ALLOWED_PLAYERS`, `SERVER_DIR`), applies the `127.0.0.1` allow rule, and patches `run.bat`, with no other command typed.
+  2. After setup, starting the server with `run.bat` also starts the bridge in its own window; stopping and running `run.bat` again brings both back, and the `run.bat` patch is idempotent and re-applicable after a server-bundle update overwrites the file.
+  3. From Nate's remote client, the documented in-game `wget run` line, the typed token and `reboot` connect a device to the bridge on her machine, and a `$robot` request gets an answer in chat.
+  4. The token and API key exist only in `.env` on her machine and in per-device `secret.txt`; nothing in the repo or on GitHub carries them, and the setup script never prints them.
+
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
@@ -167,3 +182,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Local Server Setup | 3/6 | In Progress|  |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |
+| 6. Remote Host Setup | 0/TBD | Not started | - |

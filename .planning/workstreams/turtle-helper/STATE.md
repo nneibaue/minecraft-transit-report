@@ -109,3 +109,8 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - ⚠️ [Phase 2] Reply delivery is now guaranteed by the bridge fallback, but Haiku answered in plain text instead of calling `say` once; watch whether the instruction nudge holds in game, and decide whether answers should name device ids
 - ⚠️ [Phase 2] The operator's `.env` sets `MODEL=claude-haiku-4-5` while `.env.example` and the settings default still say `claude-sonnet-5`; reconcile in Phase 5's docs pass
 - ⚠️ [Phase 2] Security enforcement and Nyquist validation are configured on, but `/gsd-secure-phase 02` and `/gsd-validate-phase 02` have not been run for this phase
+
+## Roadmap Evolution
+
+- 2026-09-25: Phase 3 amended mid-execution (CONTEXT.md D-14..D-18, requirement SRV-05): device install is one in-game `wget run` of `install.lua` from GitHub `main` with the token typed once; `startup.lua` auto-updates from `main`; `uv run deploy` kept as the developer shortcut. Plans 03-04..03-06 replanned; `main` pushed to GitHub as part of the recipe.
+- 2026-09-25: Phase 6 added: Remote Host Setup — the non-developer server admin installs the bridge on her machine with one script and `run.bat` starts both bridge and server. HOST-01 pulled from v2 into v1.0 (reworded), HOST-03 added.
