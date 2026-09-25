@@ -26,6 +26,18 @@ def split_comma_separated(value: object) -> list[str]:
 CommaSeparatedPlayers = Annotated[list[str], NoDecode, BeforeValidator(split_comma_separated)]
 
 
+def blank_to_none(value: object) -> object:
+    """Treat a blank or whitespace-only value as unset, so ``SERVER_DIR=`` means None."""
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
+# Without this, a blank SERVER_DIR= line (the documented default in .env.example) parses as
+# Path("."), and deploy would treat the current working directory as the server root.
+OptionalPath = Annotated[Path | None, BeforeValidator(blank_to_none)]
+
+
 class Settings(BaseSettings):
     """Bridge configuration; required fields raise ValidationError if missing or empty."""
 
@@ -57,6 +69,13 @@ class Settings(BaseSettings):
     )
     anthropic_api_key: str = Field(
         description="Anthropic API key used to authenticate Claude API calls."
+    )
+    server_dir: OptionalPath = Field(
+        default=None,
+        description=(
+            "Server root directory (where run.bat and world/ live) for local deployment; "
+            "required by `uv run deploy`, unused by the bridge itself."
+        ),
     )
 
     model_config = SettingsConfigDict(
