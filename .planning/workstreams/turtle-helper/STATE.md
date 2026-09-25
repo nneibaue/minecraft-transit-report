@@ -4,19 +4,19 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 03
 current_phase_name: Local Server Setup
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-09-25T10:45:07.483Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-09-25T11:08:35.915Z"
 last_activity: 2026-09-25
-last_activity_desc: Completed 03-04 (installer and auto-updating startup)
-state_head: 95c008cbd2bc3f38c4866c6b82eff53be1da0ec0
+last_activity_desc: Completed 03-05 (first in-game install, live SRV-02/03 proofs, D-19 deploy removal)
+state_head: bcf63e9c039bced7ed5c84d2f9261416f10e88bf
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 15
-  completed_plans: 13
-  percent: 87
+  completed_plans: 14
+  percent: 93
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 ## Current Position
 
 Phase: 03 (Local Server Setup) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
-Last activity: 2026-09-25 — Completed 03-04 (installer and auto-updating startup); next 03-05
+Last activity: 2026-09-25 — Completed 03-05 (first in-game install, live SRV-02/03 proofs, D-19 deploy removal); next 03-06
 
 ## Progress
 
-Progress: [█████████░] 87% (13 of 15 plans)
+Progress: [█████████░] 93% (14 of 15 plans)
 
 **Phases Complete:** 2 of 6
-**Current Plan:** 5
+**Current Plan:** 6
 
 ## Project Reference
 
@@ -44,9 +44,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T10:45:07.397Z
+**Last session:** 2026-09-25T11:08:35.876Z
 
-**Stopped At:** Completed 03-04-PLAN.md
+**Stopped At:** Completed 03-05-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -66,6 +66,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 03 P02 | 1 min | 2 tasks | 2 files |
 | Phase 03 P03 | 48 min | 6 tasks | 0 files |
 | Phase 03 P04 | 5min | 2 tasks | 5 files |
+| Phase 03 P05 | 20 min | 4 tasks | 10 files |
 
 ## Decisions
 
@@ -106,6 +107,11 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: startup.lua skips its boot-time GitHub update on devices holding _marker.txt (deploy-managed); deleting _marker.txt returns a device to GitHub updates
 - [Phase 03]: Device downloads (startup.lua and install.lua) write a file only after HTTP 200, a non-empty body, a '-- <name>' header and a compile-only load() pass; install.lua downloads all three files before writing any
 - [Phase 03]: deploy copies the repo startup.lua (LUA_SOURCES) and checks every source before the first write; the generated startup script is gone (D-16)
+- [Phase 03]: D-19 applied in 03-05 Task 4: developer deploy path removed (deploy.py, deploy script, test_deploy_files.py, startup.lua _marker.txt skip); rules.py, server_state.py, launcher.py and test_deploy_rules.py kept for Phase 6; launcher.py owns REPO_ROOT
+- [Phase 03]: Per-computer folder confirmed live as <SERVER_DIR>/world/computercraft/computer/<numeric id>/; device A is computer 0 (chat role, connects as device-0)
+- [Phase 03]: D-13 smoke text captured verbatim: success 'table: <addr> nil', denied 'Domain not permitted', no listener 'Could not connect'
+- [Phase 03]: Token isolation proven live: only computercraft/computer/0/secret.txt holds BRIDGE_TOKEN (repo, git history, world, logs incl. UTF-16LE/.gz scanned)
+- [Phase 03]: Device A keeps the 4df2021 startup.lua (dead marker skip) until the wget line is re-run; startup.lua is not self-updating
 
 ## Blockers/Concerns
 
