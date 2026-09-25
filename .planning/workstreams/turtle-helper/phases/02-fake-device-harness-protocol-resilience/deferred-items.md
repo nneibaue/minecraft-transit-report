@@ -27,6 +27,15 @@ later plan or milestone.
   `something went wrong` (or better, when it does not name a connected device id). Natural home:
   plan 02-07 (the post-swap re-run touches this scenario) or the phase code-review pass. Not fixed
   here: 02-04's `files_modified` is empty by design.
+  status: resolved
+  **02-07 fix (commit 0b9cbea):** `harness/scenarios.py` gained `is_error_fallback()` (matches
+  `bridge.on_event`'s `Sorry <user>, something went wrong: <ErrorName>` shape, which is unchanged
+  by the pydantic-ai swap because `agent.handle_request` lets exceptions propagate to that
+  handler); the `devices-question` chat branch now fails (exit 1) on an empty say text or the
+  fallback. Covered by `tests/test_harness_scenarios.py` (5 TAP checks, including the verbatim
+  21:02 fallback text and the successful 21:09 answer). The "names a connected device id"
+  variant was not adopted: the chat process cannot know a worker is connected, and the transcript
+  prints the say text for the human read.
 - **Model `say` call used `"to": null`** in the successful run, so the answer went to broadcast
   instead of the asking player. Carry into plan 02-05's typed Pydantic AI `say` tool: make `to`
   required, or default it to the requesting player.
