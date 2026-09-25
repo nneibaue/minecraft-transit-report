@@ -101,7 +101,21 @@ Plans:
   3. Each device's folder contains its own `secret.txt` holding only the bridge token; a repo-wide search for the token value confirms it appears nowhere else in the Lua, the repo, or version control.
   4. Each device's folder contains a `startup.lua` that launches `chat` or `client` as appropriate, and rebooting the computer in-game (without touching the bridge) brings the script back up on its own.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Deploy engine: Settings.server_dir, TOML allow-rule logic, server-running gate, marker scan, file placement, launcher (Wave 1)
+- [ ] 03-02-PLAN.md — Lua amendments: bridge-URL fallback/override (D-06) and device naming (D-10) in chat.lua and client.lua (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-03-PLAN.md — Real TOML rule application against the live server, with restart proof (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-04-PLAN.md — Real device onboarding: marker, deploy, reboot, SRV-03 token proof, D-13 smoke check, README/CLAUDE.md recipe update (Wave 3)
 
 ### Phase 4: In-Game Round Trip
 
