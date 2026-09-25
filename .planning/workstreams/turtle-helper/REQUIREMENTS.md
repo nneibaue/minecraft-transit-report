@@ -17,7 +17,7 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 ### Fake Device Harness (HARN)
 
 - [x] **HARN-01**: Developer can run a Python harness that connects to the local bridge as either a chat device or a worker device (role chosen on the command line), completes the hello handshake with the shared token, and prints every wire message in both directions
-- [ ] **HARN-02**: Harness playing the chat device can emit a scripted `$robot what devices are connected?` chat event and then receives the bridge's `say` command and answers it with a `result` (this path makes one real model call)
+- [x] **HARN-02**: Harness playing the chat device can emit a scripted `$robot what devices are connected?` chat event and then receives the bridge's `say` command and answers it with a `result` (this path makes one real model call)
 - [x] **HARN-03**: Harness playing a worker device answers incoming commands (at least `status`) with canned results so the bridge's device-forwarding path is exercised without the game
 - [x] **HARN-04**: Harness can drop its connection on demand (including while a command is in flight) and reconnect, so the failure proofs in RESIL can be driven from a terminal
 
@@ -96,7 +96,7 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | BRIDGE-03 | Phase 1 | Complete |
 | BRIDGE-04 | Phase 1 | Complete |
 | HARN-01 | Phase 2 | Complete |
-| HARN-02 | Phase 2 | Pending |
+| HARN-02 | Phase 2 | Complete |
 | HARN-03 | Phase 2 | Complete |
 | HARN-04 | Phase 2 | Complete |
 | SRV-01 | Phase 3 | Pending |
