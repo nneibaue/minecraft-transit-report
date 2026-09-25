@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import os
 import sys
 import traceback
@@ -546,6 +547,63 @@ async def test_runaway_tool_loop_is_cut_off_and_history_untouched() -> None:
     assert histories()["Nate"] == before, histories()["Nate"]
 
 
+# ----------------------------------------------------------------- Task 4: the answer is spoken
+# Plan 02-07's post-swap paid run (2026-09-24 22:17, claude-haiku-4-5): the model called
+# list_devices, then gave its answer as plain text instead of through say, and the bridge dropped
+# that text on the floor: two model round trips, no say cmd to the chat device, no log line, and the
+# harness timed out after 30 s. An Agent with str output invites exactly that ending, so
+# handle_request must speak the run's final output to the requester whenever the model did not,
+# without repeating an answer the model already spoke through say.
+POST_SWAP_ANSWER = (
+    'One computer, "harness-worker", is connected; it can report status and list and push chest '
+    "slots. No turtles right now."
+)
+
+
+class LogCatcher(logging.Handler):
+    """Collects the bridge logger's formatted messages for the duration of one test."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+
+async def test_plain_text_answer_is_spoken_to_the_requester_when_the_model_skips_say() -> None:
+    rec = configure({"harness-worker": computer()})
+    script = Script(call("list_devices"), POST_SWAP_ANSWER)  # the 22:17 shape: tool, then text
+    catcher = LogCatcher()
+    logging.getLogger("bridge").addHandler(catcher)
+    try:
+        await run_request(script, "DisraSenkovi", "what devices are connected?")
+    finally:
+        logging.getLogger("bridge").removeHandler(catcher)
+    assert len(script.tools_seen) == 2, script.tools_seen  # two model round trips, as observed
+    assert rec.said == [(POST_SWAP_ANSWER, "DisraSenkovi")], rec.said  # whispered to the asker
+    assert any(POST_SWAP_ANSWER in line for line in catcher.lines), catcher.lines
+
+
+async def test_answer_the_model_spoke_through_say_is_not_repeated() -> None:
+    rec = configure({"harness-worker": computer()})
+    spoken = "Just one computer, harness-worker, and the chat box."
+    # The pre-swap 21:09 shape: list_devices, say(to=null), then a throwaway closing text.
+    script = Script(call("list_devices"), call("say", text=spoken, to=None), "Done.")
+    await run_request(script, "DisraSenkovi", "what devices are connected?")
+    assert rec.said == [(spoken, None)], rec.said  # once, exactly as the model sent it
+
+
+async def test_blank_final_output_without_say_speaks_nothing() -> None:
+    # A completely empty response never reaches handle_request: pydantic-ai retries the model on it
+    # and raises UnexpectedModelBehavior if it stays empty, which bridge.on_event's fallback speaks.
+    # A whitespace-only answer does come through as the output and must not become a blank say.
+    rec = configure({})
+    await run_request(Script(call("list_devices"), "  \n"), "Nate", "hello")
+    assert rec.said == [], rec.said
+    assert user_prompts(histories()["Nate"]) == ["[Nate] hello"]  # the turn is still remembered
+
+
 # ----------------------------------------------------------------- runner (TAP output)
 TESTS: list[Callable[[], Any]] = [
     test_list_chest_without_name_is_rejected_before_the_tool_runs,
@@ -571,6 +629,9 @@ TESTS: list[Callable[[], Any]] = [
     test_failed_run_raises_and_leaves_that_players_history_untouched,
     test_history_is_bounded_and_trimmed_on_turn_boundaries,
     test_runaway_tool_loop_is_cut_off_and_history_untouched,
+    test_plain_text_answer_is_spoken_to_the_requester_when_the_model_skips_say,
+    test_answer_the_model_spoke_through_say_is_not_repeated,
+    test_blank_final_output_without_say_speaks_nothing,
 ]
 
 
