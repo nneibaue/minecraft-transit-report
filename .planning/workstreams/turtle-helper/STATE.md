@@ -7,10 +7,10 @@ current_phase_name: Fake Device Harness & Protocol Resilience
 current_plan: 6
 status: executing
 stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-09-25T04:40:42.406Z"
+last_updated: "2026-09-25T04:41:10.657Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 02 execution started
-state_head: c44fa82a6ba5fea9c797b2274892367827773570
+state_head: 1279e4a068c1686f9bdacc89e45c5d7c64de5657
 progress:
   total_phases: 5
   completed_phases: 0
@@ -69,3 +69,6 @@ Last activity: 2026-09-23 — Phase 02 execution started
 - [Phase 02]: Phase 2 paid devices-question runs (02-04 pre-swap and 02-07 post-swap) use claude-haiku-4-5 via the operator's local .env MODEL setting, not the .env.example default of claude-sonnet-5 — First 02-04 attempt on 2026-09-24 returned a 400 from the API (account out of credit); the operator chose Haiku for the remaining paid runs after topping up. Both transcripts must use the same model so 02-07's wire comparison is like-for-like. The harness also marked PASS on the bridge's error-fallback say text, a false positive to tighten in 02-07.
 - [Phase 02]: Long-lived processes a paid harness run depends on (bridge, worker hold) are owned by the operator's terminals, not by an executor subagent whose background jobs die when it returns; 02-04's first two --spend attempts hit WinError 1225 for that reason
 - [Phase 02]: The worker side of a paid devices-question run is 'uv run harness --role worker --scenario devices-question' (60 s hold), not status-command (5 s window); 02-07's plan text must say so
+- [Phase 02]: SayArgs.to stays optional (null = broadcast) so 02-07's post-swap wire matches the 02-04 transcript; the injected bridge.say() is held as agent.say_in_chat so the model-facing tool is a real function named say; configure() signature unchanged
+- [Phase 02]: History trimming drops whole oldest turns to HISTORY_LIMIT=40 messages (cut only at a request carrying the player's prompt) and UsageLimits(request_limit=12) carries over the old 12-round cap; histories is replaced only after agent.run() returns (WR-03)
+- [Phase 02]: RESEARCH.md's pydantic-ai claims (ResultError, RunContext history) were wrong; every symbol verified against installed 2.46.0 (ModelRetry/RetryPromptPart, message_history=, per-run toolsets=, FunctionModel for zero-spend tests)
