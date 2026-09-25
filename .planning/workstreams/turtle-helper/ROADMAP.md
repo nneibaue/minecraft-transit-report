@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Bridge Environment** - `bridge.py` starts locally on a pinned Python environment, the current `websockets` API, a real model ID, and env-based secrets (completed 2026-09-20)
 - [x] **Phase 2: Fake Device Harness & Protocol Resilience** - A terminal-driven fake device proves the wire protocol and every game-free failure case against the running bridge (completed 2026-09-24)
-- [ ] **Phase 3: Local Server Setup** - The dedicated ATM9 server allows local websocket connections and hosts each device's Lua, token, and startup script on disk
+- [x] **Phase 3: Local Server Setup** - The dedicated ATM9 server allows local websocket connections and hosts each device's Lua, token, and startup script on disk (completed 2026-09-25)
 - [ ] **Phase 4: In-Game Round Trip** - Real `chat.lua` and `client.lua` on real devices connect and answer the devices question in chat
 - [ ] **Phase 5: Real-Device Resilience & Documentation** - Bridge-restart and devices-before-bridge proofs on real devices, and the docs now describe the proven path
 - [ ] **Phase 6: Remote Host Setup** - The bridge runs on the server admin's machine, installed once by a non-developer, and `run.bat` alone brings up both the bridge and the server
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|-----------------|--------|-----------|
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
 | 2. Fake Device Harness & Protocol Resilience | 7/7 | Complete    | 2026-09-24 |
-| 3. Local Server Setup | 6/6 | In Progress|  |
+| 3. Local Server Setup | 6/6 | Complete    | 2026-09-25 |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |
 | 6. Remote Host Setup | 0/TBD | Not started | - |

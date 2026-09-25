@@ -36,7 +36,7 @@ A player types `$robot ...` in game chat and gets a correct answer or action bac
 
 Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 
-- [ ] The local dedicated ATM9 server allows CC:Tweaked access to `127.0.0.1`; Lua goes onto devices by on-disk file placement; tokens live only in per-device `secret.txt`; `startup.lua` relaunches on reboot (SRV-01..04)
+- [x] The local dedicated ATM9 server allows CC:Tweaked access to `127.0.0.1`; Lua goes onto devices by one in-game `wget run` of `install.lua` from GitHub `main`, and `startup.lua` re-downloads `chat.lua`/`client.lua` on every boot; tokens live only in per-device `secret.txt`, typed once at install; `startup.lua` relaunches on reboot (SRV-01..05, completed 2026-09-25)
 - [ ] Real `chat.lua` and `client.lua` connect, `$robot what devices are connected?` is answered in chat, failures get a plain-language reply, and first-run Lua fixes land in the repo (LOOP-01..05)
 - [ ] Proven on real devices: bridge restart reconnect and devices-before-bridge startup (RESIL-01..02; RESIL-03..05 were proven from the harness in Phase 2)
 - [ ] README and CLAUDE.md describe the local path end to end and no longer say the Lua has never run (DOC-01..02)
@@ -56,7 +56,7 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 
 **Repository placement.** `turtle/turtle-helper/` sits beside the author's other CC:Tweaked scripts (`quarry.lua`, `crater.lua`, `bridge.lua`, ...) which are installed in game by `wget` from the raw GitHub URL on `main`. The folder is untracked at milestone start. Three parts: `bridge/bridge.py` (Python, runs on the PC), `base/chat.lua` (Advanced Computer + Chat Box), `turtle/client.lua` (turtle or Advanced Computer). The starter's own `CLAUDE.md` and `README.md` are the architecture and setup reference and should stay accurate as the code changes.
 
-**Local test topology.** Dedicated ATM9 server, `bridge.py`, and the author's client all on one Windows PC. The websocket originates from the server process, so the Lua files point at `ws://127.0.0.1:8765` and CC:Tweaked's default block on local addresses must be lifted in that server's `computercraft-server.toml` (an `[[http.rules]]` entry allowing host `127.0.0.1`). No tunnel. Because the server's files are on this PC, Lua can be placed directly into the server's per-computer folders on disk instead of via `wget` or pastebin — worth establishing as the dev loop.
+**Local test topology.** Dedicated ATM9 server, `bridge.py`, and the author's client all on one Windows PC. The websocket originates from the server process, so the Lua files point at `ws://127.0.0.1:8765` and CC:Tweaked's default block on local addresses must be lifted in that server's `computercraft-server.toml` (an `[[http.rules]]` entry allowing host `127.0.0.1`). No tunnel. The dev loop settled in Phase 3 is the same as the admin path: push to `main`, then `reboot` the device; `startup.lua` pulls the Lua on boot. The on-disk placement idea was built and then removed (Phase 3, D-19) because the eventual server admin is a non-developer friend at another location; Phase 6 moves the bridge onto her machine behind `run.bat`.
 
 **Machine state at milestone start.** Python 3.12.10 on PATH (Windows Store launcher); `websockets` and `anthropic` not installed; `ANTHROPIC_API_KEY` not set in the shell. No `requirements.txt` / `pyproject.toml` / venv in the starter.
 
@@ -86,6 +86,7 @@ Full list with REQ-IDs in `REQUIREMENTS.md`. In brief:
 |----------|-----------|---------|
 | Brain outside the game; devices are dumb executors | The API key cannot live on an in-game computer, and high-level tools in Lua keep the model from micro-stepping a turtle | — Pending (inherited from starter) |
 | Bridge is the only message bus; one websocket per device | No rednet or modem coordination to debug; the bridge sees every device directly | — Pending (inherited from starter) |
+| One install path: in-game `wget run` of `install.lua` plus boot-time self-update; the developer deploy shortcut was removed the same day it shipped | The real admin is a non-SWE friend hosting the server elsewhere; every extra path or PC-side step is friction, not safety | ✓ Good — 2026-09-25 |
 | Turtle-helper planned as its own GSD workstream, not a replacement milestone | The Fabric transit-display milestone is mid-flight (phases 6–10 pending); a flat-mode milestone would have archived its phases and overwritten its roadmap | ✓ Good — 2026-09-19 |
 | v1.0 scope is the round trip only; sorting is not a deliverable | Author is not sure sorting is the right first chore; proving plumbing first keeps the first-chore decision open | — Pending |
 | Fake device harness in scope alongside real in-game testing | The bridge's whole surface is a JSON protocol, so a terminal stand-in gives a fast loop; the in-game run stays required because the Lua has never executed | ✓ Good — 2026-09-24, Phase 2: five scenarios proved zero-spend, the paid path proved twice, and the harness caught a real regression before any device existed |
