@@ -2,52 +2,52 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 milestone_name: Local Round Trip
-current_phase: 4
+current_phase: 04
 current_phase_name: In-Game Round Trip
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-09-25T13:02:59.277Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-09-25T17:00:16.565Z"
 last_activity: 2026-09-25
-last_activity_desc: Phase 3 complete, transitioned to Phase 4
-state_head: a9f71d548db4b326f98e08eef54f2dc88c3eb109
+last_activity_desc: Plan 04-01 complete (the $ restore, DEBUG marker, prompt line; pushed, RAW_MATCH_OK)
+state_head: 370e31d83482df8521eb8d90e4afe13b0169ba7b
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 0
   total_plans: 18
-  completed_plans: 15
-  percent: 17
+  completed_plans: 16
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 4 (In-Game Round Trip) — READY TO EXECUTE
-Plan: 6 of 6
+Phase: 04 (In-Game Round Trip) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-09-25 — Phase 3 complete, transitioned to Phase 4
+Last activity: 2026-09-25 — Plan 04-01 complete; next is 04-02 (chat-only loop in game)
 
 ## Progress
 
-Progress: [██░░░░░░░░] 17% (15 of 15 plans)
+Progress: [░░░░░░░░░░] 0% (16 of 18 plans)
 
-**Phases Complete:** 2 of 6
-**Current Plan:** Not started
+**Phases Complete:** 3 of 6
+**Current Plan:** 2
 
 ## Project Reference
 
 See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 **Core value:** A player types `$robot ...` in game chat and gets a correct answer or action back, through a loop whose pieces reconnect on their own after any one of them restarts.
-**Current focus:** Phase 03 — Local Server Setup
+**Current focus:** Phase 04 — In-Game Round Trip
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T12:18:36.330Z
+**Last session:** 2026-09-25T16:59:43.267Z
 
-**Stopped At:** Phase 4 context gathered
-**Resume File:** .planning/workstreams/turtle-helper/phases/04-in-game-round-trip/04-CONTEXT.md
+**Stopped At:** Completed 04-01-PLAN.md
+**Resume File:** None
 
 ## Performance Metrics
 
@@ -68,6 +68,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 03 P04 | 5min | 2 tasks | 5 files |
 | Phase 03 P05 | 20 min | 4 tasks | 10 files |
 | Phase 03 P06 | 9 min | 5 tasks | 5 files |
+| Phase 04 P01 | 3 min | 4 tasks | 4 files |
 
 ## Decisions
 
@@ -115,6 +116,8 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: Device A keeps the 4df2021 startup.lua (dead marker skip) until the wget line is re-run; startup.lua is not self-updating
 - [Phase 03]: Push to main + reboot proven as the whole update path: device A's chat.lua/client.lua equal origin/main c1a773e after the reboot (rewritten 11:26:26Z), secret.txt/bridge.txt/startup.lua untouched, no PC-side step (UPDATE_PATH_OK)
 - [Phase 03]: Device A's startup.lua is blob 8db52b5 (introduced 4b4dd67, same at 4df2021), pre-D-19 with a dead marker branch; offline fallback skipped by the operator and left judgment-verified
+- [Phase 04]: DEBUG in chat.lua and client.lua is a marker (fs.exists("debug") at program start; mkdir debug / rm debug plus reboot), not a committed constant; dbg() writes the same line to the screen and debug.log in the device folder and never sees the hello frame or token
+- [Phase 04]: chat.lua restores the $ AP 0.7.46r strips from hidden chat (only when hidden text lacks a leading $); the bridge prefix check stays unchanged. Pushed c318561..3bde837, raw GitHub serves all four device files (RAW_MATCH_OK)
 
 ## Blockers/Concerns
 
