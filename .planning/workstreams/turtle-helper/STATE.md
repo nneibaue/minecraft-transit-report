@@ -6,17 +6,17 @@ current_phase: 3
 current_phase_name: Local Server Setup
 current_plan: Not started
 status: planning
-stopped_at: Phase 02 complete, ready to plan Phase 3
-last_updated: "2026-09-25T05:47:34.842Z"
+stopped_at: Phase 02 complete, ready to plan Phase 3 (Local Server Setup)
+last_updated: "2026-09-25T05:49:17.403Z"
 last_activity: 2026-09-24
 last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: cb5cadba350072f3558a3a5959a061da810ca44d
+state_head: f016b031967ddbe9249af16ff2f28de88ef59556
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
   completed_plans: 9
-  percent: 20
+  percent: 40
 ---
 
 # Project State
@@ -24,20 +24,29 @@ progress:
 ## Current Position
 
 Phase: 3 — Local Server Setup
-Plan: 7 of 7
+Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-24 — Phase 02 complete, transitioned to Phase 3
 
 ## Progress
 
-**Phases Complete:** 1
+Progress: ████░░░░░░ 40%
+
+**Phases Complete:** 2 of 5
 **Current Plan:** Not started
+
+## Project Reference
+
+See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
+
+**Core value:** A player types `$robot ...` in game chat and gets a correct answer or action back, through a loop whose pieces reconnect on their own after any one of them restarts.
+**Current focus:** Phase 3 — Local Server Setup (CC:Tweaked `127.0.0.1` allow rule, on-disk Lua placement, per-device `secret.txt`, `startup.lua`)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T05:39:16.277Z
+**Last session:** 2026-09-25T05:49:17.364Z
 
-**Stopped At:** Phase 02 complete, ready to plan Phase 3
+**Stopped At:** Phase 02 complete, ready to plan Phase 3 (Local Server Setup)
 **Resume File:** None
 
 ## Performance Metrics
@@ -83,3 +92,10 @@ Last activity: 2026-09-24 — Phase 02 complete, transitioned to Phase 3
 - [Phase 02]: The bridge guarantees reply delivery: handle_request speaks the model's plain-text final output to the requesting player when a run ends without a say ToolReturnPart, never repeats an answer already spoken, and logs the final output every run; Agent output_type=str invites a plain-text answer, so the pre-swap reliance on the model calling say() was luck, not a contract (02-07 fix bcff617)
 - [Phase 02]: D-05's two-paid-call budget was exceeded by one with the operator's go-ahead: 02-04 pre-swap pass, 02-07 first attempt failed (exposed the dropped plain-text answer), 02-07 second attempt passed; all claude-haiku-4-5; the post-swap wire matches pre-swap frame for frame, with to: DisraSenkovi instead of to: null accepted as a legitimate difference
 - [Phase 02]: devices-question rejects the bridge's error-fallback say shape (is_error_fallback) rather than requiring the answer to name a device id: the chat process cannot know a worker is connected, and the transcript prints the text for the human read
+
+## Blockers/Concerns
+
+- ⚠️ [Phase 2] The Lua has still never run in game; first-run API-name and JSON-shape mistakes (`textutils.serialiseJSON` on empty tables, `http.websocket` return shapes, the Advanced Peripherals `chat` event signature) are expected in Phase 4
+- ⚠️ [Phase 2] Reply delivery is now guaranteed by the bridge fallback, but Haiku answered in plain text instead of calling `say` once; watch whether the instruction nudge holds in game, and decide whether answers should name device ids
+- ⚠️ [Phase 2] The operator's `.env` sets `MODEL=claude-haiku-4-5` while `.env.example` and the settings default still say `claude-sonnet-5`; reconcile in Phase 5's docs pass
+- ⚠️ [Phase 2] Security enforcement and Nyquist validation are configured on, but `/gsd-secure-phase 02` and `/gsd-validate-phase 02` have not been run for this phase
