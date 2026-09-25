@@ -9,8 +9,10 @@ from typing import Literal
 import anthropic
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, FunctionToolset, RunContext
+from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.usage import UsageLimits
 
 from bridge.settings import Settings
 
@@ -158,7 +160,9 @@ async def _forward(
         return {"ok": False, "error": "no turtle or computer connected"}
     if wire is None:
         wire = args.model_dump(exclude={"device"}, exclude_none=True)
-    return await send_cmd(device_id, tool, wire)
+    result = await send_cmd(device_id, tool, wire)
+    log.info("tool %s@%s(%s) -> %s", tool, device_id, wire, str(result)[:200])
+    return result
 
 
 async def status(ctx: RunContext[None], args: StatusArgs) -> dict[str, object]:
@@ -263,6 +267,49 @@ def build_toolset() -> FunctionToolset[None]:
 
 
 # ----------------------------------------------------------------- chat requests
+# Per-player conversation memory, kept as pydantic-ai's own message objects so it can go straight
+# back in as message_history. Only replaced after a run succeeds, so a failed request leaves the
+# player's memory exactly as it was.
+histories: dict[str, list[ModelMessage]] = {}
+HISTORY_LIMIT = 40  # messages (requests + responses) kept per player
+# The hand-rolled loop capped tool rounds at 12 per request; the same spend guard, as a UsageLimits.
+REQUEST_LIMITS = UsageLimits(request_limit=12)
+
+
+def _starts_turn(message: ModelMessage) -> bool:
+    """True for the request that opens a turn: the one carrying the player's prompt."""
+    return isinstance(message, ModelRequest) and any(
+        isinstance(part, UserPromptPart) for part in message.parts
+    )
+
+
+def trim_history(messages: list[ModelMessage], limit: int = HISTORY_LIMIT) -> list[ModelMessage]:
+    """Drop whole oldest turns until at most `limit` messages remain.
+
+    Cutting anywhere but a turn boundary would leave a tool_result without its tool_use, which the
+    API rejects on the next run. A single turn is at most 2 * request_limit messages, so one turn
+    longer than the cap cannot happen; it would be kept whole if it did.
+    """
+    if len(messages) <= limit:
+        return list(messages)
+    for index in range(len(messages) - limit, len(messages)):
+        if _starts_turn(messages[index]):
+            return list(messages[index:])
+    return list(messages)
+
+
 async def handle_request(user: str, text: str) -> None:
-    """Process one chat request from a player. Rebuilt on agent.run() in plan 02-05 Task 3."""
-    raise NotImplementedError("the agent loop is being rebuilt on pydantic-ai (plan 02-05)")
+    """Run one chat request through the agent and remember the exchange for that player.
+
+    The model speaks through the say tool inside the run; nothing is spoken here. Anything that
+    escapes agent.run() (a bug, a usage limit, a tool that exhausted its retries) propagates to
+    bridge.on_event's catch-all, and this player's history stays as it was.
+    """
+    log.info("request from %s: %s", user, text)
+    result = await agent.run(
+        f"[{user}] {text}",
+        message_history=histories.get(user, []),
+        toolsets=[build_toolset()],
+        usage_limits=REQUEST_LIMITS,
+    )
+    histories[user] = trim_history(result.all_messages())
