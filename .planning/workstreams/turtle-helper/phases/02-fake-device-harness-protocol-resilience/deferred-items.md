@@ -54,3 +54,21 @@ later plan or milestone.
   status: resolved
   **Found during:** 02-05 Task 2 prototype; cosmetic, bridge.py is out of this plan's scope.
   **02-06 fix:** `agent.configure()` sets `pydantic_ai.BANNER_ENABLED = False` (the switch the installed 2.46.0 documents in `pydantic_ai/__init__.py`; `PYDANTIC_AI_NO_BANNER` is its env-var twin) before the Agent is built, so no env var or `.env.example` entry is needed. Covered by `tests/test_agent_composition.py::test_configure_turns_off_the_pydantic_ai_first_run_banner`.
+
+## From plan 02-07 (post-swap paid run)
+
+- **`agent.handle_request` dropped the model's answer when it came back as plain text instead of a
+  `say` call.** Observed 2026-09-24 22:17 (claude-haiku-4-5, HEAD 2fb724d): two model round trips
+  (`list_devices`, then the answer as text), no `say` cmd to the chat device, no log line, and the
+  chat harness timed out after 30 s (`FAIL: devices-question - harness-chat: no list_devices or say
+  cmd within 30s`). The pre-swap loop (53d57eb) relied on the model always ending with `say()`; an
+  `Agent[None, str]` invites a plain-text final answer, so the swap made this likely, not rare.
+  status: resolved
+  **02-07 fix (Rule 1 deviation, commits d107778 RED / bcff617 GREEN):** `handle_request` inspects
+  `result.new_messages()` for a `say` `ToolReturnPart`; with none, and a non-blank `result.output`,
+  it whispers the output to the requesting player through `say_in_chat` and never repeats an answer
+  the model already spoke. The final output is logged either way (200 chars). The instructions now
+  also say "Answer through say(), not as plain text: players only read game chat" beside the
+  carried-over "exactly one say()" rule. Covered by `tests/test_agent.py` tests 24-26 (the 22:17
+  shape whispered to the asker and logged; the 21:09 say shape not duplicated; a whitespace-only
+  output speaks nothing). The paid `devices-question` scenario still needs a re-run to close 02-07.
