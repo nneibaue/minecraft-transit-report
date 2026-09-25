@@ -27,12 +27,17 @@
       "number": "5",
       "name": "Real-Device Resilience & Documentation",
       "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Remote Host Setup",
+      "status": "pending"
     }
   ],
   "next": {
     "command": "/gsd:progress --next",
     "label": "Advance to the next step",
-    "reason": "Phase 03 of 5 · 0% · executing"
+    "reason": "Phase 03 of 6 · 87% · executing"
   },
-  "updated_at": "2026-09-25T09:49:07.313Z"
+  "updated_at": "2026-09-25T10:45:05.183Z"
 }

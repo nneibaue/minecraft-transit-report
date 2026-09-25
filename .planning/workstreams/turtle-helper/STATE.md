@@ -4,19 +4,19 @@ milestone: v1.0
 milestone_name: Local Round Trip
 current_phase: 03
 current_phase_name: Local Server Setup
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-09-25T09:49:29.785Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-09-25T10:45:07.483Z"
 last_activity: 2026-09-25
-last_activity_desc: Phase 03 execution started
-state_head: e8e8179e5cd94726d68984b11ec5cfe344315be9
+last_activity_desc: Completed 03-04 (installer and auto-updating startup)
+state_head: 95c008cbd2bc3f38c4866c6b82eff53be1da0ec0
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 0
-  total_plans: 13
-  completed_plans: 12
-  percent: 0
+  total_plans: 15
+  completed_plans: 13
+  percent: 87
 ---
 
 # Project State
@@ -24,16 +24,16 @@ progress:
 ## Current Position
 
 Phase: 03 (Local Server Setup) — EXECUTING
-Plan: 4 of 4
+Plan: 5 of 6
 Status: Ready to execute
-Last activity: 2026-09-25 — Phase 03 execution started
+Last activity: 2026-09-25 — Completed 03-04 (installer and auto-updating startup); next 03-05
 
 ## Progress
 
-Progress: ████░░░░░░ [░░░░░░░░░░] 0%
+Progress: [█████████░] 87% (13 of 15 plans)
 
-**Phases Complete:** 2 of 5
-**Current Plan:** 4
+**Phases Complete:** 2 of 6
+**Current Plan:** 5
 
 ## Project Reference
 
@@ -44,9 +44,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T09:49:08.562Z
+**Last session:** 2026-09-25T10:45:07.397Z
 
-**Stopped At:** Completed 03-03-PLAN.md
+**Stopped At:** Completed 03-04-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -65,6 +65,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 03 P01 | 8 min | 3 tasks | 10 files |
 | Phase 03 P02 | 1 min | 2 tasks | 2 files |
 | Phase 03 P03 | 48 min | 6 tasks | 0 files |
+| Phase 03 P04 | 5min | 2 tasks | 5 files |
 
 ## Decisions
 
@@ -102,6 +103,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 03]: SERVER_DIR was appended to the gitignored .env by a scratchpad script (a hook blocks Bash reads of .env); Settings() resolves C:/Users/nneib/Documents/Server-Files-1.1.1/Server-Files-1.1.1 with no .env value printed
 - [Phase 03]: The real computercraft-server.toml carries the 127.0.0.1 allow at line 114 before $private at line 118 (8648 -> 8709 bytes, md5 0c2b4863 -> f3a8a0a8, 4 CRLF lines added); after a full restart Forge rewrote the file at boot byte-identically, confirming RESEARCH.md A4
 - [Phase 03]: Forge loads cc-tweaked-1.20.1-forge-1.116.1.jar (UniqueModListBuilder, logs/debug.log line 916); the duplicate 1.113.1 jar is found but skipped, and removing it stays an operator decision
+- [Phase 03]: startup.lua skips its boot-time GitHub update on devices holding _marker.txt (deploy-managed); deleting _marker.txt returns a device to GitHub updates
+- [Phase 03]: Device downloads (startup.lua and install.lua) write a file only after HTTP 200, a non-empty body, a '-- <name>' header and a compile-only load() pass; install.lua downloads all three files before writing any
+- [Phase 03]: deploy copies the repo startup.lua (LUA_SOURCES) and checks every source before the first write; the generated startup script is gone (D-16)
 
 ## Blockers/Concerns
 

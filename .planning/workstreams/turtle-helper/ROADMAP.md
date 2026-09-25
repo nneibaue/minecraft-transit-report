@@ -103,7 +103,7 @@ Plans:
   4. Each device's folder contains a `startup.lua` that launches `chat` or `client` as appropriate, and rebooting the computer in-game (without touching the bridge) brings the script back up on its own.
   5. A fresh computer set up with only the documented in-game `wget run` line and the typed bridge token connects to the bridge after `reboot`, and a later push to `main` plus `reboot` updates its Lua with no PC-side step (decisions D-14..D-18, added 2026-09-25).
 
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 
 Plans:
 **Wave 1**
@@ -117,7 +117,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-04-PLAN.md — In-game installer and self-updating boot: install.lua (wget run, masked token prompt, URL default), repo startup.lua (update from main, marker skip, role launch), deploy copies it, Lua invariant tests (Wave 3)
+- [x] 03-04-PLAN.md — In-game installer and self-updating boot: install.lua (wget run, masked token prompt, URL default), repo startup.lua (update from main, marker skip, role launch), deploy copies it, Lua invariant tests (Wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|-----------------|--------|-----------|
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
 | 2. Fake Device Harness & Protocol Resilience | 7/7 | Complete    | 2026-09-24 |
-| 3. Local Server Setup | 3/6 | In Progress|  |
+| 3. Local Server Setup | 4/6 | In Progress|  |
 | 4. In-Game Round Trip | 0/TBD | Not started | - |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |
 | 6. Remote Host Setup | 0/TBD | Not started | - |
