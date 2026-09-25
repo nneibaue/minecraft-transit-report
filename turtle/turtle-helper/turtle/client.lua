@@ -33,6 +33,18 @@ if BRIDGE_FILE then BRIDGE_URL = BRIDGE_FILE:gsub("%s+$", "") end
 
 local function log(...) print(("[%s] "):format(textutils.formatTime(os.time(), true)), ...) end
 
+-- DEBUG on: `mkdir debug` at the device prompt, then reboot. Off: `rm debug`, then reboot.
+local DEBUG = fs.exists("debug")
+local function dbg(...)
+  if not DEBUG then return end
+  local parts = {}
+  for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
+  local line = table.concat(parts, " ")
+  log("DEBUG", line)
+  local f = fs.open("debug.log", "a")
+  if f then f.writeLine(line); f.close() end
+end
+
 ---------------------------------------------------------------- tools
 -- Every tool: function(args) -> table (JSON-serialisable). Errors are caught.
 -- Primitives only: each tool is a one-to-one wrapper over a CC:Tweaked call.
@@ -142,6 +154,7 @@ local function session(ws)
   while true do
     local raw = ws.receive()
     if raw == nil then return end             -- closed
+    dbg("recv: " .. raw)
     local msg = textutils.unserialiseJSON(raw)
     if msg and msg.type == "cmd" then
       local tool = tools[msg.tool]
@@ -153,7 +166,9 @@ local function session(ws)
         reply.ok = ok
         if ok then reply.data = res else reply.error = tostring(res) end
       end
-      ws.send(textutils.serialiseJSON(reply))
+      local json = textutils.serialiseJSON(reply)
+      dbg("result: " .. json)
+      ws.send(json)
     elseif msg and msg.type == "ping" then
       ws.send(textutils.serialiseJSON({type = "pong"}))
     end

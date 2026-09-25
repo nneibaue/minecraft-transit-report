@@ -38,7 +38,7 @@ GLOBAL_OUTPUT_CALL = re.compile(r"(?<![.\w])(print|write|printError)\s*\(")
 DEVICE_OUTPUT_CALL = re.compile(r"(?<![.\w])(print|write|printError|log|dbg)\s*\(")
 
 # Device files that carry the DEBUG marker (Phase 4 D-11).
-DEBUG_FILES: tuple[str, ...] = ("chat.lua",)
+DEBUG_FILES: tuple[str, ...] = ("chat.lua", "client.lua")
 
 DOLLAR_RESTORE = re.compile(
     r'if\s+hidden\s+and\s+text:sub\(1,\s*1\)\s*~=\s*"\$"\s+then\s+text\s*=\s*"\$"\s*\.\.\s*text'
