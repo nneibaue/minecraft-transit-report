@@ -1,13 +1,14 @@
-"""The Claude tool-use agent loop: device/local tool schemas and per-player chat handling."""
+"""The Pydantic AI agent: typed device/local tools, per-run toolset and per-player chat handling."""
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any, cast
+from typing import Literal
 
 import anthropic
+from pydantic import BaseModel, Field
+from pydantic_ai import RunContext
 
 from bridge.settings import Settings
 
@@ -66,215 +67,136 @@ def configure(
     system = SYSTEM_TEMPLATE.format(robot_name=new_settings.robot_name)
 
 
-# ----------------------------------------------------------------- agent tools
-# Tools the model sees. Anything with "device" is forwarded to that device's Lua tool
-# of the same name; the schema here is just so Claude fills args correctly.
-DEVICE_TOOLS: list[dict[str, object]] = [
-    {
-        "name": "status",
-        "description": "Fuel, position, and attached peripherals of a device.",
-        "input_schema": {"type": "object", "properties": {"device": {"type": "string"}}},
-    },
-    {
-        "name": "list_chest",
-        "description": "List the items in an inventory on the wired network.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "device": {"type": "string"},
-                "name": {"type": "string", "description": "peripheral name e.g. minecraft:chest_0"},
-            },
-            "required": ["name"],
-        },
-    },
-    {
-        "name": "sort_chest",
-        "description": (
-            "Sort every item in an inventory into destinations using the saved rules. "
-            "Returns counts and anything it couldn't place."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "device": {"type": "string"},
-                "from": {"type": "string", "description": "source inventory peripheral name"},
-            },
-            "required": ["from"],
-        },
-    },
-    {
-        "name": "list_rules",
-        "description": "Show the sorting rules and overflow chest.",
-        "input_schema": {"type": "object", "properties": {"device": {"type": "string"}}},
-    },
-    {
-        "name": "add_rule",
-        "description": (
-            "Add a sorting rule: items whose id matches the Lua pattern go to dest. "
-            "First matching rule wins."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "device": {"type": "string"},
-                "pattern": {
-                    "type": "string",
-                    "description": (
-                        "Lua pattern matched against item id, e.g. 'ingot' or '^minecraft:.*_log$'"
-                    ),
-                },
-                "dest": {"type": "string", "description": "destination inventory peripheral name"},
-            },
-            "required": ["pattern", "dest"],
-        },
-    },
-    {
-        "name": "remove_rule",
-        "description": "Remove a sorting rule by its exact pattern.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"device": {"type": "string"}, "pattern": {"type": "string"}},
-            "required": ["pattern"],
-        },
-    },
-    {
-        "name": "set_overflow",
-        "description": "Set the chest that receives items no rule matches.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"device": {"type": "string"}, "dest": {"type": "string"}},
-            "required": ["dest"],
-        },
-    },
-    {
-        "name": "move",
-        "description": "Move a turtle up to N steps. Stops early if blocked.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "device": {"type": "string"},
-                "dir": {"type": "string", "enum": ["forward", "back", "up", "down"]},
-                "steps": {"type": "integer"},
-            },
-            "required": ["dir"],
-        },
-    },
-    {
-        "name": "turn",
-        "description": "Turn a turtle left or right.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "device": {"type": "string"},
-                "dir": {"type": "string", "enum": ["left", "right"]},
-            },
-            "required": ["dir"],
-        },
-    },
-    {
-        "name": "dig",
-        "description": "Dig the block in a direction.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "device": {"type": "string"},
-                "dir": {"type": "string", "enum": ["forward", "up", "down"]},
-            },
-        },
-    },
-    {
-        "name": "inspect",
-        "description": "Name the blocks in front, above and below a turtle.",
-        "input_schema": {"type": "object", "properties": {"device": {"type": "string"}}},
-    },
-    {
-        "name": "refuel",
-        "description": "Burn fuel items from the turtle's inventory.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"device": {"type": "string"}, "count": {"type": "integer"}},
-        },
-    },
-]
-
-LOCAL_TOOLS: list[dict[str, object]] = [
-    {
-        "name": "list_devices",
-        "description": "List connected devices, their roles and the tools each supports.",
-        "input_schema": {"type": "object", "properties": {}},
-    },
-    {
-        "name": "say",
-        "description": (
-            "Speak in game chat. Use once at the end with a short summary, not for every step."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "text": {"type": "string"},
-                "to": {
-                    "type": "string",
-                    "description": "player name to whisper to; omit to broadcast",
-                },
-            },
-            "required": ["text"],
-        },
-    },
-]
-
-histories: dict[str, list[dict[str, object]]] = {}  # per-player conversation memory
-MAX_TURNS = 20
+# ----------------------------------------------------------------- device-forwarding tools
+# One Pydantic argument model and one async tool function per client.lua primitive (D-06).
+# pydantic-ai derives each tool's JSON schema from its argument model and its description from
+# the docstring, and validates the model's call arguments before the function body runs: a
+# malformed call goes back to the model as a retry prompt, never as a Python exception. Each
+# function forwards the validated arguments to the device over the injected send_cmd and
+# returns its result dict unchanged (send_cmd never raises, per plan 02-02).
 
 
-async def run_tool(name: str, args: dict[str, object]) -> dict[str, object]:
-    """Execute a tool by name with JSON args, return a JSON-safe result."""
-    if name == "list_devices":
-        return {d: {"role": v["role"], "caps": v["caps"]} for d, v in devices.items()}
-    if name == "say":
-        to_arg = args.get("to")
-        to = to_arg if isinstance(to_arg, str) else None
-        await say(str(args["text"]), to)
-        return {"ok": True}
-    device_arg = args.pop("device", None)
-    device = device_arg if isinstance(device_arg, str) else default_worker()
-    if not device:
-        return {"ok": False, "error": "no worker device connected"}
-    return await send_cmd(device, name, args)
+class DeviceArgs(BaseModel):
+    """Arguments every device-forwarding tool accepts: which connected device runs it."""
+
+    device: str | None = Field(
+        default=None, description="device id to send this to; omit to use the default worker"
+    )
 
 
+class StatusArgs(DeviceArgs):
+    """Arguments for status."""
+
+
+class ListChestArgs(DeviceArgs):
+    """Arguments for list_chest."""
+
+    name: str = Field(description="peripheral name e.g. minecraft:chest_0")
+
+
+class PushOneSlotArgs(DeviceArgs):
+    """Arguments for push_one_slot; `from_name` travels to the device as `from`."""
+
+    from_name: str = Field(description="source inventory peripheral name")
+    slot: int = Field(description="slot number in the source inventory")
+    dest: str = Field(description="destination inventory peripheral name")
+    limit: int | None = Field(
+        default=None, description="most items to move from that slot; omit for the whole stack"
+    )
+
+
+class MoveArgs(DeviceArgs):
+    """Arguments for move."""
+
+    dir: Literal["forward", "back", "up", "down"]
+    steps: int | None = Field(default=None, description="how many blocks to move; default 1")
+
+
+class TurnArgs(DeviceArgs):
+    """Arguments for turn."""
+
+    dir: Literal["left", "right"]
+
+
+class DigArgs(DeviceArgs):
+    """Arguments for dig."""
+
+    dir: Literal["forward", "up", "down"] = "forward"
+
+
+class InspectArgs(DeviceArgs):
+    """Arguments for inspect."""
+
+
+class RefuelArgs(DeviceArgs):
+    """Arguments for refuel."""
+
+    count: int | None = Field(default=None, description="fuel items to burn per slot; default 1")
+
+
+async def _forward(
+    args: DeviceArgs, tool: str, wire: dict[str, object] | None = None
+) -> dict[str, object]:
+    """Send one primitive to args.device (or the default worker) and return the device's result.
+
+    `wire` overrides the argument dict put on the wire; by default it is the model's fields minus
+    `device`, with unset optionals omitted so the Lua side sees nil for them.
+    """
+    device_id = args.device or default_worker()
+    if not device_id:
+        return {"ok": False, "error": "no turtle or computer connected"}
+    if wire is None:
+        wire = args.model_dump(exclude={"device"}, exclude_none=True)
+    return await send_cmd(device_id, tool, wire)
+
+
+async def status(ctx: RunContext[None], args: StatusArgs) -> dict[str, object]:
+    """Fuel, position, and attached peripherals of a device."""
+    return await _forward(args, "status")
+
+
+async def list_chest(ctx: RunContext[None], args: ListChestArgs) -> dict[str, object]:
+    """List the items in an inventory on the wired network."""
+    return await _forward(args, "list_chest")
+
+
+async def push_one_slot(ctx: RunContext[None], args: PushOneSlotArgs) -> dict[str, object]:
+    """Push one slot of a source inventory into a destination inventory over the wired network.
+
+    The device never carries the items. Returns {"moved": <count>} from the device.
+    """
+    wire: dict[str, object] = {"from": args.from_name, "slot": args.slot, "dest": args.dest}
+    if args.limit is not None:
+        wire["limit"] = args.limit
+    return await _forward(args, "push_one_slot", wire)
+
+
+async def move(ctx: RunContext[None], args: MoveArgs) -> dict[str, object]:
+    """Move a turtle up to N steps. Stops early if blocked."""
+    return await _forward(args, "move")
+
+
+async def turn(ctx: RunContext[None], args: TurnArgs) -> dict[str, object]:
+    """Turn a turtle left or right."""
+    return await _forward(args, "turn")
+
+
+async def dig(ctx: RunContext[None], args: DigArgs) -> dict[str, object]:
+    """Dig the block in a direction."""
+    return await _forward(args, "dig")
+
+
+async def inspect(ctx: RunContext[None], args: InspectArgs) -> dict[str, object]:
+    """Name the blocks in front, above and below a turtle."""
+    return await _forward(args, "inspect")
+
+
+async def refuel(ctx: RunContext[None], args: RefuelArgs) -> dict[str, object]:
+    """Burn fuel items from the turtle's inventory."""
+    return await _forward(args, "refuel")
+
+
+# ----------------------------------------------------------------- chat requests
 async def handle_request(user: str, text: str) -> None:
-    """Process a chat request through the tool-use loop and speak the result."""
-    log.info("request from %s: %s", user, text)
-    hist = histories.setdefault(user, [])
-    hist.append({"role": "user", "content": f"[{user}] {text}"})
-
-    def _bad_start() -> bool:
-        # must start on a plain user text message
-        return hist[0]["role"] != "user" or not isinstance(hist[0]["content"], str)
-
-    while len(hist) > 1 and (len(hist) > MAX_TURNS * 2 or _bad_start()):
-        hist.pop(0)
-
-    for _ in range(12):  # cap tool rounds per request
-        # DEVICE_TOOLS/LOCAL_TOOLS and hist are plain JSON-shaped dicts (the tool-use loop is
-        # hand-rolled, not the SDK's typed builders); cast past the SDK's generated TypedDict
-        # unions rather than duplicate them here. Values are valid at runtime.
-        resp = await client.messages.create(
-            model=settings.model,
-            max_tokens=1024,
-            system=system,
-            tools=cast(Any, DEVICE_TOOLS + LOCAL_TOOLS),
-            messages=cast(Any, hist),
-        )
-        hist.append({"role": "assistant", "content": resp.content})
-        if resp.stop_reason != "tool_use":
-            break
-        results = []
-        for block in resp.content:
-            if block.type == "tool_use":
-                out = await run_tool(block.name, dict(block.input))
-                log.info("tool %s(%s) -> %s", block.name, block.input, json.dumps(out)[:200])
-                results.append(
-                    {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(out)}
-                )
-        hist.append({"role": "user", "content": results})
+    """Process one chat request from a player. Rebuilt on agent.run() in plan 02-05 Task 3."""
+    raise NotImplementedError("the agent loop is being rebuilt on pydantic-ai (plan 02-05)")
