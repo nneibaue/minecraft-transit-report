@@ -73,8 +73,8 @@ class Settings(BaseSettings):
     server_dir: OptionalPath = Field(
         default=None,
         description=(
-            "Server root directory (where run.bat and world/ live) for local deployment; "
-            "required by `uv run deploy`, unused by the bridge itself."
+            "Server root directory (where run.bat and world/ live); "
+            "required by `uv run launch`, unused by the bridge itself."
         ),
     )
 

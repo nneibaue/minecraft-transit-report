@@ -20,7 +20,9 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from bridge.settings import Settings
-from deploy.deploy import REPO_ROOT
+
+# The turtle-helper directory: the bridge runs from here.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def build_launch_commands(settings: Settings, server_dir: Path) -> tuple[list[str], list[str]]:

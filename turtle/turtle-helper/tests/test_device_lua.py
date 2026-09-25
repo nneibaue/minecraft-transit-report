@@ -3,8 +3,9 @@
 There is no Lua runtime on the PC, so the in-game install and boot-time update are pinned
 here at the text level: one pinned raw GitHub base, the download header every device checks,
 download validation before any write, the masked token prompt, no print of the typed token,
-the developer-device marker skip, and no loopback hostname. Same dependency-free TAP layout
-as tests/test_deploy_files.py; every ``test_*`` function is pytest-collectable later.
+no developer-device marker (D-19: every device updates on boot), and no loopback hostname.
+Same dependency-free TAP layout as tests/test_deploy_rules.py; every ``test_*`` function is
+pytest-collectable later.
 
     uv run python tests/test_device_lua.py
 """
@@ -73,9 +74,10 @@ def test_startup_updates_then_detects_role() -> None:
     assert text.index("http.get") < text.index(role_check), "role check runs before the update"
 
 
-def test_startup_skips_update_on_marked_devices() -> None:
-    # The code guard, not just a comment naming the file.
-    assert 'if fs.exists("_marker.txt") then' in lua("startup.lua")
+def test_no_device_file_knows_a_marker() -> None:
+    # D-19 removed the developer deploy path: no device skips the boot-time update.
+    for name in ("startup.lua", "install.lua"):
+        assert "_marker" not in lua(name), f"{name} still mentions _marker"
 
 
 def test_downloads_are_validated_before_writing() -> None:
@@ -120,7 +122,7 @@ TESTS: list[Callable[[], None]] = [
     test_every_url_literal_is_under_the_pinned_base,
     test_no_lua_file_names_the_loopback_hostname,
     test_startup_updates_then_detects_role,
-    test_startup_skips_update_on_marked_devices,
+    test_no_device_file_knows_a_marker,
     test_downloads_are_validated_before_writing,
     test_startup_never_touches_the_token,
     test_install_masks_the_token_and_keeps_an_existing_secret,

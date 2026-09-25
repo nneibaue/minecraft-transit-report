@@ -1,8 +1,6 @@
 -- startup.lua : turtle-helper boot. Updates chat.lua and client.lua from GitHub main, then runs chat or client.
--- install.lua (the in-game wget line) or `uv run deploy` puts this file on the device.
--- A computer holding _marker.txt is a deploy-managed developer device: the GitHub step is
--- skipped so a no-push deploy is not overwritten. Delete _marker.txt to return the device
--- to GitHub updates.
+-- install.lua (the in-game wget line) puts this file on the device; re-run that line to
+-- update this file itself.
 -- Lua changes reach devices by pushing to main and rebooting. Raw GitHub can serve the
 -- previous file for a few minutes after a push.
 
@@ -27,26 +25,22 @@ local function fetch(name, path)
   return body
 end
 
-if fs.exists("_marker.txt") then
-  print("Developer device (_marker.txt, managed by uv run deploy): GitHub update skipped")
-else
-  for _, file in ipairs(FILES) do
-    local name, path = file[1], file[2]
-    local body, reason = fetch(name, path)
-    if body then
-      local current
-      if fs.exists(name) then
-        local h = fs.open(name, "rb"); current = h.readAll(); h.close()
-      end
-      if current == body then
-        print(name .. " up to date")
-      else
-        local h = fs.open(name, "wb"); h.write(body); h.close()
-        print("updated " .. name)
-      end
-    else
-      print(name .. ": " .. tostring(reason) .. "; using the local copy")
+for _, file in ipairs(FILES) do
+  local name, path = file[1], file[2]
+  local body, reason = fetch(name, path)
+  if body then
+    local current
+    if fs.exists(name) then
+      local h = fs.open(name, "rb"); current = h.readAll(); h.close()
     end
+    if current == body then
+      print(name .. " up to date")
+    else
+      local h = fs.open(name, "wb"); h.write(body); h.close()
+      print("updated " .. name)
+    end
+  else
+    print(name .. ": " .. tostring(reason) .. "; using the local copy")
   end
 end
 
