@@ -68,6 +68,14 @@ CARRIED_DESCRIPTIONS = {
     "refuel": "Burn fuel items from the turtle's inventory.",
     "list_devices": "List connected devices, their roles and the tools each supports.",
     "say": "Speak in game chat. Use once at the end with a short summary, not for every step.",
+    # Plan 02-06: the rule tools moved from the device to the bridge (D-08), same descriptions.
+    "list_rules": "Show the sorting rules and overflow chest.",
+    "add_rule": (
+        "Add a sorting rule: items whose id matches the Lua pattern go to dest. "
+        "First matching rule wins."
+    ),
+    "remove_rule": "Remove a sorting rule by its exact pattern.",
+    "set_overflow": "Set the chest that receives items no rule matches.",
 }
 
 
@@ -276,7 +284,9 @@ def test_every_primitive_is_a_typed_tool_with_the_lua_signature() -> None:
 
 
 # ----------------------------------------------------------------- Task 2: local tools, toolset
-LOCAL_TOOLS = ["list_devices", "say"]
+# Always in the toolset whatever is connected: the two Phase 1 local tools plus the four rule tools
+# plan 02-06 moved onto the bridge (D-08). Sorted, because toolset_names() sorts.
+LOCAL_TOOLS = ["add_rule", "list_devices", "list_rules", "remove_rule", "say", "set_overflow"]
 
 
 def require_build_toolset() -> Any:
