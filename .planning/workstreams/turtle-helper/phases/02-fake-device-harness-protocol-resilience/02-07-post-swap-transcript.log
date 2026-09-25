@@ -1,0 +1,31 @@
+# 02-07 post-swap devices-question transcript (HARN-02, second budgeted paid call; third actual paid call — see below)
+# Captured: 2026-09-24 22:32 local time, operator's PowerShell terminal; pasted verbatim by the operator.
+# Bridge: turtle/turtle-helper/bridge/bridge.py running the fully swapped Pydantic AI agent (Plans 02-05/02-06) plus the
+#   02-07 reply-delivery fix (repo HEAD 7acdc5b at run time), MODEL=claude-haiku-4-5, ws://127.0.0.1:8765, started by the
+#   operator (terminal C) after restarting it onto the current code.
+# Worker side: `uv run harness --role worker --scenario devices-question` (terminal A), started by the operator shortly
+#   before the chat run; registers as harness-worker with client.lua's computer caps and holds for 60 s.
+# Chat side (terminal B, the paid call): `uv run harness --role chat --scenario devices-question --spend`
+#
+# Comparison against 02-04-pre-swap-transcript.log: same wire shape — hello, chat event, one inbound `say` cmd, `result ok`,
+#   `close 1000`, PASS. Expected differences: cid/timestamps, and `"to": "DisraSenkovi"` here versus `"to": null` pre-swap
+#   (post-fix the bridge speaks the final answer to the requesting player when the model does not call say itself, and the
+#   instructions now nudge the model to address the player).
+#
+# Earlier post-swap attempt the same evening, NOT part of the proof: 2026-09-24 22:17, same setup, the model answered in
+#   plain text without calling say and the pre-fix agent dropped the reply; the harness reported
+#   "FAIL: devices-question - harness-chat: no list_devices or say cmd within 30s". Fixed in bcff617 (fix(02-07)).
+#   That attempt was the phase's second paid call; this successful run is the third, one past the two budgeted by D-05,
+#   with the operator's explicit go-ahead.
+#
+# Successful run follows verbatim (hello token redacted by the harness itself):
+
+PS C:\Users\nneib\code\minecraft-transit-report\turtle\turtle-helper> uv run harness --role chat --scenario devices-question --spend
+harness: harness-chat (chat) -> ws://127.0.0.1:8765 scenario=devices-question
+2026-09-24 22:32:44.454 harness-chat -> {"type":"hello","id":"harness-chat","token":"***","role":"chat","caps":["say"]}
+2026-09-24 22:32:46.463 harness-chat -> {"type":"event","name":"chat","user":"DisraSenkovi","text":"$robot what devices are connected?","uuid":"00000000-0000-4000-8000-000000000001","hidden":true}
+2026-09-24 22:32:48.379 harness-chat <- {"type": "cmd", "cid": "59e50799", "tool": "say", "args": {"text": "You've got a worker computer and a chat computer hooked up. The worker handles moving items around and checking inventories, while chat lets me talk to you. What would you like me to help with?", "to": "DisraSenkovi", "prefix": "Robot"}}
+2026-09-24 22:32:48.379 harness-chat -> {"type":"result","cid":"59e50799","ok":true,"data":{"queued":true}}
+devices-question: robot said "You've got a worker computer and a chat computer hooked up. The worker handles moving items around and checking inventories, while chat lets me talk to you. What would you like me to help with?"
+2026-09-24 22:32:48.380 harness-chat <- {"type":"close","code":1000,"reason":""}
+PASS: devices-question
