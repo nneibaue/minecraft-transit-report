@@ -140,7 +140,20 @@ Plans:
   4. A `$robot` request that cannot be fulfilled (worker device missing, tool error) gets a plain-language error reply in chat rather than silence, and the bridge process is still running afterward.
   5. Every Lua runtime error surfaced by the first real run (event signatures, JSON shapes, URL matching, Chat Box call signatures) is fixed in the repo copies of `chat.lua` and `client.lua`, confirmed by diffing the repo files against what's deployed on the devices.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Code only: restore the `$` Advanced Peripherals strips (tracer), DEBUG marker in both device files, D-07 prompt line, push + RAW_MATCH (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — Base computer alone: pre-flight, the ATM9 question with the inline fix loop, the no-second-computer reply and the first devices question (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-03-PLAN.md — Second computer install, devices question #2, tool error, debug off, LOOP-05 byte compare, fix list and paid-call count (Wave 3)
 
 ### Phase 5: Real-Device Resilience & Documentation
 
