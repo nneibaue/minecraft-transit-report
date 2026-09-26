@@ -32,10 +32,10 @@ Requirements for milestone v1.0. Each maps to a roadmap phase.
 ### In-Game Round Trip (LOOP)
 
 - [x] **LOOP-01**: `chat.lua` on an Advanced Computer with a Chat Box attached connects to the local bridge and appears in the bridge log as role `chat`
-- [ ] **LOOP-02**: `client.lua` on a turtle or Advanced Computer connects to the local bridge and appears in the bridge log with its role and capability list
-- [ ] **LOOP-03**: A player in `ALLOWED_PLAYERS` types `$robot what devices are connected?` in game chat and the robot speaks back a correct list of the connected devices
-- [ ] **LOOP-04**: A `$robot` request that cannot be fulfilled (worker device missing, tool error) gets a plain-language error reply in chat rather than silence, and the bridge stays up
-- [ ] **LOOP-05**: Lua runtime errors found on first run (event signatures, JSON shapes, URL matching, Chat Box calls) are fixed in the repo copies of `chat.lua` and `client.lua`, not only on the device
+- [x] **LOOP-02**: `client.lua` on a turtle or Advanced Computer connects to the local bridge and appears in the bridge log with its role and capability list
+- [x] **LOOP-03**: A player in `ALLOWED_PLAYERS` types `$robot what devices are connected?` in game chat and the robot speaks back a correct list of the connected devices
+- [x] **LOOP-04**: A `$robot` request that cannot be fulfilled (worker device missing, tool error) gets a plain-language error reply in chat rather than silence, and the bridge stays up
+- [x] **LOOP-05**: Lua runtime errors found on first run (event signatures, JSON shapes, URL matching, Chat Box calls) are fixed in the repo copies of `chat.lua` and `client.lua`, not only on the device
 
 ### Resilience and Security Proofs (RESIL)
 
@@ -110,10 +110,10 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | SRV-04 | Phase 3 | Complete |
 | SRV-05 | Phase 3 | Complete |
 | LOOP-01 | Phase 4 | Complete |
-| LOOP-02 | Phase 4 | Pending |
-| LOOP-03 | Phase 4 | Pending |
-| LOOP-04 | Phase 4 | Pending |
-| LOOP-05 | Phase 4 | Pending |
+| LOOP-02 | Phase 4 | Complete |
+| LOOP-03 | Phase 4 | Complete |
+| LOOP-04 | Phase 4 | Complete |
+| LOOP-05 | Phase 4 | Complete |
 | RESIL-01 | Phase 5 | Pending |
 | RESIL-02 | Phase 5 | Pending |
 | RESIL-03 | Phase 2 | Complete |

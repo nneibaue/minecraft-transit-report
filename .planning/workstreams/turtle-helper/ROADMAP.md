@@ -140,7 +140,7 @@ Plans:
   4. A `$robot` request that cannot be fulfilled (worker device missing, tool error) gets a plain-language error reply in chat rather than silence, and the bridge process is still running afterward.
   5. Every Lua runtime error surfaced by the first real run (event signatures, JSON shapes, URL matching, Chat Box call signatures) is fixed in the repo copies of `chat.lua` and `client.lua`, confirmed by diffing the repo files against what's deployed on the devices.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -153,7 +153,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 04-03-PLAN.md — Second computer install, devices question #2, tool error, debug off, LOOP-05 byte compare, fix list and paid-call count (Wave 3)
+- [x] 04-03-PLAN.md — Second computer install, devices question #2, tool error, debug off, LOOP-05 byte compare, fix list and paid-call count (Wave 3)
 
 ### Phase 5: Real-Device Resilience & Documentation
 
@@ -193,6 +193,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Bridge Environment | 2/2 | Complete    | 2026-09-20 |
 | 2. Fake Device Harness & Protocol Resilience | 7/7 | Complete    | 2026-09-24 |
 | 3. Local Server Setup | 6/6 | Complete    | 2026-09-25 |
-| 4. In-Game Round Trip | 2/3 | In Progress|  |
+| 4. In-Game Round Trip | 3/3 | In Progress|  |
 | 5. Real-Device Resilience & Documentation | 0/TBD | Not started | - |
 | 6. Remote Host Setup | 0/TBD | Not started | - |

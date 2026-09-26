@@ -5,17 +5,17 @@ milestone_name: Local Round Trip
 current_phase: 04
 current_phase_name: In-Game Round Trip
 current_plan: 3
-status: executing
-stopped_at: Completed 04-02-PLAN.md (chat loop proven with the base computer alone; next 04-03, the second computer)
-last_updated: "2026-09-25T18:02:03.206Z"
+status: verifying
+stopped_at: "Completed 04-03-PLAN.md (Phase 4 complete: both devices proven in game, LOOP-02..05; ready for verification)"
+last_updated: "2026-09-26T03:19:39.366Z"
 last_activity: 2026-09-25
-last_activity_desc: Plan 04-02 complete (chat loop proven in game with the base computer alone; fixes 8b7f082, e6dd9a4)
-state_head: e6dd9a459eac3a78e292b04d5ba79a5067dbe39d
+last_activity_desc: Plan 04-03 complete (second computer device-3 connected, devices question names both, tool error answered, both devices equal main with debug off; Phase 4 ready for verification)
+state_head: f630c0ce3aa19524e6bcc3311e57ee286b814761
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 
 ## Current Position
 
-Phase: 04 (In-Game Round Trip) — EXECUTING
+Phase: 04 (In-Game Round Trip) — COMPLETE (ready for verification)
 Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-09-25 — Plan 04-02 complete (chat loop proven in game, 2 bridge-side fixes); next is 04-03 (the second computer)
+Status: Phase complete — ready for verification
+Last activity: 2026-09-25 — Plan 04-03 complete (second computer proven in game, zero code fixes needed); Phase 4 complete, ready for verification
 
 ## Progress
 
-Progress: [░░░░░░░░░░] 0% (17 of 18 plans)
+Progress: [░░░░░░░░░░] 0% (18 of 18 plans; percent is a known workstream-mode cosmetic)
 
 **Phases Complete:** 3 of 6
 **Current Plan:** 3
@@ -44,9 +44,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 
 ## Session Continuity
 
-**Last session:** 2026-09-25T18:01:54.946Z
+**Last session:** 2026-09-26T03:19:26.441Z
 
-**Stopped At:** Completed 04-02-PLAN.md (chat loop proven with the base computer alone; next 04-03, the second computer)
+**Stopped At:** Completed 04-03-PLAN.md (Phase 4 complete: both devices proven in game, LOOP-02..05; ready for verification)
 **Resume File:** None
 
 ## Performance Metrics
@@ -70,6 +70,7 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 | Phase 03 P06 | 9 min | 5 tasks | 5 files |
 | Phase 04 P01 | 3 min | 4 tasks | 4 files |
 | Phase 04 P02 | 1h 0m | 5 tasks | 4 files |
+| Phase 04 P03 | 9h 15m | 5 tasks | 0 files |
 
 ## Decisions
 
@@ -122,6 +123,9 @@ See: .planning/workstreams/turtle-helper/PROJECT.md (updated 2026-09-24)
 - [Phase 04]: say is the agent's output tool (ToolOutput(say, name="say") in output_type): calling it ends the run, so pydantic-ai never asks for a follow-up text turn; this fixed the in-game duplicate answer + UnexpectedModelBehavior (8b7f082)
 - [Phase 04]: Every Chat Box line is folded to plain ASCII inside bridge.say() (ascii_fold); the prompt line is the preference, the fold is the guarantee (Finding 6, e6dd9a4)
 - [Phase 04]: Finding 1 confirmed in game: AP 0.7.46r strips the $ from hidden chat and chat.lua's restore makes $robot reach the bridge (debug.log: 6 hidden text=robot events, DOLLAR_STRIP_SEEN 6); the chat loop works with the base computer alone and needed no Lua fix beyond 04-01
+- [Phase 04]: The second computer (client.lua) must sit within the server simulation distance of where the player types, in practice a few blocks from the base computer and not touching the Chat Box; a far computer unloads with its chunk and drops off the bridge (placement rule, no code change; computer 2 superseded by computer 3)
+- [Phase 04]: client.lua failure frame {type, cid, ok:false, error} with a /client.lua:<line>: prefix held in game on the first list_chest error and already matches the harness error-envelope key set, so D-10 needed no harness mirror; Phase 4 closed with zero fix(04-03) commits
+- [Phase 04]: Author-directed: during live sessions the orchestrator runs the bridge as a background process with its output captured to logs/bridge-<date>.log; the Phase 5 proof session should plan on that instead of operator-pasted bridge lines
 
 ## Blockers/Concerns
 
